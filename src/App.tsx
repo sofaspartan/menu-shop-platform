@@ -1,0 +1,74 @@
+import { useEffect } from 'react'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { RequireAuth } from '@/components/auth/RequireAuth'
+import { DashboardLayout } from '@/components/layout/DashboardLayout'
+import { LandingPage } from '@/pages/marketing/LandingPage'
+import { LoginPage } from '@/pages/auth/LoginPage'
+import { SignupPage } from '@/pages/auth/SignupPage'
+import { ForgotPasswordPage } from '@/pages/auth/ForgotPasswordPage'
+import { OverviewPage } from '@/pages/dashboard/OverviewPage'
+import { OrdersPage } from '@/pages/dashboard/OrdersPage'
+import { OrderDetailPage } from '@/pages/dashboard/OrderDetailPage'
+import { NewRestaurantPage } from '@/pages/dashboard/NewRestaurantPage'
+import { MenusPage } from '@/pages/dashboard/MenusPage'
+import { ItemsPage } from '@/pages/dashboard/ItemsPage'
+import { ModifiersPage } from '@/pages/dashboard/ModifiersPage'
+import { BrandingPage } from '@/pages/dashboard/BrandingPage'
+import { QrPage } from '@/pages/dashboard/QrPage'
+import { AnalyticsPage } from '@/pages/dashboard/AnalyticsPage'
+import { SchedulingPage } from '@/pages/dashboard/SchedulingPage'
+import { PreviewPage } from '@/pages/dashboard/PreviewPage'
+import { SettingsPage } from '@/pages/dashboard/SettingsPage'
+import { RestaurantPage } from '@/pages/storefront/RestaurantPage'
+import { CheckoutPage } from '@/pages/storefront/CheckoutPage'
+import { OrderTrackerPage } from '@/pages/storefront/OrderTrackerPage'
+import { useAuthStore } from '@/stores/authStore'
+
+export default function App() {
+  const init = useAuthStore((s) => s.init)
+
+  useEffect(() => {
+    void init()
+  }, [init])
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+        <Route
+          path="/dashboard"
+          element={
+            <RequireAuth>
+              <DashboardLayout />
+            </RequireAuth>
+          }
+        >
+          <Route index element={<OverviewPage />} />
+          <Route path="orders" element={<OrdersPage />} />
+          <Route path="orders/:orderId" element={<OrderDetailPage />} />
+          <Route path="menus" element={<MenusPage />} />
+          <Route path="items" element={<ItemsPage />} />
+          <Route path="modifiers" element={<ModifiersPage />} />
+          <Route path="branding" element={<BrandingPage />} />
+          <Route path="qr" element={<QrPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="scheduling" element={<SchedulingPage />} />
+          <Route path="preview" element={<PreviewPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="restaurants/new" element={<NewRestaurantPage />} />
+        </Route>
+
+        <Route path="/r/:slug" element={<RestaurantPage />} />
+        <Route path="/r/:slug/menu/:menuSlug" element={<RestaurantPage />} />
+        <Route path="/r/:slug/checkout" element={<CheckoutPage />} />
+        <Route path="/order/:reference" element={<OrderTrackerPage />} />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}

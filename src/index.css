@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+  --color-ink: #1c1917;
+  --color-muted: #78716c;
+  --color-line: #e7e5e4;
+  --color-canvas: #f4f1ec;
+  --color-panel: #ffffff;
+  --color-brand: #1a3a2f;
+  --color-brand-soft: #e8efeb;
+  --color-accent: #d4652f;
+  --color-gold: #c4a574;
+  --color-success: #2f9e44;
+  --color-warning: #e67700;
+  --color-danger: #c92a2a;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background: var(--color-canvas);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .storefront-shell {
+    --sf-primary: var(--brand-primary, #1a3a2f);
+    --sf-secondary: var(--brand-secondary, #c4a574);
+    --sf-accent: var(--brand-accent, #d4652f);
+    --sf-bg: var(--brand-bg, #f6f1e8);
+    --sf-surface: var(--brand-surface, #fffcf7);
+    --sf-text: var(--brand-text, #1c1917);
+    --sf-button: var(--brand-button, #1a3a2f);
+    --sf-button-text: var(--brand-button-text, #ffffff);
+    --sf-heading: var(--brand-heading, "Fraunces", Georgia, serif);
+    --sf-body: var(--brand-body, "DM Sans", system-ui, sans-serif);
+    --sf-radius: var(--brand-radius, 12px);
+    background: var(--sf-bg);
+    color: var(--sf-text);
+    font-family: var(--sf-body);
+  }
+
+  .storefront-shell h1,
+  .storefront-shell h2,
+  .storefront-shell h3 {
+    font-family: var(--sf-heading);
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.5s ease-out both;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.35s ease-out both;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}

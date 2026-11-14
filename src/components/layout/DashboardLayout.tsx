@@ -1,0 +1,194 @@
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import {
+  BarChart3,
+  ClipboardList,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Palette,
+  QrCode,
+  Settings,
+  Store,
+  UtensilsCrossed,
+  Clock3,
+  Eye,
+  ChevronDown,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useAuthStore } from '@/stores/authStore'
+import { useRestaurantStore } from '@/stores/restaurantStore'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/Button'
+
+const nav = [
+  { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
+  { to: '/dashboard/orders', label: 'Orders', icon: ClipboardList },
+  { to: '/dashboard/menus', label: 'Menus', icon: Menu },
+  { to: '/dashboard/items', label: 'Item library', icon: UtensilsCrossed },
+  { to: '/dashboard/modifiers', label: 'Modifiers', icon: Store },
+  { to: '/dashboard/scheduling', label: 'Scheduling', icon: Clock3 },
+  { to: '/dashboard/branding', label: 'Branding', icon: Palette },
+  { to: '/dashboard/qr', label: 'QR codes', icon: QrCode },
+  { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/dashboard/preview', label: 'Preview', icon: Eye },
+  { to: '/dashboard/settings', label: 'Settings', icon: Settings },
+]
+
+export function DashboardLayout() {
+  const user = useAuthStore((s) => s.user)
+  const signOut = useAuthStore((s) => s.signOut)
+  const { restaurants, currentId, setCurrent, load, loading } = useRestaurantStore()
+  const current = restaurants.find((r) => r.id === currentId) ?? null
+  const navigate = useNavigate()
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [switcherOpen, setSwitcherOpen] = useState(false)
+
+  useEffect(() => {
+    if (user) void load(user.id)
+  }, [user, load])
+
+  if (!user) return null
+
+  return (
+    <div className="min-h-screen bg-[var(--color-canvas)] lg:flex">
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-40 w-72 border-r border-stone-200 bg-white p-4 transition-transform lg:static lg:translate-x-0',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
+        <div className="mb-6 flex items-center gap-3 px-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-brand)] text-white">
+            <UtensilsCrossed className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="font-display text-lg leading-none">MenuShop</div>
+            <div className="text-xs text-stone-500">Restaurant dashboard</div>
+          </div>
+        </div>
+
+        <div className="relative mb-4">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-left"
+            onClick={() => setSwitcherOpen((v) => !v)}
+          >
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium">
+                {current?.name || (loading ? 'Loading…' : 'Select restaurant')}
+              </div>
+              <div className="truncate text-xs text-stone-500">
+                {current ? `/r/${current.slug}` : 'Create or choose a restaurant'}
+              </div>
+            </div>
+            <ChevronDown className="h-4 w-4 shrink-0 text-stone-400" />
+          </button>
+          {switcherOpen ? (
+            <div className="absolute z-20 mt-1 w-full rounded-xl border border-stone-200 bg-white p-1 shadow-lg">
+              {restaurants.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  className={cn(
+                    'block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-stone-50',
+                    r.id === currentId && 'bg-[var(--color-brand-soft)]',
+                  )}
+                  onClick={() => {
+                    setCurrent(r.id)
+                    setSwitcherOpen(false)
+                  }}
+                >
+                  {r.name}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="mt-1 block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-[var(--color-brand)] hover:bg-stone-50"
+                onClick={() => {
+                  setSwitcherOpen(false)
+                  navigate('/dashboard/restaurants/new')
+                }}
+              >
+                + New restaurant
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <nav className="space-y-1">
+          {nav.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-stone-600 hover:bg-stone-50',
+                  isActive && 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]',
+                )
+              }
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="mt-6 border-t border-stone-100 pt-4">
+          <div className="px-3 text-sm font-medium">{user.name}</div>
+          <div className="px-3 text-xs text-stone-500">{user.email}</div>
+          <Button
+            variant="ghost"
+            className="mt-2 w-full justify-start"
+            onClick={async () => {
+              await signOut()
+              navigate('/')
+            }}
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </Button>
+        </div>
+      </aside>
+
+      {mobileOpen ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-30 bg-stone-900/30 lg:hidden"
+          aria-label="Close menu"
+          onClick={() => setMobileOpen(false)}
+        />
+      ) : null}
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-stone-200 bg-white/90 px-4 py-3 backdrop-blur lg:px-8">
+          <button
+            type="button"
+            className="rounded-lg p-2 hover:bg-stone-100 lg:hidden"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open navigation"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="font-medium lg:hidden">{current?.name || 'Dashboard'}</div>
+          <div className="ml-auto flex items-center gap-2">
+            {current ? (
+              <a
+                href={`/r/${current.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-xl border border-stone-200 px-3 py-2 text-sm hover:bg-stone-50"
+              >
+                View storefront
+              </a>
+            ) : null}
+          </div>
+        </header>
+        <main className="flex-1 px-4 py-6 lg:px-8">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  )
+}
