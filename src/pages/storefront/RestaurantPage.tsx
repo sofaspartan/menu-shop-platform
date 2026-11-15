@@ -272,7 +272,7 @@ export function RestaurantPage() {
             <div className="relative mx-auto flex h-full min-h-[inherit] max-w-5xl flex-col justify-end px-4 pb-8 pt-16 sm:px-6 sm:pb-10">
               <div
                 className={cn(
-                  'flex items-end gap-4',
+                  'flex items-start gap-4',
                   restaurant.branding.logoPlacement === 'center' &&
                     'flex-col items-center text-center',
                 )}
@@ -281,8 +281,8 @@ export function RestaurantPage() {
                   <MenuItemImage
                     src={restaurant.logoUrl}
                     alt=""
-                    className="h-16 w-16 rounded-[var(--sf-radius,12px)] border-2 border-white/80 object-cover shadow-lg sm:h-20 sm:w-20"
-                    fallbackClassName="h-16 w-16 rounded-[var(--sf-radius,12px)] border-2 border-white/80 bg-white/20 sm:h-20 sm:w-20"
+                    className="mt-1 h-16 w-16 shrink-0 rounded-[var(--sf-radius,12px)] border-2 border-white/80 object-cover shadow-lg sm:h-20 sm:w-20"
+                    fallbackClassName="mt-1 h-16 w-16 shrink-0 rounded-[var(--sf-radius,12px)] border-2 border-white/80 bg-white/20 sm:h-20 sm:w-20"
                   />
                 ) : null}
                 <div className="min-w-0 flex-1">
