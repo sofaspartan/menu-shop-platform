@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import type { ComboConfig, MenuItem, ModifierGroup, Restaurant } from '@/types'
 import { Modal } from '@/components/ui/Modal'
@@ -8,6 +8,7 @@ import { Textarea, Field } from '@/components/ui/Input'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
 import { useDb } from '@/hooks/useDb'
 import { useBagStore, type BagLine } from '@/stores/bagStore'
+import { useBagAnimationStore } from '@/stores/bagAnimationStore'
 import {
   calculateLineUnitPrice,
   validateModifierSelections,
@@ -35,6 +36,9 @@ export function ItemCustomizer({
   const { db } = useDb()
   const addLine = useBagStore((s) => s.addLine)
   const updateLine = useBagStore((s) => s.updateLine)
+  const startFlight = useBagAnimationStore((s) => s.startFlight)
+  const bumpPulse = useBagAnimationStore((s) => s.bumpPulse)
+  const imageRef = useRef<HTMLDivElement>(null)
 
   const [quantity, setQuantity] = useState(1)
   const [modifiers, setModifiers] = useState<BagModifierSelection[]>([])
@@ -247,15 +251,35 @@ export function ItemCustomizer({
 
     if (editingLine) {
       updateLine(editingLine.id, payload)
-    } else {
-      addLine(payload)
-      void trackEvent({
-        restaurantId: restaurant.id,
-        type: 'item_add_to_bag',
-        itemId: item.id,
-      })
+      onClose()
+      return
     }
+
+    const rect = imageRef.current?.getBoundingClientRect()
+    addLine(payload)
+    void trackEvent({
+      restaurantId: restaurant.id,
+      type: 'item_add_to_bag',
+      itemId: item.id,
+    })
     onClose()
+
+    if (rect && rect.width > 0 && rect.height > 0) {
+      // Close the modal first so the flying image isn't trapped under the dialog overlay.
+      window.requestAnimationFrame(() => {
+        startFlight({
+          imageUrl: item.imageUrl,
+          from: {
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height,
+          },
+        })
+      })
+    } else {
+      bumpPulse()
+    }
   }
 
   if (!item) return null
@@ -266,7 +290,10 @@ export function ItemCustomizer({
   return (
     <Modal open={open} onClose={onClose} wide className="sm:max-w-xl">
       <div className="space-y-5">
-        <div className="overflow-hidden rounded-[var(--sf-radius,12px)]">
+        <div
+          ref={imageRef}
+          className="overflow-hidden rounded-[var(--sf-radius,12px)]"
+        >
           <MenuItemImage
             src={item.imageUrl}
             alt=""

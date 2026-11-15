@@ -15,6 +15,8 @@ import { StorefrontShell } from '@/components/storefront/StorefrontShell'
 import { ItemCustomizer } from '@/components/storefront/ItemCustomizer'
 import { BagDrawer } from '@/components/storefront/BagDrawer'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
+import { FlyToBagOverlay } from '@/components/storefront/FlyToBagOverlay'
+import { useBagAnimationStore } from '@/stores/bagAnimationStore'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -35,8 +37,15 @@ export function RestaurantPage() {
   const previewEnabled = usePreviewStore((s) => s.enabled)
   const simulatedAt = usePreviewStore((s) => s.simulatedAt)
   const bagLines = useBagStore((s) => s.lines)
+  const pulseToken = useBagAnimationStore((s) => s.pulseToken)
+  const [bagPulseKey, setBagPulseKey] = useState(0)
   const trackedVisit = useRef<string | null>(null)
   const trackedMenu = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (pulseToken === 0) return
+    setBagPulseKey(pulseToken)
+  }, [pulseToken])
 
   const [search, setSearch] = useState('')
   const [dietaryFilter, setDietaryFilter] = useState<string | null>(null)
@@ -594,8 +603,13 @@ export function RestaurantPage() {
       <div className="fixed inset-x-0 bottom-0 z-30 p-4 sm:hidden">
         <button
           type="button"
+          data-bag-target
           onClick={() => setBagOpen(true)}
-          className="flex w-full items-center justify-between rounded-2xl bg-[var(--sf-button)] px-5 py-4 text-[var(--sf-button-text)] shadow-lg"
+          className={cn(
+            'flex w-full items-center justify-between rounded-2xl bg-[var(--sf-button)] px-5 py-4 text-[var(--sf-button-text)] shadow-lg',
+            bagPulseKey > 0 && 'bag-catch-pulse',
+          )}
+          key={`mobile-bag-${bagPulseKey}`}
         >
           <span className="flex items-center gap-2 font-medium">
             <ShoppingBag className="h-5 w-5" />
@@ -609,8 +623,13 @@ export function RestaurantPage() {
 
       <button
         type="button"
+        data-bag-target
         onClick={() => setBagOpen(true)}
-        className="fixed bottom-6 right-6 z-30 hidden items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-4 py-3 text-[var(--sf-button-text)] shadow-lg transition-transform hover:-translate-y-0.5 sm:inline-flex"
+        className={cn(
+          'fixed bottom-6 right-6 z-30 hidden items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-4 py-3 text-[var(--sf-button-text)] shadow-lg transition-transform hover:-translate-y-0.5 sm:inline-flex',
+          bagPulseKey > 0 && 'bag-catch-pulse',
+        )}
+        key={`desktop-bag-${bagPulseKey}`}
       >
         <ShoppingBag className="h-5 w-5" />
         <span className="font-medium">Bag{bagCount > 0 ? ` · ${bagCount}` : ''}</span>
@@ -618,6 +637,8 @@ export function RestaurantPage() {
           <span className="text-sm opacity-90">{formatMoney(bagSubtotal)}</span>
         ) : null}
       </button>
+
+      <FlyToBagOverlay />
 
       <BagDrawer
         open={bagOpen}
