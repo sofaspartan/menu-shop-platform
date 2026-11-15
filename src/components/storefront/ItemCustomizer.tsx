@@ -15,6 +15,7 @@ import {
   type BagComboSelection,
   type BagModifierSelection,
 } from '@/lib/pricing'
+import { brandingStyleVars } from '@/lib/brandingCss'
 import { formatMoney, cn } from '@/lib/utils'
 import { trackEvent } from '@/services/analyticsService'
 
@@ -288,7 +289,14 @@ export function ItemCustomizer({
   const isEditing = Boolean(editingLine)
 
   return (
-    <Modal open={open} onClose={onClose} wide className="sm:max-w-xl">
+    <Modal
+      open={open}
+      onClose={onClose}
+      wide
+      shell
+      style={brandingStyleVars(restaurant.branding)}
+      className="sm:max-w-xl"
+    >
       <div className="space-y-5">
         <div
           ref={imageRef}
@@ -440,7 +448,11 @@ export function ItemCustomizer({
           <Button
             type="button"
             size="lg"
-            className="flex-1 bg-[var(--sf-button)] text-[var(--sf-button-text)] hover:opacity-90"
+            className="flex-1 border-0 hover:opacity-90"
+            style={{
+              backgroundColor: restaurant.branding.buttonColor,
+              color: restaurant.branding.buttonTextColor,
+            }}
             onClick={() => void handleSubmit()}
           >
             {isEditing ? 'Update bag' : 'Add to bag'} · {formatMoney(lineTotal)}
