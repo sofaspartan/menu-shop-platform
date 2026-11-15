@@ -3,6 +3,7 @@ import { Copy, Minus, Plus, Pencil, ShoppingBag, Trash2, X } from 'lucide-react'
 import type { Restaurant } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { MenuItemImage } from '@/components/storefront/MenuItemImage'
 import { useBagStore, type BagLine } from '@/stores/bagStore'
 import { formatMoney, cn } from '@/lib/utils'
 import { trackEvent } from '@/services/analyticsService'
@@ -71,17 +72,12 @@ export function BagDrawer({
                   key={line.id}
                   className="flex gap-3 border-b border-stone-100 pb-4 last:border-0"
                 >
-                  {line.imageUrl ? (
-                    <img
-                      src={line.imageUrl}
-                      alt=""
-                      className="h-16 w-16 shrink-0 rounded-[var(--sf-radius,12px)] object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[var(--sf-radius,12px)] bg-stone-100 text-stone-400">
-                      <ShoppingBag className="h-5 w-5" />
-                    </div>
-                  )}
+                  <MenuItemImage
+                    src={line.imageUrl}
+                    alt=""
+                    className="h-16 w-16 shrink-0 rounded-[var(--sf-radius,12px)] object-cover"
+                    fallbackClassName="h-16 w-16 shrink-0 rounded-[var(--sf-radius,12px)]"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">

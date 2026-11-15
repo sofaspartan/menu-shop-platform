@@ -6,12 +6,15 @@ import {
   Phone,
   Search,
   ShoppingBag,
+  SlidersHorizontal,
   UtensilsCrossed,
+  X,
 } from 'lucide-react'
 import type { MenuItem, Restaurant } from '@/types'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
 import { ItemCustomizer } from '@/components/storefront/ItemCustomizer'
 import { BagDrawer } from '@/components/storefront/BagDrawer'
+import { MenuItemImage } from '@/components/storefront/MenuItemImage'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -37,6 +40,7 @@ export function RestaurantPage() {
 
   const [search, setSearch] = useState('')
   const [dietaryFilter, setDietaryFilter] = useState<string | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [bagOpen, setBagOpen] = useState(false)
   const [customizerItem, setCustomizerItem] = useState<MenuItem | null>(null)
   const [priceOverride, setPriceOverride] = useState<number | undefined>()
@@ -203,14 +207,13 @@ export function RestaurantPage() {
           setActiveSection((prev) => (prev === nextId ? prev : nextId))
         }
       },
-      { rootMargin: '-20% 0px -60% 0px', threshold: [0, 0.25, 0.5] },
+      { rootMargin: '-25% 0px -55% 0px', threshold: [0, 0.2, 0.45] },
     )
     for (const s of sections) {
       const el = document.getElementById(`section-${s.id}`)
       if (el) observer.observe(el)
     }
     return () => observer.disconnect()
-    // sectionIdsKey captures section identity without depending on a new array each render
   }, [sectionIdsKey])
 
   function openItem(item: MenuItem, override?: number, line?: BagLine) {
@@ -245,176 +248,231 @@ export function RestaurantPage() {
 
   const accepting = isAcceptingOrders(restaurant, now)
   const hoursSummary = formatHoursSummary(restaurant, now)
+  const activeDietary = dietaryLabels.find((l) => l.id === dietaryFilter)
+  const showCover = restaurant.branding.coverDisplay !== 'none' && restaurant.coverImageUrl
 
   return (
     <StorefrontShell branding={restaurant.branding}>
       <header className="relative">
-        {restaurant.branding.coverDisplay !== 'none' && restaurant.coverImageUrl ? (
+        {showCover ? (
           <div
             className={cn(
               'relative w-full overflow-hidden',
-              restaurant.branding.coverDisplay === 'banner' ? 'h-40 sm:h-52' : 'h-56 sm:h-72',
+              restaurant.branding.coverDisplay === 'banner'
+                ? 'min-h-[220px] sm:min-h-[280px]'
+                : 'min-h-[280px] sm:min-h-[360px]',
             )}
           >
             <img
               src={restaurant.coverImageUrl}
               alt=""
-              className="h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/10" />
+            <div className="relative mx-auto flex h-full min-h-[inherit] max-w-5xl flex-col justify-end px-4 pb-8 pt-16 sm:px-6 sm:pb-10">
+              <div
+                className={cn(
+                  'flex items-end gap-4',
+                  restaurant.branding.logoPlacement === 'center' &&
+                    'flex-col items-center text-center',
+                )}
+              >
+                {restaurant.logoUrl ? (
+                  <MenuItemImage
+                    src={restaurant.logoUrl}
+                    alt=""
+                    className="h-16 w-16 rounded-[var(--sf-radius,12px)] border-2 border-white/80 object-cover shadow-lg sm:h-20 sm:w-20"
+                    fallbackClassName="h-16 w-16 rounded-[var(--sf-radius,12px)] border-2 border-white/80 bg-white/20 sm:h-20 sm:w-20"
+                  />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <div
+                    className={cn(
+                      'mb-3 flex flex-wrap items-center gap-2',
+                      restaurant.branding.logoPlacement === 'center' && 'justify-center',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold tracking-wide',
+                        accepting
+                          ? 'bg-emerald-400/95 text-emerald-950'
+                          : 'bg-amber-300/95 text-amber-950',
+                      )}
+                    >
+                      {accepting
+                        ? 'Accepting orders'
+                        : restaurant.ordering.temporarilyClosed
+                          ? 'Temporarily closed'
+                          : 'Not accepting orders'}
+                    </span>
+                  </div>
+                  <h1 className="font-display text-4xl leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)] sm:text-5xl">
+                    {restaurant.name}
+                  </h1>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
-          <div className="h-24 bg-[var(--sf-primary)]" />
+          <div className="bg-[var(--sf-primary)] px-4 py-10 text-white sm:px-6">
+            <div className="mx-auto max-w-5xl">
+              <h1 className="font-display text-4xl sm:text-5xl">{restaurant.name}</h1>
+            </div>
+          </div>
         )}
 
-        <div className="relative mx-auto max-w-5xl px-4 pb-6 sm:px-6">
-          <div
-            className={cn(
-              'flex gap-4',
-              restaurant.branding.logoPlacement === 'center'
-                ? '-mt-12 flex-col items-center text-center'
-                : '-mt-10 items-end sm:-mt-12',
-            )}
-          >
-            {restaurant.logoUrl ? (
-              <img
-                src={restaurant.logoUrl}
-                alt=""
-                className="h-20 w-20 rounded-[var(--sf-radius,12px)] border-4 border-[var(--sf-surface)] object-cover shadow-md sm:h-24 sm:w-24"
-              />
-            ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-[var(--sf-radius,12px)] border-4 border-[var(--sf-surface)] bg-[var(--sf-primary)] text-white shadow-md sm:h-24 sm:w-24">
-                <UtensilsCrossed className="h-8 w-8" />
-              </div>
-            )}
-            <div className="min-w-0 flex-1 pb-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-3xl text-[var(--sf-text)] sm:text-4xl">
-                  {restaurant.name}
-                </h1>
-                <Badge tone={accepting ? 'success' : 'warning'}>
-                  {accepting
-                    ? 'Accepting orders'
-                    : restaurant.ordering.temporarilyClosed
-                      ? 'Temporarily closed'
-                      : 'Not accepting orders'}
-                </Badge>
-              </div>
-              <p className="mt-2 max-w-2xl text-sm text-[var(--sf-text)]/70">
-                {restaurant.description}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--sf-text)]/60">
-                {restaurant.address.line1 ? (
-                  <span className="inline-flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5" />
+        <div className="border-b border-stone-200/70 bg-[var(--sf-surface)]">
+          <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6">
+            <p className="max-w-3xl text-[15px] leading-relaxed text-[var(--sf-text)]/80">
+              {restaurant.description}
+            </p>
+            <div className="mt-4 flex flex-col gap-2 text-sm text-[var(--sf-text)]/70 sm:flex-row sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
+              {restaurant.address.line1 ? (
+                <span className="inline-flex items-start gap-2">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[var(--sf-primary)]" />
+                  <span>
                     {restaurant.address.line1}
                     {restaurant.address.city ? `, ${restaurant.address.city}` : ''}
                   </span>
-                ) : null}
-                {restaurant.phone ? (
-                  <span className="inline-flex items-center gap-1">
-                    <Phone className="h-3.5 w-3.5" />
-                    {formatPhone(restaurant.phone)}
-                  </span>
-                ) : null}
-                <span className="inline-flex items-center gap-1">
-                  <Clock3 className="h-3.5 w-3.5" />
-                  {hoursSummary}
                 </span>
-              </div>
+              ) : null}
+              {restaurant.phone ? (
+                <a
+                  href={`tel:${restaurant.phone}`}
+                  className="inline-flex items-center gap-2 hover:text-[var(--sf-primary)]"
+                >
+                  <Phone className="h-4 w-4 shrink-0 text-[var(--sf-primary)]" />
+                  {formatPhone(restaurant.phone)}
+                </a>
+              ) : null}
+              <span className="inline-flex items-center gap-2">
+                <Clock3 className="h-4 w-4 shrink-0 text-[var(--sf-primary)]" />
+                {hoursSummary}
+              </span>
             </div>
           </div>
         </div>
       </header>
 
-      {menus.length > 1 ? (
-        <nav className="border-b border-stone-200/80 bg-[var(--sf-surface)]/80 px-4 py-3 backdrop-blur sm:px-6">
-          <div className="mx-auto flex max-w-5xl gap-2 overflow-x-auto">
-            {menus.map((menu) => {
-              const active = selectedMenu?.id === menu.id
-              return (
-                <Link
-                  key={menu.id}
-                  to={`/r/${restaurant.slug}/menu/${menu.slug}`}
-                  className={cn(
-                    'shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors',
-                    active
-                      ? 'bg-[var(--sf-button)] text-[var(--sf-button-text)]'
-                      : 'bg-stone-100 text-stone-700 hover:bg-stone-200',
-                  )}
-                >
-                  {menu.name}
-                </Link>
-              )
-            })}
-          </div>
-        </nav>
-      ) : null}
+      <div className="sticky top-0 z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur">
+        <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
+          {menus.length > 1 ? (
+            <div className="mb-3 flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {menus.map((menu) => {
+                const active = selectedMenu?.id === menu.id
+                return (
+                  <Link
+                    key={menu.id}
+                    to={`/r/${restaurant.slug}/menu/${menu.slug}`}
+                    className={cn(
+                      'shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                      active
+                        ? 'bg-[var(--sf-button)] text-[var(--sf-button-text)]'
+                        : 'bg-[var(--sf-surface)] text-[var(--sf-text)]/75 ring-1 ring-stone-200/80 hover:bg-white',
+                    )}
+                  >
+                    {menu.name}
+                  </Link>
+                )
+              })}
+            </div>
+          ) : null}
 
-      <div className="sticky top-0 z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-4 py-3 sm:px-6">
-          <div className="flex flex-wrap gap-2">
-            <div className="relative min-w-[200px] flex-1">
+          <div className="flex items-center gap-2">
+            <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search the menu"
-                className="pl-9"
+                className="h-11 border-stone-200/90 bg-[var(--sf-surface)] pl-9"
                 aria-label="Search menu"
               />
-            </div>
-            {dietaryLabels.length ? (
-              <div className="flex flex-wrap gap-1.5">
+              {search ? (
                 <button
                   type="button"
-                  onClick={() => setDietaryFilter(null)}
-                  className={cn(
-                    'rounded-lg px-3 py-2 text-xs font-medium',
-                    !dietaryFilter
-                      ? 'bg-[var(--sf-primary)] text-white'
-                      : 'bg-stone-100 text-stone-600',
-                  )}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
                 >
-                  All
+                  <X className="h-4 w-4" />
                 </button>
-                {dietaryLabels.map((label) => (
-                  <button
-                    key={label.id}
-                    type="button"
-                    onClick={() =>
-                      setDietaryFilter((v) => (v === label.id ? null : label.id))
-                    }
-                    className={cn(
-                      'rounded-lg px-3 py-2 text-xs font-medium',
-                      dietaryFilter === label.id
-                        ? 'bg-[var(--sf-primary)] text-white'
-                        : 'bg-stone-100 text-stone-600',
-                    )}
-                  >
-                    {label.name}
-                  </button>
-                ))}
-              </div>
+              ) : null}
+            </div>
+            {dietaryLabels.length ? (
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((v) => !v)}
+                className={cn(
+                  'inline-flex h-11 shrink-0 items-center gap-2 rounded-xl px-3 text-sm font-medium ring-1 transition-colors',
+                  filtersOpen || dietaryFilter
+                    ? 'bg-[var(--sf-primary)] text-white ring-[var(--sf-primary)]'
+                    : 'bg-[var(--sf-surface)] text-[var(--sf-text)]/80 ring-stone-200/80 hover:bg-white',
+                )}
+                aria-expanded={filtersOpen}
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="hidden sm:inline">
+                  {activeDietary ? activeDietary.name : 'Filters'}
+                </span>
+              </button>
             ) : null}
           </div>
 
-          {sections.length > 1 ? (
-            <div className="flex gap-2 overflow-x-auto pb-0.5">
-              {sections.map((s) => (
-                <a
-                  key={s.id}
-                  href={`#section-${s.id}`}
+          {filtersOpen && dietaryLabels.length ? (
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <button
+                type="button"
+                onClick={() => setDietaryFilter(null)}
+                className={cn(
+                  'shrink-0 rounded-full px-3.5 py-2 text-sm font-medium',
+                  !dietaryFilter
+                    ? 'bg-[var(--sf-primary)] text-white'
+                    : 'bg-[var(--sf-surface)] text-[var(--sf-text)]/70 ring-1 ring-stone-200',
+                )}
+              >
+                All
+              </button>
+              {dietaryLabels.map((label) => (
+                <button
+                  key={label.id}
+                  type="button"
+                  onClick={() =>
+                    setDietaryFilter((v) => (v === label.id ? null : label.id))
+                  }
                   className={cn(
-                    'shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                    activeSection === `section-${s.id}`
-                      ? 'bg-[var(--sf-accent)] text-white'
-                      : 'text-[var(--sf-text)]/70 hover:bg-stone-100',
+                    'shrink-0 rounded-full px-3.5 py-2 text-sm font-medium',
+                    dietaryFilter === label.id
+                      ? 'bg-[var(--sf-primary)] text-white'
+                      : 'bg-[var(--sf-surface)] text-[var(--sf-text)]/70 ring-1 ring-stone-200',
                   )}
                 >
-                  {s.name}
-                </a>
+                  {label.name}
+                </button>
               ))}
+            </div>
+          ) : null}
+
+          {sections.length > 1 ? (
+            <div className="mt-3 flex gap-1 overflow-x-auto border-t border-stone-200/70 pt-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {sections.map((s) => {
+                const active = activeSection === `section-${s.id}`
+                return (
+                  <a
+                    key={s.id}
+                    href={`#section-${s.id}`}
+                    className={cn(
+                      'shrink-0 border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+                      active
+                        ? 'border-[var(--sf-accent)] text-[var(--sf-text)]'
+                        : 'border-transparent text-[var(--sf-text)]/55 hover:text-[var(--sf-text)]',
+                    )}
+                  >
+                    {s.name}
+                  </a>
+                )
+              })}
             </div>
           ) : null}
         </div>
@@ -430,33 +488,24 @@ export function RestaurantPage() {
           <>
             {featured.length > 0 && !search && !dietaryFilter ? (
               <section className="mb-10 animate-fade-up">
-                <h2 className="mb-4 text-2xl">Featured</h2>
-                <div className="flex gap-4 overflow-x-auto pb-2">
+                <h2 className="mb-4 font-display text-2xl text-[var(--sf-text)]">Featured</h2>
+                <div className="flex gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {featured.map(({ item, assignment }) => (
                     <button
                       key={assignment.id}
                       type="button"
-                      onClick={() =>
-                        openItem(item, assignment.priceOverrideCents)
-                      }
-                      className="w-56 shrink-0 text-left transition-transform hover:-translate-y-0.5"
+                      onClick={() => openItem(item, assignment.priceOverrideCents)}
+                      className="w-60 shrink-0 text-left transition-transform hover:-translate-y-0.5"
                     >
-                      {item.imageUrl ? (
-                        <img
-                          src={item.imageUrl}
-                          alt=""
-                          className="mb-2 h-36 w-full rounded-[var(--sf-radius,12px)] object-cover"
-                        />
-                      ) : (
-                        <div className="mb-2 flex h-36 items-center justify-center rounded-[var(--sf-radius,12px)] bg-stone-200/60">
-                          <UtensilsCrossed className="h-6 w-6 text-stone-400" />
-                        </div>
-                      )}
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-[var(--sf-primary)]">
-                        {formatMoney(
-                          assignment.priceOverrideCents ?? item.basePriceCents,
-                        )}
+                      <MenuItemImage
+                        src={item.imageUrl}
+                        alt=""
+                        className="mb-3 h-40 w-full rounded-[var(--sf-radius,12px)] object-cover"
+                        fallbackClassName="mb-3 h-40 w-full rounded-[var(--sf-radius,12px)]"
+                      />
+                      <p className="font-medium text-[var(--sf-text)]">{item.name}</p>
+                      <p className="mt-0.5 text-sm font-semibold text-[var(--sf-primary)]">
+                        {formatMoney(assignment.priceOverrideCents ?? item.basePriceCents)}
                       </p>
                     </button>
                   ))}
@@ -468,23 +517,20 @@ export function RestaurantPage() {
               <section
                 key={section.id}
                 id={`section-${section.id}`}
-                className="mb-12 scroll-mt-36 animate-fade-up"
+                className="mb-12 scroll-mt-44 animate-fade-up"
                 style={{ animationDelay: `${Math.min(idx, 4) * 60}ms` }}
               >
-                <h2 className="text-2xl">{section.name}</h2>
+                <h2 className="font-display text-2xl text-[var(--sf-text)]">{section.name}</h2>
                 {section.description ? (
-                  <p className="mt-1 text-sm text-[var(--sf-text)]/60">
-                    {section.description}
-                  </p>
+                  <p className="mt-1 text-sm text-[var(--sf-text)]/60">{section.description}</p>
                 ) : null}
                 {items.length === 0 ? (
                   <p className="mt-4 text-sm text-stone-500">No items match your filters.</p>
                 ) : (
-                  <ul className="mt-4 divide-y divide-stone-200/80">
+                  <ul className="mt-4 divide-y divide-stone-200/70">
                     {items.map(({ item, assignment }) => {
                       const available = isItemOrderable(item, now)
-                      const price =
-                        assignment.priceOverrideCents ?? item.basePriceCents
+                      const price = assignment.priceOverrideCents ?? item.basePriceCents
                       const labels = dietaryLabels.filter((l) =>
                         item.dietaryLabelIds.includes(l.id),
                       )
@@ -493,46 +539,46 @@ export function RestaurantPage() {
                           <button
                             type="button"
                             disabled={!available}
-                            onClick={() =>
-                              openItem(item, assignment.priceOverrideCents)
-                            }
+                            onClick={() => openItem(item, assignment.priceOverrideCents)}
                             className={cn(
-                              'flex w-full gap-4 py-4 text-left transition-opacity',
-                              available
-                                ? 'hover:opacity-90'
-                                : 'cursor-not-allowed opacity-55',
+                              'flex w-full gap-4 py-5 text-left transition-opacity',
+                              available ? 'hover:opacity-90' : 'cursor-not-allowed opacity-55',
                             )}
                           >
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <h3 className="font-medium text-[var(--sf-text)]">
+                                <h3 className="text-base font-semibold text-[var(--sf-text)]">
                                   {item.name}
                                 </h3>
                                 {!available ? (
-                                  <Badge tone="warning">
-                                    {unavailableLabel(item)}
-                                  </Badge>
+                                  <Badge tone="warning">{unavailableLabel(item)}</Badge>
                                 ) : null}
-                                {labels.map((l) => (
-                                  <Badge key={l.id} tone="brand">
-                                    {l.name}
-                                  </Badge>
-                                ))}
                               </div>
-                              <p className="mt-1 line-clamp-2 text-sm text-[var(--sf-text)]/60">
+                              <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-[var(--sf-text)]/65">
                                 {item.shortDescription}
                               </p>
-                              <p className="mt-2 text-sm font-semibold text-[var(--sf-primary)]">
+                              {labels.length ? (
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {labels.slice(0, 3).map((l) => (
+                                    <span
+                                      key={l.id}
+                                      className="rounded-md bg-[color-mix(in_srgb,var(--sf-primary)_10%,white)] px-2 py-0.5 text-[11px] font-medium text-[var(--sf-primary)]"
+                                    >
+                                      {l.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : null}
+                              <p className="mt-3 text-sm font-semibold text-[var(--sf-primary)]">
                                 {formatMoney(price)}
                               </p>
                             </div>
-                            {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt=""
-                                className="h-24 w-24 shrink-0 rounded-[var(--sf-radius,12px)] object-cover sm:h-28 sm:w-28"
-                              />
-                            ) : null}
+                            <MenuItemImage
+                              src={item.imageUrl}
+                              alt=""
+                              className="h-24 w-24 shrink-0 rounded-[var(--sf-radius,12px)] object-cover sm:h-28 sm:w-28"
+                              fallbackClassName="h-24 w-24 shrink-0 rounded-[var(--sf-radius,12px)] sm:h-28 sm:w-28"
+                            />
                           </button>
                         </li>
                       )
@@ -567,9 +613,7 @@ export function RestaurantPage() {
         className="fixed bottom-6 right-6 z-30 hidden items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-4 py-3 text-[var(--sf-button-text)] shadow-lg transition-transform hover:-translate-y-0.5 sm:inline-flex"
       >
         <ShoppingBag className="h-5 w-5" />
-        <span className="font-medium">
-          Bag{bagCount > 0 ? ` · ${bagCount}` : ''}
-        </span>
+        <span className="font-medium">Bag{bagCount > 0 ? ` · ${bagCount}` : ''}</span>
         {bagCount > 0 ? (
           <span className="text-sm opacity-90">{formatMoney(bagSubtotal)}</span>
         ) : null}
@@ -613,7 +657,7 @@ function unavailableLabel(item: MenuItem) {
     case 'temporarily_unavailable':
       return 'Unavailable'
     default:
-      return item.active ? 'Unavailable' : 'Unavailable'
+      return 'Unavailable'
   }
 }
 

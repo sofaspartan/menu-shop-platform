@@ -22,7 +22,8 @@ export async function getDb(): Promise<AppDatabase> {
   initPromise = (async () => {
     const adapter = getPersistenceAdapter()
     const existing = await adapter.load()
-    if (existing && existing.version === 1) {
+    // Bump when seed assets/schema change so demos refresh cleanly.
+    if (existing && existing.version === 2) {
       memory = existing
       return existing
     }

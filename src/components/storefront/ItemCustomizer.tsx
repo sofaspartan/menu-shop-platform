@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Textarea, Field } from '@/components/ui/Input'
+import { MenuItemImage } from '@/components/storefront/MenuItemImage'
 import { useDb } from '@/hooks/useDb'
 import { useBagStore, type BagLine } from '@/stores/bagStore'
 import {
@@ -265,15 +266,14 @@ export function ItemCustomizer({
   return (
     <Modal open={open} onClose={onClose} wide className="sm:max-w-xl">
       <div className="space-y-5">
-        {item.imageUrl ? (
-          <div className="overflow-hidden rounded-[var(--sf-radius,12px)]">
-            <img
-              src={item.imageUrl}
-              alt=""
-              className="h-48 w-full object-cover sm:h-56"
-            />
-          </div>
-        ) : null}
+        <div className="overflow-hidden rounded-[var(--sf-radius,12px)]">
+          <MenuItemImage
+            src={item.imageUrl}
+            alt=""
+            className="h-48 w-full object-cover sm:h-56"
+            fallbackClassName="h-48 w-full sm:h-56"
+          />
+        </div>
 
         <div>
           <h2 className="text-2xl text-[var(--sf-text)]">{item.name}</h2>

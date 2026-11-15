@@ -28,7 +28,7 @@ const IMAGES = {
   pancakes:
     'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=800&q=80',
   eggsBenedict:
-    'https://images.unsplash.com/photo-1608039829574-aaa57285931c?w=800&q=80',
+    'https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?w=800&q=80',
   yogurt:
     'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=800&q=80',
   burger:
@@ -46,11 +46,11 @@ const IMAGES = {
   salmon:
     'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=800&q=80',
   steak:
-    'https://images.unsplash.com/photo-1600891964092-4316c14c11f1?w=800&q=80',
+    'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=800&q=80',
   pasta:
     'https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=800&q=80',
   roastChicken:
-    'https://images.unsplash.com/photo-1598103442097-8b570ab25e8e?w=800&q=80',
+    'https://images.unsplash.com/photo-1532550907401-a500c9a57435?w=800&q=80',
   risotto:
     'https://images.unsplash.com/photo-1476124369491-e7addf5db371?w=800&q=80',
   latte:
@@ -58,7 +58,7 @@ const IMAGES = {
   coldBrew:
     'https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=800&q=80',
   lemonade:
-    'https://images.unsplash.com/photo-1523677011783-c91d1bbe2fdc?w=800&q=80',
+    'https://images.unsplash.com/photo-1621263764928-df1444c5e859?w=800&q=80',
   cocktail:
     'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&q=80',
   chocolateCake:
@@ -1207,7 +1207,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   ]
 
   return {
-    version: 1,
+    version: 2,
     users: [
       {
         id: userId,
