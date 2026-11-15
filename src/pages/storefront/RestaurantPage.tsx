@@ -286,9 +286,12 @@ export function RestaurantPage() {
                   />
                 ) : null}
                 <div className="min-w-0 flex-1">
+                  <h1 className="font-display text-4xl leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)] sm:text-5xl">
+                    {restaurant.name}
+                  </h1>
                   <div
                     className={cn(
-                      'mb-3 flex flex-wrap items-center gap-2',
+                      'mt-3 flex flex-wrap items-center gap-2',
                       restaurant.branding.logoPlacement === 'center' && 'justify-center',
                     )}
                   >
@@ -307,9 +310,6 @@ export function RestaurantPage() {
                           : 'Not accepting orders'}
                     </span>
                   </div>
-                  <h1 className="font-display text-4xl leading-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.45)] sm:text-5xl">
-                    {restaurant.name}
-                  </h1>
                 </div>
               </div>
             </div>
