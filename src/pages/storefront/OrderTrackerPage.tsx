@@ -1,17 +1,16 @@
 import { useMemo } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import {
-  Check,
   CheckCircle2,
   Clock3,
   MapPin,
   Package,
+  Phone,
   Truck,
   UtensilsCrossed,
 } from 'lucide-react'
 import type { Order, OrderStatus, Restaurant } from '@/types'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
-import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { useDb } from '@/hooks/useDb'
 import { formatMoney, formatPhone, cn } from '@/lib/utils'
@@ -63,13 +62,33 @@ export function OrderTrackerPage() {
   }
 
   const branding = restaurant?.branding ?? DEFAULT_BRANDING
-  const steps = timelineSteps(order)
-  const statusLabel = statusDisplayLabel(order)
-  const isTerminal = order.status === 'completed' || order.status === 'cancelled'
+  const steps = trackerSteps(order)
+  const headline = statusHeadline(order)
+  const subtitle = statusSubtitle(order, restaurant?.name)
+  const StatusIcon = iconFor(order.status)
+  const filledCount = steps.filter((s) => s.state === 'done' || s.state === 'current').length
+  const isCancelled = order.status === 'cancelled'
+
+  const estimatedLabel = order.estimatedReadyAt
+    ? new Date(order.estimatedReadyAt).toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : null
+
+  const dayLabel = order.estimatedReadyAt
+    ? isSameDay(new Date(order.estimatedReadyAt), new Date())
+      ? 'Today'
+      : new Date(order.estimatedReadyAt).toLocaleDateString([], {
+          weekday: 'long',
+          month: 'short',
+          day: 'numeric',
+        })
+    : null
 
   return (
     <StorefrontShell branding={branding}>
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-lg px-5 py-8 sm:px-6">
         {justPlaced ? (
           <div className="mb-6 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 animate-fade-up">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
@@ -82,151 +101,134 @@ export function OrderTrackerPage() {
           </div>
         ) : null}
 
-        <div className="animate-fade-up">
-          <p className="text-sm font-medium uppercase tracking-wider text-[var(--sf-primary)]">
-            {restaurant?.name ?? 'Your order'}
+        <div className="animate-fade-up text-center">
+          <p className="text-sm text-[var(--sf-text)]/55">
+            {restaurant?.name ?? 'Your order'} · #{order.orderNumber}
           </p>
-          <h1 className="mt-1 text-3xl sm:text-4xl">Order #{order.orderNumber}</h1>
-          <p className="mt-1 text-sm text-[var(--sf-text)]/60">
-            Reference {order.reference}
+          <div
+            className={cn(
+              'mx-auto mt-6 flex h-20 w-20 items-center justify-center rounded-full',
+              isCancelled
+                ? 'bg-red-50 text-red-600'
+                : 'bg-[color-mix(in_srgb,var(--sf-accent)_14%,white)] text-[var(--sf-accent)]',
+            )}
+          >
+            <StatusIcon className="h-10 w-10" strokeWidth={1.5} />
+          </div>
+          <h1 className="mt-5 font-display text-3xl tracking-tight text-[var(--sf-text)] sm:text-4xl">
+            {headline}
+          </h1>
+          <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-[var(--sf-text)]/65">
+            {subtitle}
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Badge
-              tone={
-                order.status === 'cancelled'
-                  ? 'danger'
-                  : order.status === 'completed'
-                    ? 'success'
-                    : 'brand'
-              }
-            >
-              {statusLabel}
-            </Badge>
-            <Badge tone="neutral">
-              {order.fulfillment.type === 'delivery' ? 'Delivery' : 'Pickup'}
-            </Badge>
+
+          <div
+            className="mt-8 flex gap-1.5"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={steps.length}
+            aria-valuenow={filledCount}
+            aria-label="Order progress"
+          >
+            {steps.map((step) => {
+              const filled = step.state === 'done' || step.state === 'current'
+              return (
+                <span
+                  key={step.status}
+                  title={step.label}
+                  className={cn(
+                    'h-2.5 flex-1 rounded-full transition-colors duration-500',
+                    filled
+                      ? isCancelled
+                        ? 'bg-red-500'
+                        : 'bg-[var(--sf-accent)]'
+                      : 'bg-stone-200',
+                    step.state === 'current' && !isCancelled && 'animate-pulse-soft',
+                  )}
+                />
+              )
+            })}
+          </div>
+          <div className="mt-3 flex justify-between gap-2 text-[11px] text-[var(--sf-text)]/45">
+            {steps.map((step) => (
+              <span
+                key={`label-${step.status}`}
+                className={cn(
+                  'min-w-0 flex-1 truncate text-center',
+                  (step.state === 'done' || step.state === 'current') &&
+                    'font-medium text-[var(--sf-text)]/70',
+                )}
+              >
+                {step.shortLabel}
+              </span>
+            ))}
           </div>
         </div>
 
-        <section className="mt-10 animate-fade-up" style={{ animationDelay: '80ms' }}>
-          <h2 className="mb-5 text-xl">Progress</h2>
-          <ol className="relative space-y-0">
-            {steps.map((step, index) => {
-              const done = step.state === 'done'
-              const current = step.state === 'current'
-              const upcoming = step.state === 'upcoming'
-              return (
-                <li key={step.status} className="relative flex gap-4 pb-8 last:pb-0">
-                  {index < steps.length - 1 ? (
-                    <span
-                      className={cn(
-                        'absolute left-[15px] top-8 h-[calc(100%-16px)] w-0.5',
-                        done ? 'bg-[var(--sf-primary)]' : 'bg-stone-200',
-                      )}
-                    />
-                  ) : null}
-                  <span
-                    className={cn(
-                      'relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2',
-                      done && 'border-[var(--sf-primary)] bg-[var(--sf-primary)] text-white',
-                      current &&
-                        'border-[var(--sf-accent)] bg-[var(--sf-accent)] text-white animate-pulse-soft',
-                      upcoming && 'border-stone-200 bg-[var(--sf-surface)] text-stone-400',
-                    )}
-                  >
-                    {done ? <Check className="h-4 w-4" /> : <step.icon className="h-4 w-4" />}
-                  </span>
-                  <div className="pt-0.5">
-                    <p
-                      className={cn(
-                        'font-medium',
-                        upcoming ? 'text-[var(--sf-text)]/45' : 'text-[var(--sf-text)]',
-                      )}
-                    >
-                      {step.label}
-                    </p>
-                    {step.at ? (
-                      <p className="text-xs text-[var(--sf-text)]/55">
-                        {new Date(step.at).toLocaleString()}
-                      </p>
-                    ) : current && !isTerminal ? (
-                      <p className="text-xs text-[var(--sf-accent)]">In progress</p>
-                    ) : null}
-                  </div>
-                </li>
-              )
-            })}
-          </ol>
-        </section>
+        {(dayLabel || estimatedLabel) && !isCancelled ? (
+          <section className="mt-10 border-t border-stone-200 pt-6 animate-fade-up">
+            {dayLabel ? (
+              <p className="text-xl font-semibold text-[var(--sf-text)]">{dayLabel}</p>
+            ) : null}
+            {estimatedLabel ? (
+              <p className="mt-1 flex items-center gap-2 text-[15px] text-[var(--sf-text)]/65">
+                <Clock3 className="h-4 w-4 shrink-0" />
+                {order.fulfillment.type === 'delivery'
+                  ? `Estimated arrival ${estimatedLabel}`
+                  : `Estimated ready ${estimatedLabel}`}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
-        <div className="mt-10 grid gap-6 sm:grid-cols-2">
-          <section className="rounded-[var(--sf-radius,12px)] border border-stone-200 bg-[var(--sf-surface)] p-5 animate-fade-up">
-            <h2 className="mb-3 text-lg font-medium">Fulfillment</h2>
-            <dl className="space-y-2 text-sm">
-              <div>
-                <dt className="text-[var(--sf-text)]/55">Type</dt>
-                <dd className="font-medium capitalize">{order.fulfillment.type}</dd>
-              </div>
-              <div>
-                <dt className="text-[var(--sf-text)]/55">Customer</dt>
-                <dd className="font-medium">{order.customer.name}</dd>
-                <dd className="text-[var(--sf-text)]/70">
-                  {formatPhone(order.customer.phone)}
-                </dd>
-              </div>
+        <section className="mt-6 border-t border-stone-200 pt-6 animate-fade-up">
+          <div className="flex items-start gap-3">
+            <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[var(--sf-text)]/45" />
+            <div className="min-w-0 text-[15px] text-[var(--sf-text)]">
               {order.fulfillment.address ? (
-                <div>
-                  <dt className="flex items-center gap-1 text-[var(--sf-text)]/55">
-                    <MapPin className="h-3.5 w-3.5" /> Address
-                  </dt>
-                  <dd>
+                <>
+                  <p className="font-medium">
                     {order.fulfillment.address.line1}
                     {order.fulfillment.address.line2
                       ? `, ${order.fulfillment.address.line2}`
                       : ''}
-                    <br />
+                  </p>
+                  <p className="text-[var(--sf-text)]/65">
                     {order.fulfillment.address.city}, {order.fulfillment.address.state}{' '}
                     {order.fulfillment.address.postalCode}
-                  </dd>
-                </div>
+                  </p>
+                </>
               ) : restaurant ? (
-                <PickupAddress restaurant={restaurant} />
-              ) : null}
+                <PickupAddress inline restaurant={restaurant} />
+              ) : (
+                <p>Pickup</p>
+              )}
               {order.fulfillment.instructions ? (
-                <div>
-                  <dt className="text-[var(--sf-text)]/55">Instructions</dt>
-                  <dd>{order.fulfillment.instructions}</dd>
-                </div>
+                <p className="mt-2 text-sm text-[var(--sf-text)]/55">
+                  {order.fulfillment.instructions}
+                </p>
               ) : null}
-              {order.estimatedReadyAt ? (
-                <div>
-                  <dt className="flex items-center gap-1 text-[var(--sf-text)]/55">
-                    <Clock3 className="h-3.5 w-3.5" /> Estimated ready
-                  </dt>
-                  <dd className="font-medium">
-                    {new Date(order.estimatedReadyAt).toLocaleTimeString([], {
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-          </section>
+            </div>
+          </div>
+        </section>
 
-          <section className="rounded-[var(--sf-radius,12px)] border border-stone-200 bg-[var(--sf-surface)] p-5 animate-fade-up">
-            <h2 className="mb-3 text-lg font-medium">Payment</h2>
-            <p className="text-sm text-[var(--sf-text)]/80">{order.payment.message}</p>
-            <p className="mt-2 text-xs text-[var(--sf-text)]/55">
-              Card ending {order.payment.simulatedCardLast4} · {order.payment.status}
+        {restaurant?.phone ? (
+          <section className="mt-8 rounded-2xl bg-stone-100/90 p-5 animate-fade-up">
+            <p className="font-medium text-[var(--sf-text)]">Need help?</p>
+            <p className="mt-1 text-sm text-[var(--sf-text)]/60">
+              Contact {restaurant.name} about order #{order.orderNumber}.
             </p>
-            <p className="mt-4 text-2xl font-semibold">
-              {formatMoney(order.pricing.totalCents)}
-            </p>
+            <a
+              href={`tel:${restaurant.phone}`}
+              className="mt-4 inline-flex h-12 items-center gap-2 rounded-full border border-stone-200 bg-white px-5 text-sm font-semibold text-[var(--sf-text)] shadow-sm"
+            >
+              <Phone className="h-4 w-4" />
+              {formatPhone(restaurant.phone)}
+            </a>
           </section>
-        </div>
+        ) : null}
 
-        <section className="mt-6 rounded-[var(--sf-radius,12px)] border border-stone-200 bg-[var(--sf-surface)] p-5 animate-fade-up">
+        <section className="mt-8 rounded-[var(--sf-radius,12px)] border border-stone-200 bg-[var(--sf-surface)] p-5 animate-fade-up">
           <h2 className="mb-4 text-lg font-medium">Order summary</h2>
           <ul className="space-y-3">
             {order.items.map((item) => (
@@ -279,6 +281,9 @@ export function OrderTrackerPage() {
               <dd>{formatMoney(order.pricing.totalCents)}</dd>
             </div>
           </dl>
+          <p className="mt-3 text-xs text-[var(--sf-text)]/50">
+            {order.payment.message} · Card ending {order.payment.simulatedCardLast4}
+          </p>
         </section>
 
         {restaurant ? (
@@ -296,26 +301,37 @@ export function OrderTrackerPage() {
   )
 }
 
-function PickupAddress({ restaurant }: { restaurant: Restaurant }) {
-  if (!restaurant.address.line1) return null
+function PickupAddress({
+  restaurant,
+  inline,
+}: {
+  restaurant: Restaurant
+  inline?: boolean
+}) {
+  if (!restaurant.address.line1) {
+    return inline ? <p className="font-medium">Pickup at restaurant</p> : null
+  }
   return (
     <div>
-      <dt className="flex items-center gap-1 text-[var(--sf-text)]/55">
-        <MapPin className="h-3.5 w-3.5" /> Pickup at
-      </dt>
-      <dd>
-        {restaurant.address.line1}
-        <br />
+      {!inline ? (
+        <dt className="flex items-center gap-1 text-[var(--sf-text)]/55">
+          <MapPin className="h-3.5 w-3.5" /> Pickup at
+        </dt>
+      ) : (
+        <p className="text-sm text-[var(--sf-text)]/55">Pickup at</p>
+      )}
+      <p className="font-medium">{restaurant.address.line1}</p>
+      <p className="text-[var(--sf-text)]/65">
         {restaurant.address.city}, {restaurant.address.state}{' '}
         {restaurant.address.postalCode}
-      </dd>
+      </p>
     </div>
   )
 }
 
 type StepState = 'done' | 'current' | 'upcoming'
 
-function timelineSteps(order: Order) {
+function trackerSteps(order: Order) {
   const statuses =
     order.fulfillment.type === 'delivery'
       ? ([
@@ -340,16 +356,14 @@ function timelineSteps(order: Order) {
       ...reached.map((status) => ({
         status,
         label: statusDisplayFor(status, order.fulfillment.type),
+        shortLabel: shortLabelFor(status, order.fulfillment.type),
         state: 'done' as StepState,
-        at: order.statusHistory.find((h) => h.status === status)?.at,
-        icon: iconFor(status),
       })),
       {
         status: 'cancelled' as OrderStatus,
         label: 'Cancelled',
+        shortLabel: 'Cancelled',
         state: 'current' as StepState,
-        at: order.statusHistory.find((h) => h.status === 'cancelled')?.at,
-        icon: Package,
       },
     ]
   }
@@ -363,15 +377,58 @@ function timelineSteps(order: Order) {
     return {
       status,
       label: statusDisplayFor(status, order.fulfillment.type),
+      shortLabel: shortLabelFor(status, order.fulfillment.type),
       state,
-      at: order.statusHistory.find((h) => h.status === status)?.at,
-      icon: iconFor(status),
     }
   })
 }
 
-function statusDisplayLabel(order: Order) {
-  return statusDisplayFor(order.status, order.fulfillment.type)
+function statusHeadline(order: Order) {
+  const type = order.fulfillment.type
+  switch (order.status) {
+    case 'received':
+      return 'Order received'
+    case 'confirmed':
+      return 'Order confirmed'
+    case 'preparing':
+      return 'Preparing order'
+    case 'ready':
+      return type === 'pickup' ? 'Ready for pickup' : 'Ready'
+    case 'out_for_delivery':
+      return 'Out for delivery'
+    case 'completed':
+      return type === 'delivery' ? 'Delivered' : 'Picked up'
+    case 'cancelled':
+      return 'Order cancelled'
+    default:
+      return 'Tracking order'
+  }
+}
+
+function statusSubtitle(order: Order, restaurantName?: string) {
+  const name = restaurantName ?? 'The restaurant'
+  switch (order.status) {
+    case 'received':
+      return `${name} got your order and will confirm it shortly.`
+    case 'confirmed':
+      return `${name} confirmed your order and will start preparing soon.`
+    case 'preparing':
+      return `${name} is preparing your order.`
+    case 'ready':
+      return order.fulfillment.type === 'pickup'
+        ? `Your order is ready — head to ${name} to pick it up.`
+        : `Your order is ready for the next step.`
+    case 'out_for_delivery':
+      return `Your order from ${name} is on the way.`
+    case 'completed':
+      return order.fulfillment.type === 'delivery'
+        ? 'Your order has been delivered. Enjoy!'
+        : 'Your order has been picked up. Enjoy!'
+    case 'cancelled':
+      return 'This order was cancelled. Contact the restaurant if you have questions.'
+    default:
+      return 'We’ll update this page as your order progresses.'
+  }
 }
 
 function statusDisplayFor(status: OrderStatus, type: Order['fulfillment']['type']) {
@@ -382,6 +439,19 @@ function statusDisplayFor(status: OrderStatus, type: Order['fulfillment']['type'
     ready: type === 'pickup' ? 'Ready for pickup' : 'Ready',
     out_for_delivery: 'Out for delivery',
     completed: type === 'delivery' ? 'Delivered' : 'Picked up',
+    cancelled: 'Cancelled',
+  }
+  return map[status]
+}
+
+function shortLabelFor(status: OrderStatus, type: Order['fulfillment']['type']) {
+  const map: Record<OrderStatus, string> = {
+    received: 'Received',
+    confirmed: 'Confirmed',
+    preparing: 'Preparing',
+    ready: type === 'pickup' ? 'Ready' : 'Ready',
+    out_for_delivery: 'Delivery',
+    completed: type === 'delivery' ? 'Done' : 'Done',
     cancelled: 'Cancelled',
   }
   return map[status]
@@ -400,8 +470,16 @@ function iconFor(status: OrderStatus) {
     case 'out_for_delivery':
       return Truck
     case 'completed':
-      return Check
+      return CheckCircle2
     default:
       return Package
   }
+}
+
+function isSameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
 }

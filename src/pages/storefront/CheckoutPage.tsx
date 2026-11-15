@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CreditCard } from 'lucide-react'
 import type { OrderType } from '@/types'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
+import { PlacingOrderConfirm } from '@/components/storefront/PlacingOrderConfirm'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Textarea } from '@/components/ui/Input'
 import { useDb } from '@/hooks/useDb'
@@ -47,6 +48,7 @@ export function CheckoutPage() {
   const [cvc, setCvc] = useState('123')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const checkoutTracked = useRef(false)
   useEffect(() => {
@@ -82,37 +84,44 @@ export function CheckoutPage() {
     )
   }, [restaurant, subtotal, orderType, tipCents])
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault()
-    if (!restaurant) return
-    setError('')
-
-    if (!lines.length) {
-      setError('Your bag is empty.')
-      return
-    }
-    if (!name.trim() || !phone.trim()) {
-      setError('Name and phone are required.')
-      return
-    }
+  function validateCheckout(): string | null {
+    if (!restaurant) return 'Restaurant not found.'
+    if (!lines.length) return 'Your bag is empty.'
+    if (!name.trim() || !phone.trim()) return 'Name and phone are required.'
     if (orderType === 'delivery') {
       if (!line1.trim() || !city.trim() || !state.trim() || !postalCode.trim()) {
-        setError('Please complete your delivery address.')
-        return
+        return 'Please complete your delivery address.'
       }
       if (subtotal < restaurant.ordering.minimumDeliveryCents) {
-        setError(
-          `Delivery minimum is ${formatMoney(restaurant.ordering.minimumDeliveryCents)}.`,
-        )
-        return
+        return `Delivery minimum is ${formatMoney(restaurant.ordering.minimumDeliveryCents)}.`
       }
     }
     const digits = cardNumber.replace(/\D/g, '')
-    if (digits.length < 4) {
-      setError('Enter a simulated card number.')
+    if (digits.length < 4) return 'Enter a simulated card number.'
+    return null
+  }
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault()
+    const validationError = validateCheckout()
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+    setError('')
+    setConfirmOpen(true)
+  }
+
+  async function placeConfirmedOrder() {
+    if (!restaurant || submitting) return
+    const validationError = validateCheckout()
+    if (validationError) {
+      setConfirmOpen(false)
+      setError(validationError)
       return
     }
 
+    const digits = cardNumber.replace(/\D/g, '')
     setSubmitting(true)
     try {
       const order = await placeOrder({
@@ -155,6 +164,7 @@ export function CheckoutPage() {
         state: { justPlaced: true, restaurantSlug: restaurant.slug },
       })
     } catch (err) {
+      setConfirmOpen(false)
       setError(err instanceof Error ? err.message : 'Unable to place order.')
     } finally {
       setSubmitting(false)
@@ -183,6 +193,21 @@ export function CheckoutPage() {
   const presets = restaurant.ordering.tipPresetsPercent
   const pickupOk = restaurant.ordering.pickupEnabled
   const deliveryOk = restaurant.ordering.deliveryEnabled
+  const cardLast4 = cardNumber.replace(/\D/g, '').slice(-4) || '••••'
+  const estimatedAt = new Date(
+    Date.now() + restaurant.ordering.estimatedPrepMinutes * 60_000,
+  ).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  const addressLabel =
+    orderType === 'delivery'
+      ? [line1.trim(), line2.trim(), `${city.trim()}, ${state.trim()} ${postalCode.trim()}`]
+          .filter(Boolean)
+          .join(', ')
+      : [
+          restaurant.address.line1,
+          `${restaurant.address.city}, ${restaurant.address.state} ${restaurant.address.postalCode}`,
+        ]
+          .filter(Boolean)
+          .join(', ') || 'Pickup at restaurant'
 
   return (
     <StorefrontShell branding={restaurant.branding}>
@@ -464,12 +489,14 @@ export function CheckoutPage() {
               <Button
                 type="submit"
                 size="lg"
-                className="w-full bg-[var(--sf-button)] text-[var(--sf-button-text)] hover:opacity-90 sm:w-auto"
-                disabled={submitting}
+                className="w-full border-0 hover:opacity-90 sm:w-auto"
+                style={{
+                  backgroundColor: restaurant.branding.buttonColor,
+                  color: restaurant.branding.buttonTextColor,
+                }}
+                disabled={submitting || confirmOpen}
               >
-                {submitting
-                  ? 'Placing order…'
-                  : `Place order · ${formatMoney(pricing?.totalCents ?? 0)}`}
+                {`Place order · ${formatMoney(pricing?.totalCents ?? 0)}`}
               </Button>
             </div>
 
@@ -529,6 +556,29 @@ export function CheckoutPage() {
           </form>
         )}
       </div>
+
+      <PlacingOrderConfirm
+        open={confirmOpen}
+        onConfirm={() => void placeConfirmedOrder()}
+        onBack={() => {
+          if (submitting) return
+          setConfirmOpen(false)
+        }}
+        orderType={orderType}
+        estimatedLabel={estimatedAt}
+        addressLabel={addressLabel}
+        cardLast4={cardLast4}
+        lines={lines.map((l) => ({
+          id: l.id,
+          quantity: l.quantity,
+          name: l.name,
+          modifierLabels: l.modifierLabels,
+          lineTotalCents: l.unitPriceCents * l.quantity,
+        }))}
+        totalCents={pricing?.totalCents ?? 0}
+        submitting={submitting}
+        branding={restaurant.branding}
+      />
     </StorefrontShell>
   )
 }
