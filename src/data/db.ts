@@ -24,6 +24,7 @@ export async function getDb(): Promise<AppDatabase> {
     const existing = await adapter.load()
     // Bump when seed assets/schema change so demos refresh cleanly.
     if (existing && existing.version === 2) {
+      if (!existing.brandThemes) existing.brandThemes = []
       memory = existing
       return existing
     }

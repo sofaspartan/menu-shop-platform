@@ -100,6 +100,15 @@ export interface RestaurantBranding {
   appearance: 'light' | 'dark' | 'auto'
 }
 
+/** Saved custom look for a restaurant (presets live in code, not here) */
+export interface BrandTheme extends Timestamps {
+  id: ID
+  restaurantId: ID
+  name: string
+  description?: string
+  branding: RestaurantBranding
+}
+
 export interface OrderingSettings {
   pickupEnabled: boolean
   deliveryEnabled: boolean
@@ -418,6 +427,7 @@ export interface AppDatabase {
   combos: ComboConfig[]
   dietaryLabels: DietaryLabel[]
   qrCodes: QrCode[]
+  brandThemes: BrandTheme[]
   orders: Order[]
   analyticsEvents: AnalyticsEvent[]
   sessions: AuthSession[]

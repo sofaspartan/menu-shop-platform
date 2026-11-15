@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react'
+import { Check, Pencil, Save, Trash2 } from 'lucide-react'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useDb } from '@/hooks/useDb'
 import * as restaurantService from '@/services/restaurantService'
+import { PRESET_BRAND_THEMES } from '@/data/brandThemes'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Input'
+import { Modal } from '@/components/ui/Modal'
 import { brandingStyleVars } from '@/lib/brandingCss'
-import { FONT_OPTIONS, type RestaurantBranding } from '@/types'
+import { cn } from '@/lib/utils'
+import { FONT_OPTIONS, type BrandTheme, type RestaurantBranding } from '@/types'
 
 const COLOR_FIELDS: Array<{ key: keyof RestaurantBranding; label: string }> = [
   { key: 'primaryColor', label: 'Primary' },
@@ -22,12 +27,25 @@ export function BrandingPage() {
   const current = useRestaurantStore((s) => s.current())
   const load = useRestaurantStore((s) => s.load)
   const user = useAuthStore((s) => s.user)
+  const { db } = useDb()
   const [branding, setBranding] = useState<RestaurantBranding | null>(null)
   const [logoUrl, setLogoUrl] = useState('')
   const [coverImageUrl, setCoverImageUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [saveOpen, setSaveOpen] = useState(false)
+  const [themeName, setThemeName] = useState('')
+  const [themeDescription, setThemeDescription] = useState('')
+  const [editingThemeId, setEditingThemeId] = useState<string | null>(null)
+  const [activePresetId, setActivePresetId] = useState<string | null>(null)
+
+  const customThemes =
+    db && current
+      ? (db.brandThemes || [])
+          .filter((t) => t.restaurantId === current.id)
+          .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+      : []
 
   useEffect(() => {
     if (!current) {
@@ -37,6 +55,7 @@ export function BrandingPage() {
     setBranding({ ...current.branding })
     setLogoUrl(current.logoUrl || '')
     setCoverImageUrl(current.coverImageUrl || '')
+    setActivePresetId(null)
   }, [current])
 
   if (!current || !user || !branding) {
@@ -45,6 +64,14 @@ export function BrandingPage() {
 
   function patch<K extends keyof RestaurantBranding>(key: K, value: RestaurantBranding[K]) {
     setBranding((b) => (b ? { ...b, [key]: value } : b))
+    setActivePresetId(null)
+  }
+
+  function applyBranding(next: RestaurantBranding, presetId?: string | null) {
+    setBranding({ ...next })
+    setActivePresetId(presetId ?? null)
+    setMessage(presetId ? 'Theme applied — save branding to keep it live.' : 'Custom look applied — save branding to keep it live.')
+    setError('')
   }
 
   async function save() {
@@ -67,6 +94,81 @@ export function BrandingPage() {
     }
   }
 
+  function openSaveCustom(theme?: BrandTheme) {
+    if (theme) {
+      setEditingThemeId(theme.id)
+      setThemeName(theme.name)
+      setThemeDescription(theme.description || '')
+    } else {
+      setEditingThemeId(null)
+      setThemeName('')
+      setThemeDescription('')
+    }
+    setSaveOpen(true)
+  }
+
+  async function saveCustomLook() {
+    if (!user || !current || !branding) return
+    setBusy(true)
+    setError('')
+    try {
+      const existing = editingThemeId
+        ? customThemes.find((t) => t.id === editingThemeId)
+        : undefined
+      await restaurantService.saveBrandTheme(user.id, current.id, {
+        id: editingThemeId || undefined,
+        name: themeName,
+        description: themeDescription,
+        // Rename keeps the stored style; "Update" on a card overwrites from current.
+        branding: existing?.branding ?? branding,
+      })
+      setSaveOpen(false)
+      setMessage(
+        editingThemeId
+          ? 'Custom look details saved.'
+          : 'Custom look saved. You can reapply it anytime.',
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save custom look')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function overwriteCustomLook(theme: BrandTheme) {
+    if (!user || !current || !branding) return
+    setBusy(true)
+    setError('')
+    try {
+      await restaurantService.saveBrandTheme(user.id, current.id, {
+        id: theme.id,
+        name: theme.name,
+        description: theme.description,
+        branding,
+      })
+      setMessage(`“${theme.name}” updated from your current look.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update custom look')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function removeCustomLook(theme: BrandTheme) {
+    if (!user || !current) return
+    if (!window.confirm(`Delete custom look “${theme.name}”?`)) return
+    setBusy(true)
+    setError('')
+    try {
+      await restaurantService.deleteBrandTheme(user.id, current.id, theme.id)
+      setMessage(`Deleted “${theme.name}”.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete custom look')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const previewStyle = brandingStyleVars(branding)
 
   return (
@@ -75,16 +177,107 @@ export function BrandingPage() {
         <div>
           <h1 className="font-display text-3xl">Branding</h1>
           <p className="mt-1 text-stone-500">
-            Colors, fonts, and layout that guests see on your storefront.
+            Start from a theme, tune the details, and save custom looks you can reuse.
           </p>
         </div>
-        <Button disabled={busy} onClick={() => void save()}>
-          {busy ? 'Saving…' : 'Save branding'}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" disabled={busy} onClick={() => openSaveCustom()}>
+            <Save className="h-4 w-4" />
+            Save as custom look
+          </Button>
+          <Button disabled={busy} onClick={() => void save()}>
+            {busy ? 'Saving…' : 'Save branding'}
+          </Button>
+        </div>
       </div>
 
       {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-5">
+        <h2 className="font-display text-xl">Menu themes</h2>
+        <p className="mt-1 text-sm text-stone-500">
+          Apply a simple starting look, then customize colors and type below.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {PRESET_BRAND_THEMES.map((theme) => (
+            <ThemeCard
+              key={theme.id}
+              name={theme.name}
+              description={theme.description}
+              branding={theme.branding}
+              active={activePresetId === theme.id}
+              actionLabel="Apply"
+              onApply={() => applyBranding(theme.branding, theme.id)}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl">Your custom looks</h2>
+            <p className="mt-1 text-sm text-stone-500">
+              Reapply a saved look, overwrite it with your current settings, or edit its name.
+            </p>
+          </div>
+          <Button variant="soft" size="sm" disabled={busy} onClick={() => openSaveCustom()}>
+            <Save className="h-4 w-4" />
+            Save current
+          </Button>
+        </div>
+
+        {customThemes.length === 0 ? (
+          <p className="mt-4 rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-8 text-center text-sm text-stone-500">
+            No custom looks yet. Tune your branding, then save it for later.
+          </p>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {customThemes.map((theme) => (
+              <ThemeCard
+                key={theme.id}
+                name={theme.name}
+                description={theme.description || 'Saved custom look'}
+                branding={theme.branding}
+                actionLabel="Apply"
+                onApply={() => applyBranding(theme.branding, null)}
+                footer={
+                  <div className="mt-3 flex flex-wrap gap-1.5 border-t border-stone-100 pt-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => void overwriteCustomLook(theme)}
+                    >
+                      Update
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      onClick={() => openSaveCustom(theme)}
+                      aria-label={`Rename ${theme.name}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-600 hover:bg-red-50"
+                      disabled={busy}
+                      onClick={() => void removeCustomLook(theme)}
+                      aria-label={`Delete ${theme.name}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                }
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-6">
@@ -341,6 +534,114 @@ export function BrandingPage() {
           </div>
         </section>
       </div>
+
+      <Modal
+        open={saveOpen}
+        onClose={() => setSaveOpen(false)}
+        title={editingThemeId ? 'Edit custom look' : 'Save custom look'}
+      >
+        <div className="space-y-4">
+          <Field label="Name" htmlFor="theme-name">
+            <Input
+              id="theme-name"
+              value={themeName}
+              onChange={(e) => setThemeName(e.target.value)}
+              placeholder="Weekend special look"
+              required
+            />
+          </Field>
+          <Field label="Description (optional)" htmlFor="theme-desc">
+            <Input
+              id="theme-desc"
+              value={themeDescription}
+              onChange={(e) => setThemeDescription(e.target.value)}
+              placeholder="What this look is for"
+            />
+          </Field>
+          {!editingThemeId ? (
+            <p className="text-xs text-stone-500">
+              This saves your current color, type, and style settings so you can reapply them later.
+            </p>
+          ) : (
+            <p className="text-xs text-stone-500">
+              Renaming keeps the saved style values. Use Update on a card to overwrite a look with
+              your current settings.
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setSaveOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled={busy || !themeName.trim()} onClick={() => void saveCustomLook()}>
+              {editingThemeId ? 'Save changes' : 'Save look'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
+function ThemeCard({
+  name,
+  description,
+  branding,
+  active,
+  actionLabel,
+  onApply,
+  footer,
+}: {
+  name: string
+  description: string
+  branding: RestaurantBranding
+  active?: boolean
+  actionLabel: string
+  onApply: () => void
+  footer?: React.ReactNode
+}) {
+  return (
+    <div
+      className={cn(
+        'rounded-2xl border p-4 transition-colors',
+        active ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-stone-200 bg-stone-50/70',
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="font-medium text-stone-900">{name}</div>
+          <p className="mt-1 text-xs leading-relaxed text-stone-500">{description}</p>
+        </div>
+        {active ? (
+          <span className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-[11px] font-medium text-[var(--color-brand)]">
+            <Check className="h-3 w-3" /> Selected
+          </span>
+        ) : null}
+      </div>
+      <div className="mt-3 flex gap-1.5">
+        {[
+          branding.primaryColor,
+          branding.secondaryColor,
+          branding.accentColor,
+          branding.backgroundColor,
+          branding.buttonColor,
+        ].map((color, i) => (
+          <span
+            key={`${color}-${i}`}
+            className="h-6 w-6 rounded-full border border-black/10"
+            style={{ background: color }}
+            title={color}
+          />
+        ))}
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-stone-500">
+        <span>
+          {branding.headingFont} · {branding.bodyFont}
+        </span>
+        <Button size="sm" variant={active ? 'primary' : 'outline'} onClick={onApply}>
+          {actionLabel}
+        </Button>
+      </div>
+      {footer}
     </div>
   )
 }

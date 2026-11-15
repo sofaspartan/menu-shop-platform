@@ -1248,6 +1248,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     combos,
     dietaryLabels: labels,
     qrCodes,
+    brandThemes: [],
     orders,
     analyticsEvents,
     sessions: [],
