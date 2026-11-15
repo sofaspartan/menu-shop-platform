@@ -176,7 +176,11 @@ export function BagDrawer({
             <Link to={`/r/${restaurant.slug}/checkout`} onClick={onClose}>
               <Button
                 size="lg"
-                className="w-full bg-[var(--sf-button)] text-[var(--sf-button-text)] hover:opacity-90"
+                className="w-full border-0 hover:opacity-90"
+                style={{
+                  backgroundColor: restaurant.branding.buttonColor,
+                  color: restaurant.branding.buttonTextColor,
+                }}
               >
                 Checkout
               </Button>

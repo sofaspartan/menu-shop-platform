@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   Clock3,
@@ -38,13 +38,23 @@ export function RestaurantPage() {
   const simulatedAt = usePreviewStore((s) => s.simulatedAt)
   const bagLines = useBagStore((s) => s.lines)
   const pulseToken = useBagAnimationStore((s) => s.pulseToken)
+  const flight = useBagAnimationStore((s) => s.flight)
   const [bagPulseKey, setBagPulseKey] = useState(0)
+  /** Full-width mobile bag only while catching an add, then collapses to the side FAB. */
+  const [bagCatchExpanded, setBagCatchExpanded] = useState(false)
   const trackedVisit = useRef<string | null>(null)
   const trackedMenu = useRef<string | null>(null)
 
   useEffect(() => {
+    if (flight) setBagCatchExpanded(true)
+  }, [flight])
+
+  useEffect(() => {
     if (pulseToken === 0) return
     setBagPulseKey(pulseToken)
+    setBagCatchExpanded(true)
+    const t = window.setTimeout(() => setBagCatchExpanded(false), 2400)
+    return () => window.clearTimeout(t)
   }, [pulseToken])
 
   const [search, setSearch] = useState('')
@@ -202,6 +212,18 @@ export function RestaurantPage() {
     (sum, l) => sum + l.unitPriceCents * l.quantity,
     0,
   )
+  const prevBagCountRef = useRef(bagCount)
+
+  useLayoutEffect(() => {
+    if (bagCount > prevBagCountRef.current) {
+      setBagCatchExpanded(true)
+    }
+    if (bagCount === 0) {
+      setBagCatchExpanded(false)
+    }
+    prevBagCountRef.current = bagCount
+  }, [bagCount])
+
   const sectionIdsKey = sections.map((s) => s.id).join(',')
 
   useEffect(() => {
@@ -490,7 +512,7 @@ export function RestaurantPage() {
       <main
         className={cn(
           'mx-auto max-w-5xl px-4 pt-6 sm:px-6',
-          bagCount > 0 ? 'pb-32' : 'pb-28',
+          bagCatchExpanded && bagCount > 0 ? 'pb-32' : 'pb-28',
         )}
       >
         {!selectedMenu ? (
@@ -605,7 +627,7 @@ export function RestaurantPage() {
         )}
       </main>
 
-      {bagCount > 0 ? (
+      {bagCatchExpanded && bagCount > 0 ? (
         <div className="fixed inset-x-0 bottom-0 z-30 p-4 sm:hidden">
           <button
             type="button"
@@ -637,7 +659,10 @@ export function RestaurantPage() {
           aria-label="Open bag"
         >
           <ShoppingBag className="h-5 w-5" />
-          <span className="font-medium">Bag</span>
+          <span className="font-medium">Bag{bagCount > 0 ? ` · ${bagCount}` : ''}</span>
+          {bagCount > 0 ? (
+            <span className="text-sm opacity-90">{formatMoney(bagSubtotal)}</span>
+          ) : null}
         </button>
       )}
 

@@ -56,6 +56,8 @@
     font-family: var(--font-display);
   }
 
+  /* CSS var aliases only — safe on portaled overlays (no background). */
+  .storefront-vars,
   .storefront-shell {
     --sf-primary: var(--brand-primary, #1a3a2f);
     --sf-secondary: var(--brand-secondary, #c4a574);
@@ -68,6 +70,9 @@
     --sf-heading: var(--brand-heading, "Fraunces", Georgia, serif);
     --sf-body: var(--brand-body, "DM Sans", system-ui, sans-serif);
     --sf-radius: var(--brand-radius, 12px);
+  }
+
+  .storefront-shell {
     background: var(--sf-bg);
     color: var(--sf-text);
     font-family: var(--sf-body);

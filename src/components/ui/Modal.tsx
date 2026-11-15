@@ -11,6 +11,8 @@ export function Modal({
   children,
   className,
   wide,
+  style,
+  shell,
 }: {
   open: boolean
   onClose: () => void
@@ -18,6 +20,10 @@ export function Modal({
   children: React.ReactNode
   className?: string
   wide?: boolean
+  /** Applied to the portal root so CSS variables survive createPortal(document.body). */
+  style?: React.CSSProperties
+  /** Adds storefront-vars so --sf-* aliases resolve inside the portal. */
+  shell?: boolean
 }) {
   useEffect(() => {
     if (!open) return
@@ -36,7 +42,13 @@ export function Modal({
   if (!open || typeof document === 'undefined') return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-end justify-center p-0 sm:items-center sm:p-4">
+    <div
+      className={cn(
+        'fixed inset-0 z-[200] flex items-end justify-center p-0 sm:items-center sm:p-4',
+        shell && 'storefront-vars',
+      )}
+      style={style}
+    >
       <button
         type="button"
         aria-label="Close dialog"
