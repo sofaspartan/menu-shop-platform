@@ -478,7 +478,7 @@ export function RestaurantPage() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6">
+      <main className="mx-auto max-w-5xl px-4 pb-32 pt-6 sm:px-6">
         {!selectedMenu ? (
           <EmptyState
             title="No menus available right now"
@@ -591,21 +591,21 @@ export function RestaurantPage() {
         )}
       </main>
 
-      {bagCount > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 z-30 p-4 sm:hidden">
-          <button
-            type="button"
-            onClick={() => setBagOpen(true)}
-            className="flex w-full items-center justify-between rounded-2xl bg-[var(--sf-button)] px-5 py-4 text-[var(--sf-button-text)] shadow-lg animate-slide-up"
-          >
-            <span className="flex items-center gap-2 font-medium">
-              <ShoppingBag className="h-5 w-5" />
-              View bag · {bagCount}
-            </span>
-            <span className="font-semibold">{formatMoney(bagSubtotal)}</span>
-          </button>
-        </div>
-      ) : null}
+      <div className="fixed inset-x-0 bottom-0 z-30 p-4 sm:hidden">
+        <button
+          type="button"
+          onClick={() => setBagOpen(true)}
+          className="flex w-full items-center justify-between rounded-2xl bg-[var(--sf-button)] px-5 py-4 text-[var(--sf-button-text)] shadow-lg"
+        >
+          <span className="flex items-center gap-2 font-medium">
+            <ShoppingBag className="h-5 w-5" />
+            {bagCount > 0 ? `View bag · ${bagCount}` : 'Your bag'}
+          </span>
+          <span className="font-semibold">
+            {bagCount > 0 ? formatMoney(bagSubtotal) : 'Empty'}
+          </span>
+        </button>
+      </div>
 
       <button
         type="button"
