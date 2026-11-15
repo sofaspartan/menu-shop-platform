@@ -104,7 +104,7 @@ export function LandingPage() {
             >
               <feature.icon className="mb-4 h-6 w-6 text-[var(--color-brand)]" />
               <h2 className="font-display text-xl">{feature.title}</h2>
-              <p className="mt-2 text-sm text-stone-560 text-stone-600">{feature.body}</p>
+              <p className="mt-2 text-sm text-stone-600">{feature.body}</p>
             </div>
           ))}
         </section>

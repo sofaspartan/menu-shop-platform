@@ -61,6 +61,9 @@ export function ItemCustomizer({
     [db, restaurant.id],
   )
 
+  const groupsKey = groups.map((g) => g.id).join(',')
+  const comboKey = combo?.itemId ?? ''
+
   useEffect(() => {
     if (!open || !item) return
     void trackEvent({
@@ -68,6 +71,7 @@ export function ItemCustomizer({
       type: 'item_view',
       itemId: item.id,
     })
+    // Track once per open/item; avoid re-firing when unrelated db snapshots refresh.
   }, [open, item?.id, restaurant.id])
 
   useEffect(() => {
@@ -102,7 +106,8 @@ export function ItemCustomizer({
     } else {
       setComboSelections([])
     }
-  }, [open, item?.id, editingLine?.id, groups, combo])
+    // Intentionally keyed by stable ids so analytics/db refreshes don't reset the form.
+  }, [open, item?.id, editingLine?.id, groupsKey, comboKey])
 
   const priced = useMemo(() => {
     if (!item) {

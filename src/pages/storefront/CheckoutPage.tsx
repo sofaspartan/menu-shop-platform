@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CreditCard } from 'lucide-react'
@@ -48,15 +48,19 @@ export function CheckoutPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  const checkoutTracked = useRef(false)
   useEffect(() => {
     if (!restaurant) return
-    void trackEvent({
-      restaurantId: restaurant.id,
-      type: 'checkout_start',
-    })
+    if (!checkoutTracked.current) {
+      checkoutTracked.current = true
+      void trackEvent({
+        restaurantId: restaurant.id,
+        type: 'checkout_start',
+      })
+    }
     if (restaurant.ordering.pickupEnabled) setOrderType('pickup')
     else if (restaurant.ordering.deliveryEnabled) setOrderType('delivery')
-  }, [restaurant?.id])
+  }, [restaurant])
 
   const tipCents = useMemo(() => {
     if (tipPreset === 'custom') {

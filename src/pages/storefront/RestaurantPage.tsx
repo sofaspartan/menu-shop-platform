@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   Clock3,
@@ -29,9 +29,11 @@ export function RestaurantPage() {
   const { slug, menuSlug } = useParams<{ slug: string; menuSlug?: string }>()
   const [searchParams] = useSearchParams()
   const { db, loading } = useDb()
-  const clock = usePreviewStore((s) => s.clock)
+  const previewEnabled = usePreviewStore((s) => s.enabled)
+  const simulatedAt = usePreviewStore((s) => s.simulatedAt)
   const bagLines = useBagStore((s) => s.lines)
-  const subtotalFor = useBagStore((s) => s.subtotalFor)
+  const trackedVisit = useRef<string | null>(null)
+  const trackedMenu = useRef<string | null>(null)
 
   const [search, setSearch] = useState('')
   const [dietaryFilter, setDietaryFilter] = useState<string | null>(null)
@@ -40,16 +42,29 @@ export function RestaurantPage() {
   const [priceOverride, setPriceOverride] = useState<number | undefined>()
   const [editingLine, setEditingLine] = useState<BagLine | null>(null)
   const [activeSection, setActiveSection] = useState<string | null>(null)
+  const [liveTick, setLiveTick] = useState(() => Date.now())
 
   const restaurant = useMemo(
     () => db?.restaurants.find((r) => r.slug === slug) ?? null,
     [db, slug],
   )
 
-  const now = clock()
+  useEffect(() => {
+    if (previewEnabled) return
+    const id = window.setInterval(() => setLiveTick(Date.now()), 60_000)
+    return () => window.clearInterval(id)
+  }, [previewEnabled])
+
+  const now = useMemo(() => {
+    if (previewEnabled && simulatedAt) return simulatedAt
+    return new Date(liveTick)
+  }, [previewEnabled, simulatedAt, liveTick])
 
   useEffect(() => {
     if (!restaurant) return
+    const key = `${restaurant.id}:${searchParams.get('src')}:${searchParams.get('qid')}`
+    if (trackedVisit.current === key) return
+    trackedVisit.current = key
     const src = searchParams.get('src')
     const qid = searchParams.get('qid')
     if (src === 'qr') {
@@ -64,7 +79,7 @@ export function RestaurantPage() {
         type: 'link_visit',
       })
     }
-  }, [restaurant?.id])
+  }, [restaurant, searchParams])
 
   const menus = useMemo(() => {
     if (!restaurant || !db) return []
@@ -85,12 +100,15 @@ export function RestaurantPage() {
 
   useEffect(() => {
     if (!restaurant || !selectedMenu) return
+    const key = `${restaurant.id}:${selectedMenu.id}`
+    if (trackedMenu.current === key) return
+    trackedMenu.current = key
     void trackEvent({
       restaurantId: restaurant.id,
       type: 'menu_view',
       menuId: selectedMenu.id,
     })
-  }, [restaurant?.id, selectedMenu?.id])
+  }, [restaurant, selectedMenu])
 
   const sections = useMemo(() => {
     if (!db || !selectedMenu) return []
@@ -167,7 +185,11 @@ export function RestaurantPage() {
     ? bagLines.filter((l) => l.restaurantId === restaurant.id)
     : []
   const bagCount = restaurantLines.reduce((n, l) => n + l.quantity, 0)
-  const bagSubtotal = restaurant ? subtotalFor(restaurant.id) : 0
+  const bagSubtotal = restaurantLines.reduce(
+    (sum, l) => sum + l.unitPriceCents * l.quantity,
+    0,
+  )
+  const sectionIdsKey = sections.map((s) => s.id).join(',')
 
   useEffect(() => {
     if (!sections.length) return
@@ -176,8 +198,9 @@ export function RestaurantPage() {
         const visible = entries
           .filter((e) => e.isIntersecting)
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
-        if (visible[0]?.target.id) {
-          setActiveSection(visible[0].target.id)
+        const nextId = visible[0]?.target.id
+        if (nextId) {
+          setActiveSection((prev) => (prev === nextId ? prev : nextId))
         }
       },
       { rootMargin: '-20% 0px -60% 0px', threshold: [0, 0.25, 0.5] },
@@ -187,7 +210,8 @@ export function RestaurantPage() {
       if (el) observer.observe(el)
     }
     return () => observer.disconnect()
-  }, [sections, selectedMenu?.id])
+    // sectionIdsKey captures section identity without depending on a new array each render
+  }, [sectionIdsKey])
 
   function openItem(item: MenuItem, override?: number, line?: BagLine) {
     if (!isItemOrderable(item, now)) return

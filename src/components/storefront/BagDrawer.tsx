@@ -18,11 +18,12 @@ export function BagDrawer({
   restaurant: Restaurant
   onEditLine: (line: BagLine) => void
 }) {
-  const lines = useBagStore((s) => s.linesFor(restaurant.id))
-  const subtotal = useBagStore((s) => s.subtotalFor(restaurant.id))
+  const allLines = useBagStore((s) => s.lines)
   const setQuantity = useBagStore((s) => s.setQuantity)
   const removeLine = useBagStore((s) => s.removeLine)
   const duplicateLine = useBagStore((s) => s.duplicateLine)
+  const lines = allLines.filter((l) => l.restaurantId === restaurant.id)
+  const subtotal = lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0)
 
   if (!open) return null
 

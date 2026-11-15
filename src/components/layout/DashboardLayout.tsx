@@ -13,6 +13,7 @@ import {
   Clock3,
   Eye,
   ChevronDown,
+  Layers,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
@@ -26,6 +27,7 @@ const nav = [
   { to: '/dashboard/menus', label: 'Menus', icon: Menu },
   { to: '/dashboard/items', label: 'Item library', icon: UtensilsCrossed },
   { to: '/dashboard/modifiers', label: 'Modifiers', icon: Store },
+  { to: '/dashboard/combos', label: 'Combos', icon: Layers },
   { to: '/dashboard/scheduling', label: 'Scheduling', icon: Clock3 },
   { to: '/dashboard/branding', label: 'Branding', icon: Palette },
   { to: '/dashboard/qr', label: 'QR codes', icon: QrCode },

@@ -13,6 +13,7 @@ import { NewRestaurantPage } from '@/pages/dashboard/NewRestaurantPage'
 import { MenusPage } from '@/pages/dashboard/MenusPage'
 import { ItemsPage } from '@/pages/dashboard/ItemsPage'
 import { ModifiersPage } from '@/pages/dashboard/ModifiersPage'
+import { CombosPage } from '@/pages/dashboard/CombosPage'
 import { BrandingPage } from '@/pages/dashboard/BrandingPage'
 import { QrPage } from '@/pages/dashboard/QrPage'
 import { AnalyticsPage } from '@/pages/dashboard/AnalyticsPage'
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="menus" element={<MenusPage />} />
           <Route path="items" element={<ItemsPage />} />
           <Route path="modifiers" element={<ModifiersPage />} />
+          <Route path="combos" element={<CombosPage />} />
           <Route path="branding" element={<BrandingPage />} />
           <Route path="qr" element={<QrPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
