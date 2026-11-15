@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronDown, Clock3, CreditCard, MapPin } from 'lucide-react'
-import type { OrderType, RestaurantBranding } from '@/types'
+import type { OrderType, RestaurantBranding, StoreKind } from '@/types'
 import { formatMoney, cn } from '@/lib/utils'
 import { brandingStyleVars } from '@/lib/brandingCss'
+import { storeCopy } from '@/lib/storeCopy'
 
 const COUNTDOWN_MS = 8000
 
@@ -20,6 +21,7 @@ export function PlacingOrderConfirm({
   onConfirm,
   onBack,
   orderType,
+  storeKind = 'restaurant',
   estimatedLabel,
   addressLabel,
   cardLast4,
@@ -32,6 +34,7 @@ export function PlacingOrderConfirm({
   onConfirm: () => void
   onBack: () => void
   orderType: OrderType
+  storeKind?: StoreKind
   estimatedLabel: string
   addressLabel: string
   cardLast4: string
@@ -80,8 +83,8 @@ export function PlacingOrderConfirm({
 
   const secondsLeft = Math.ceil(remainingMs / 1000)
   const progress = 1 - remainingMs / COUNTDOWN_MS
-  const title =
-    orderType === 'delivery' ? 'Placing delivery order…' : 'Placing pickup order…'
+  const copy = storeCopy(storeKind)
+  const title = copy.placingOrderTitle(orderType)
 
   function confirmNow() {
     if (firedRef.current || cancelledRef.current || submitting) return
@@ -125,7 +128,7 @@ export function PlacingOrderConfirm({
             <li className="flex items-start gap-3 py-4">
               <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-stone-400" />
               <p className="text-[15px] text-stone-800">
-                {orderType === 'delivery' ? 'Estimated arrival at' : 'Estimated ready by'}{' '}
+                {copy.estimatedEtaPrefix(orderType)}{' '}
                 <span className="font-semibold">{estimatedLabel}</span>
               </p>
             </li>

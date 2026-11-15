@@ -186,9 +186,7 @@ export function OrderTrackerPage() {
             {estimatedLabel ? (
               <p className="mt-1 flex items-center gap-2 text-[15px] text-[var(--sf-text)]/65">
                 <Clock3 className="h-4 w-4 shrink-0" />
-                {order.fulfillment.type === 'delivery'
-                  ? `Estimated arrival ${estimatedLabel}`
-                  : `Estimated ready ${estimatedLabel}`}
+                {`${copy.estimatedEtaPrefix(order.fulfillment.type)} ${estimatedLabel}`}
               </p>
             ) : null}
           </section>
@@ -281,7 +279,7 @@ export function OrderTrackerPage() {
             </div>
             {order.pricing.deliveryFeeCents > 0 ? (
               <div className="flex justify-between">
-                <dt className="text-[var(--sf-text)]/60">Delivery</dt>
+                <dt className="text-[var(--sf-text)]/60">{copy.shipOrDeliveryFee}</dt>
                 <dd>{formatMoney(order.pricing.deliveryFeeCents)}</dd>
               </div>
             ) : null}

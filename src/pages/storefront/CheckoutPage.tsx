@@ -63,8 +63,14 @@ export function CheckoutPage() {
         type: 'checkout_start',
       })
     }
-    if (restaurant.ordering.pickupEnabled) setOrderType('pickup')
-    else if (restaurant.ordering.deliveryEnabled) setOrderType('delivery')
+    // Retail defaults to shipping (delivery); restaurants default to pickup.
+    if (restaurant.storeKind === 'retail' && restaurant.ordering.deliveryEnabled) {
+      setOrderType('delivery')
+    } else if (restaurant.ordering.pickupEnabled) {
+      setOrderType('pickup')
+    } else if (restaurant.ordering.deliveryEnabled) {
+      setOrderType('delivery')
+    }
   }, [restaurant])
 
   const tipCents = useMemo(() => {
@@ -93,10 +99,12 @@ export function CheckoutPage() {
     if (!name.trim() || !phone.trim()) return 'Name and phone are required.'
     if (orderType === 'delivery') {
       if (!line1.trim() || !city.trim() || !state.trim() || !postalCode.trim()) {
-        return 'Please complete your delivery address.'
+        return storeCopy(restaurant.storeKind).completeAddressError
       }
       if (subtotal < restaurant.ordering.minimumDeliveryCents) {
-        return `Delivery minimum is ${formatMoney(restaurant.ordering.minimumDeliveryCents)}.`
+        return storeCopy(restaurant.storeKind).shipOrDeliveryMinimumError(
+          formatMoney(restaurant.ordering.minimumDeliveryCents),
+        )
       }
     }
     const digits = cardNumber.replace(/\D/g, '')
@@ -257,7 +265,7 @@ export function CheckoutPage() {
                             : 'border-stone-200',
                         )}
                       >
-                        Pickup
+                        {copy.pickupLabel}
                       </button>
                     ) : null}
                     {deliveryOk ? (
@@ -271,14 +279,18 @@ export function CheckoutPage() {
                             : 'border-stone-200',
                         )}
                       >
-                        Delivery
+                        {copy.shipOrDeliveryLabel}
                       </button>
                     ) : null}
                   </div>
                   {orderType === 'delivery' ? (
                     <p className="mt-2 text-xs text-[var(--sf-text)]/55">
-                      Minimum {formatMoney(restaurant.ordering.minimumDeliveryCents)} · Fee{' '}
+                      Minimum {formatMoney(restaurant.ordering.minimumDeliveryCents)} ·{' '}
+                      {copy.shipOrDeliveryFee}{' '}
                       {formatMoney(restaurant.ordering.deliveryFeeCents)}
+                      {copy.isRetail
+                        ? ' · Simulated carrier shipping (not same-day courier)'
+                        : ''}
                     </p>
                   ) : null}
                 </section>
@@ -318,7 +330,7 @@ export function CheckoutPage() {
 
               {orderType === 'delivery' ? (
                 <section className="space-y-3">
-                  <h2 className="text-lg font-medium">Delivery address</h2>
+                  <h2 className="text-lg font-medium">{copy.shipOrDeliveryAddress}</h2>
                   <Field label="Street address" htmlFor="line1">
                     <Input
                       id="line1"
@@ -377,7 +389,9 @@ export function CheckoutPage() {
                     onChange={(e) => setInstructions(e.target.value)}
                     placeholder={
                       orderType === 'delivery'
-                        ? 'Gate code, leave at door…'
+                        ? copy.isRetail
+                          ? 'Apartment, building access, gift note…'
+                          : 'Gate code, leave at door…'
                         : 'Name for pickup…'
                     }
                   />
@@ -542,7 +556,7 @@ export function CheckoutPage() {
                   </div>
                   {pricing.deliveryFeeCents > 0 ? (
                     <div className="flex justify-between">
-                      <dt className="text-[var(--sf-text)]/60">Delivery fee</dt>
+                      <dt className="text-[var(--sf-text)]/60">{copy.shipOrDeliveryFee}</dt>
                       <dd>{formatMoney(pricing.deliveryFeeCents)}</dd>
                     </div>
                   ) : null}
@@ -573,6 +587,7 @@ export function CheckoutPage() {
           setConfirmOpen(false)
         }}
         orderType={orderType}
+        storeKind={restaurant.storeKind}
         estimatedLabel={estimatedAt}
         addressLabel={addressLabel}
         cardLast4={cardLast4}

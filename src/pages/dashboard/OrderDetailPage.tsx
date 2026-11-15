@@ -146,7 +146,12 @@ export function OrderDetailPage() {
               <Row label="Subtotal" value={formatMoney(order.pricing.subtotalCents)} />
               <Row label={`Tax (${order.pricing.taxRatePercent}%)`} value={formatMoney(order.pricing.taxCents)} />
               {order.pricing.deliveryFeeCents ? (
-                <Row label="Delivery fee" value={formatMoney(order.pricing.deliveryFeeCents)} />
+                <Row
+                  label={
+                    current.storeKind === 'retail' ? 'Shipping fee' : 'Delivery fee'
+                  }
+                  value={formatMoney(order.pricing.deliveryFeeCents)}
+                />
               ) : null}
               <Row label="Tip" value={formatMoney(order.pricing.tipCents)} />
               <Row label="Total" value={formatMoney(order.pricing.totalCents)} bold />

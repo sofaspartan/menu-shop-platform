@@ -518,15 +518,16 @@ export function RestaurantPage() {
         )}
       >
         {!selectedMenu ? (
-          <EmptyState
-            title="No menus available right now"
-            description="Check back during open hours or ask the restaurant for today’s offerings."
-          />
+          <EmptyState title={copy.noCatalogTitle} description={copy.noCatalogBody} />
         ) : (
           <>
             {featured.length > 0 && !search && !dietaryFilter ? (
               <section className="mb-10 animate-fade-up">
-                <h2 className="mb-4 font-display text-2xl text-[var(--sf-text)]">Featured</h2>
+                <div className="mb-5 border-b border-[color-mix(in_srgb,var(--sf-text)_14%,transparent)] pb-3">
+                  <h2 className="font-display text-2xl font-semibold tracking-tight text-[var(--sf-text)] sm:text-[1.75rem]">
+                    Featured
+                  </h2>
+                </div>
                 <div className="flex gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {featured.map(({ item, assignment }) => (
                     <button
@@ -558,14 +559,20 @@ export function RestaurantPage() {
                 className="mb-12 scroll-mt-44 animate-fade-up"
                 style={{ animationDelay: `${Math.min(idx, 4) * 60}ms` }}
               >
-                <h2 className="font-display text-2xl text-[var(--sf-text)]">{section.name}</h2>
-                {section.description ? (
-                  <p className="mt-1 text-sm text-[var(--sf-text)]/60">{section.description}</p>
-                ) : null}
+                <div className="mb-5 border-b border-[color-mix(in_srgb,var(--sf-text)_14%,transparent)] pb-3">
+                  <h2 className="font-display text-2xl font-semibold tracking-tight text-[var(--sf-text)] sm:text-[1.75rem]">
+                    {section.name}
+                  </h2>
+                  {section.description ? (
+                    <p className="mt-1.5 text-sm leading-relaxed text-[var(--sf-text)]/65">
+                      {section.description}
+                    </p>
+                  ) : null}
+                </div>
                 {items.length === 0 ? (
                   <p className="mt-4 text-sm text-stone-500">No items match your filters.</p>
                 ) : (
-                  <ul className="mt-4 divide-y divide-stone-200/70">
+                  <ul className="divide-y divide-stone-200/70">
                     {items.map(({ item, assignment }) => {
                       const available = isItemOrderable(item, now)
                       const price = assignment.priceOverrideCents ?? item.basePriceCents

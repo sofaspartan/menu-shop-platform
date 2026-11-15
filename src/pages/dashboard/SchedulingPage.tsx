@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input, Textarea, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { createId } from '@/lib/utils'
+import { storeCopy } from '@/lib/storeCopy'
 import { formatScheduleSummary } from '@/lib/scheduling'
 import type {
   BusinessHoursDay,
@@ -34,6 +35,7 @@ export function SchedulingPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
+  const copy = storeCopy(current?.storeKind)
   const menus = useMemo(() => {
     if (!db || !current) return []
     return db.menus
@@ -214,7 +216,7 @@ export function SchedulingPage() {
               />
             </Field>
           </div>
-          <Field label="Prep time (minutes)">
+          <Field label={copy.estimatedPrepLabel}>
             <Input
               type="number"
               min={0}
@@ -253,7 +255,7 @@ export function SchedulingPage() {
                 setOrdering((o) => (o ? { ...o, pickupEnabled: e.target.checked } : o))
               }
             />
-            Pickup enabled
+            {copy.pickupLabel} enabled
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -263,9 +265,9 @@ export function SchedulingPage() {
                 setOrdering((o) => (o ? { ...o, deliveryEnabled: e.target.checked } : o))
               }
             />
-            Delivery enabled
+            {copy.shipOrDeliveryEnabled}
           </label>
-          <Field label="Delivery fee (USD)">
+          <Field label={`${copy.shipOrDeliveryFee} (USD)`}>
             <Input
               type="number"
               min={0}
@@ -300,7 +302,7 @@ export function SchedulingPage() {
               }
             />
           </Field>
-          <Field label="Minimum delivery order (USD)">
+          <Field label={`${copy.shipOrDeliveryMinimum} (USD)`}>
             <Input
               type="number"
               min={0}
@@ -320,6 +322,12 @@ export function SchedulingPage() {
               }
             />
           </Field>
+          {copy.isRetail ? (
+            <p className="text-xs text-stone-500">
+              For retail, “shipping” uses the same address + fee fields as restaurant delivery —
+              presented to shoppers as carrier shipping rather than same-day courier delivery.
+            </p>
+          ) : null}
         </div>
       </section>
 

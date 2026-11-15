@@ -1,4 +1,4 @@
-import type { OrderStatus, StoreKind } from '@/types'
+import type { OrderStatus, OrderType, StoreKind } from '@/types'
 
 /** Customer- and dashboard-facing labels that change with store kind. */
 export function storeCopy(kind: StoreKind = 'restaurant') {
@@ -31,13 +31,43 @@ export function storeCopy(kind: StoreKind = 'restaurant') {
     estimatedReady: retail ? 'Estimated ready' : 'Estimated ready',
     estimatedPrepLabel: retail ? 'Fulfillment time (minutes)' : 'Prep time (minutes)',
     kitchenOrShop: retail ? 'shop' : 'kitchen',
+    /** Keep pickup; retail "delivery" is framed as shipping. */
+    pickupLabel: retail ? 'Store pickup' : 'Pickup',
+    shipOrDeliveryLabel: retail ? 'Shipping' : 'Delivery',
+    shipOrDeliveryEnabled: retail ? 'Shipping enabled' : 'Delivery enabled',
+    shipOrDeliveryFee: retail ? 'Shipping fee' : 'Delivery fee',
+    shipOrDeliveryAddress: retail ? 'Shipping address' : 'Delivery address',
+    shipOrDeliveryMinimum: retail
+      ? 'Minimum shipping order'
+      : 'Minimum delivery order',
+    shipOrDeliveryMinimumError: (amount: string) =>
+      retail ? `Shipping minimum is ${amount}.` : `Delivery minimum is ${amount}.`,
+    completeAddressError: retail
+      ? 'Please complete your shipping address.'
+      : 'Please complete your delivery address.',
+    placingOrderTitle: (orderType: OrderType) => {
+      if (orderType === 'delivery') {
+        return retail ? 'Placing shipping order…' : 'Placing delivery order…'
+      }
+      return retail ? 'Placing pickup order…' : 'Placing pickup order…'
+    },
+    estimatedEtaPrefix: (orderType: OrderType) => {
+      if (orderType === 'delivery') {
+        return retail ? 'Estimated delivery by' : 'Estimated arrival at'
+      }
+      return retail ? 'Estimated ready for pickup by' : 'Estimated ready by'
+    },
+    noCatalogTitle: retail ? 'No catalogs available right now' : 'No menus available right now',
+    noCatalogBody: retail
+      ? 'Check back during open hours or ask the store what’s available.'
+      : 'Check back during open hours or ask the restaurant for today’s offerings.',
   } as const
 }
 
 export function statusHeadlineFor(
   status: OrderStatus,
   kind: StoreKind,
-  orderType: 'pickup' | 'delivery',
+  orderType: OrderType,
 ): string {
   const retail = kind === 'retail'
   switch (status) {
@@ -50,9 +80,10 @@ export function statusHeadlineFor(
     case 'ready':
       return orderType === 'pickup' ? 'Ready for pickup' : 'Ready'
     case 'out_for_delivery':
-      return 'Out for delivery'
+      return retail ? 'Shipped' : 'Out for delivery'
     case 'completed':
-      return orderType === 'delivery' ? 'Delivered' : 'Picked up'
+      if (orderType === 'delivery') return 'Delivered'
+      return 'Picked up'
     case 'cancelled':
       return 'Order cancelled'
     default:
@@ -63,7 +94,7 @@ export function statusHeadlineFor(
 export function statusSubtitleFor(
   status: OrderStatus,
   kind: StoreKind,
-  orderType: 'pickup' | 'delivery',
+  orderType: OrderType,
   storeName: string,
 ): string {
   const retail = kind === 'retail'
@@ -84,10 +115,14 @@ export function statusSubtitleFor(
         ? `Your order is ready — head to ${name} to pick it up.`
         : 'Your order is ready for the next step.'
     case 'out_for_delivery':
-      return `Your order from ${name} is on the way.`
+      return retail
+        ? `Your order from ${name} has shipped and is on the way.`
+        : `Your order from ${name} is on the way.`
     case 'completed':
       return orderType === 'delivery'
-        ? 'Your order has been delivered. Enjoy!'
+        ? retail
+          ? 'Your order has been delivered. Enjoy!'
+          : 'Your order has been delivered. Enjoy!'
         : 'Your order has been picked up. Enjoy!'
     case 'cancelled':
       return `This order was cancelled. Contact ${name} if you have questions.`
@@ -99,7 +134,7 @@ export function statusSubtitleFor(
 export function shortStatusLabel(
   status: OrderStatus,
   kind: StoreKind,
-  orderType: 'pickup' | 'delivery',
+  _orderType: OrderType,
 ): string {
   const retail = kind === 'retail'
   switch (status) {
@@ -112,9 +147,9 @@ export function shortStatusLabel(
     case 'ready':
       return 'Ready'
     case 'out_for_delivery':
-      return 'Delivery'
+      return retail ? 'Shipped' : 'Delivery'
     case 'completed':
-      return orderType === 'delivery' ? 'Done' : 'Done'
+      return 'Done'
     case 'cancelled':
       return 'Cancelled'
     default:
