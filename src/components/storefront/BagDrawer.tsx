@@ -125,26 +125,29 @@ export function BagDrawer({
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
+                        size="icon"
+                        className="h-8 w-8"
+                        aria-label="Edit item"
                         onClick={() => onEditLine(line)}
                       >
                         <Pencil className="h-3.5 w-3.5" />
-                        Edit
                       </Button>
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
+                        size="icon"
+                        className="h-8 w-8"
+                        aria-label="Duplicate item"
                         onClick={() => duplicateLine(line.id)}
                       >
                         <Copy className="h-3.5 w-3.5" />
-                        Duplicate
                       </Button>
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
-                        className="text-red-600 hover:bg-red-50"
+                        size="icon"
+                        className="h-8 w-8 text-red-600 hover:bg-red-50"
+                        aria-label="Remove item"
                         onClick={() => {
                           removeLine(line.id)
                           void trackEvent({
