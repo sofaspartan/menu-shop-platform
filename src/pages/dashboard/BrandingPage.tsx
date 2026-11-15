@@ -243,7 +243,7 @@ export function BrandingPage() {
                 actionLabel="Apply"
                 onApply={() => applyBranding(theme.branding, null)}
                 footer={
-                  <div className="mt-3 flex flex-wrap gap-1.5 border-t border-stone-100 pt-3">
+                  <div className="flex flex-wrap gap-1.5">
                     <Button
                       size="sm"
                       variant="outline"
@@ -599,49 +599,140 @@ function ThemeCard({
   onApply: () => void
   footer?: React.ReactNode
 }) {
+  const previewStyle = brandingStyleVars(branding)
+  const radius =
+    branding.borderRadius === 'none'
+      ? '0px'
+      : branding.borderRadius === 'sm'
+        ? '6px'
+        : branding.borderRadius === 'lg'
+          ? '14px'
+          : branding.borderRadius === 'xl'
+            ? '18px'
+            : '10px'
+
   return (
     <div
       className={cn(
-        'rounded-2xl border p-4 transition-colors',
-        active ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]' : 'border-stone-200 bg-stone-50/70',
+        'overflow-hidden rounded-2xl border transition-colors',
+        active ? 'border-[var(--color-brand)] ring-2 ring-[var(--color-brand)]/20' : 'border-stone-200',
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="font-medium text-stone-900">{name}</div>
-          <p className="mt-1 text-xs leading-relaxed text-stone-500">{description}</p>
+      <div
+        className="p-4"
+        style={{
+          ...previewStyle,
+          background: 'var(--brand-bg)',
+          color: 'var(--brand-text)',
+          fontFamily: 'var(--brand-body)',
+        }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div
+              className="truncate text-lg font-semibold leading-tight"
+              style={{ fontFamily: 'var(--brand-heading)' }}
+            >
+              {name}
+            </div>
+            <p className="mt-1 text-xs leading-relaxed opacity-70">{description}</p>
+          </div>
+          {active ? (
+            <span
+              className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium"
+              style={{
+                background: 'color-mix(in srgb, var(--brand-primary) 16%, white)',
+                color: 'var(--brand-primary)',
+              }}
+            >
+              <Check className="h-3 w-3" /> Selected
+            </span>
+          ) : null}
         </div>
-        {active ? (
-          <span className="inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-[11px] font-medium text-[var(--color-brand)]">
-            <Check className="h-3 w-3" /> Selected
+
+        <div
+          className="mt-3 p-3"
+          style={{
+            background: 'var(--brand-surface)',
+            borderRadius: radius,
+            border:
+              branding.cardStyle === 'bordered'
+                ? '1px solid color-mix(in srgb, var(--brand-text) 12%, transparent)'
+                : undefined,
+            boxShadow:
+              branding.cardStyle === 'elevated' ? '0 8px 18px rgba(0,0,0,0.08)' : undefined,
+          }}
+        >
+          <div className="text-sm font-semibold" style={{ fontFamily: 'var(--brand-heading)' }}>
+            Tonight’s special
+          </div>
+          <p className="mt-1 text-xs opacity-70">Sample menu text in this theme’s type and color.</p>
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <span className="text-sm font-semibold" style={{ color: 'var(--brand-accent)' }}>
+              $18.00
+            </span>
+            <span
+              className="px-2.5 py-1 text-[11px] font-semibold"
+              style={{
+                borderRadius: radius,
+                background:
+                  branding.buttonStyle === 'soft'
+                    ? 'color-mix(in srgb, var(--brand-button) 18%, white)'
+                    : branding.buttonStyle === 'outline'
+                      ? 'transparent'
+                      : 'var(--brand-button)',
+                color:
+                  branding.buttonStyle === 'solid'
+                    ? 'var(--brand-button-text)'
+                    : 'var(--brand-button)',
+                border:
+                  branding.buttonStyle === 'outline'
+                    ? '1px solid var(--brand-button)'
+                    : undefined,
+              }}
+            >
+              Add
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {[
+            branding.primaryColor,
+            branding.secondaryColor,
+            branding.accentColor,
+            branding.backgroundColor,
+            branding.surfaceColor,
+            branding.buttonColor,
+          ].map((color, i) => (
+            <span
+              key={`${color}-${i}`}
+              className="h-5 w-5 rounded-full border border-black/10"
+              style={{ background: color }}
+              title={color}
+            />
+          ))}
+        </div>
+
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="text-[11px] opacity-65">
+            {branding.headingFont} · {branding.bodyFont}
           </span>
-        ) : null}
+          <button
+            type="button"
+            onClick={onApply}
+            className="rounded-lg px-3 py-1.5 text-xs font-semibold"
+            style={{
+              borderRadius: radius,
+              background: 'var(--brand-button)',
+              color: 'var(--brand-button-text)',
+            }}
+          >
+            {actionLabel}
+          </button>
+        </div>
       </div>
-      <div className="mt-3 flex gap-1.5">
-        {[
-          branding.primaryColor,
-          branding.secondaryColor,
-          branding.accentColor,
-          branding.backgroundColor,
-          branding.buttonColor,
-        ].map((color, i) => (
-          <span
-            key={`${color}-${i}`}
-            className="h-6 w-6 rounded-full border border-black/10"
-            style={{ background: color }}
-            title={color}
-          />
-        ))}
-      </div>
-      <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-stone-500">
-        <span>
-          {branding.headingFont} · {branding.bodyFont}
-        </span>
-        <Button size="sm" variant={active ? 'primary' : 'outline'} onClick={onApply}>
-          {actionLabel}
-        </Button>
-      </div>
-      {footer}
+      {footer ? <div className="border-t border-stone-200 bg-white px-4 py-3">{footer}</div> : null}
     </div>
   )
 }
