@@ -18,32 +18,34 @@ import {
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { useRestaurantStore } from '@/stores/restaurantStore'
+import { storeCopy } from '@/lib/storeCopy'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
-
-const nav = [
-  { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/dashboard/orders', label: 'Orders', icon: ClipboardList },
-  { to: '/dashboard/menus', label: 'Menus', icon: Menu },
-  { to: '/dashboard/items', label: 'Item library', icon: UtensilsCrossed },
-  { to: '/dashboard/modifiers', label: 'Modifiers', icon: Store },
-  { to: '/dashboard/combos', label: 'Combos', icon: Layers },
-  { to: '/dashboard/scheduling', label: 'Scheduling', icon: Clock3 },
-  { to: '/dashboard/branding', label: 'Branding', icon: Palette },
-  { to: '/dashboard/qr', label: 'QR codes', icon: QrCode },
-  { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/dashboard/preview', label: 'Preview', icon: Eye },
-  { to: '/dashboard/settings', label: 'Settings', icon: Settings },
-]
 
 export function DashboardLayout() {
   const user = useAuthStore((s) => s.user)
   const signOut = useAuthStore((s) => s.signOut)
   const { restaurants, currentId, setCurrent, load, loading } = useRestaurantStore()
   const current = restaurants.find((r) => r.id === currentId) ?? null
+  const copy = storeCopy(current?.storeKind)
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [switcherOpen, setSwitcherOpen] = useState(false)
+
+  const nav = [
+    { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
+    { to: '/dashboard/orders', label: 'Orders', icon: ClipboardList },
+    { to: '/dashboard/menus', label: copy.catalogNounPlural, icon: Menu },
+    { to: '/dashboard/items', label: copy.itemLibrary, icon: UtensilsCrossed },
+    { to: '/dashboard/modifiers', label: copy.modifiersNoun, icon: Store },
+    { to: '/dashboard/combos', label: copy.comboNounPlural, icon: Layers },
+    { to: '/dashboard/scheduling', label: 'Scheduling', icon: Clock3 },
+    { to: '/dashboard/branding', label: 'Branding', icon: Palette },
+    { to: '/dashboard/qr', label: 'QR codes', icon: QrCode },
+    { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
+    { to: '/dashboard/preview', label: 'Preview', icon: Eye },
+    { to: '/dashboard/settings', label: 'Settings', icon: Settings },
+  ]
 
   useEffect(() => {
     if (user) void load(user.id)
@@ -65,7 +67,7 @@ export function DashboardLayout() {
           </div>
           <div>
             <div className="font-display text-lg leading-none">MenuShop</div>
-            <div className="text-xs text-stone-500">Restaurant dashboard</div>
+            <div className="text-xs text-stone-500">{copy.dashboardSubtitle}</div>
           </div>
         </div>
 
@@ -77,10 +79,12 @@ export function DashboardLayout() {
           >
             <div className="min-w-0">
               <div className="truncate text-sm font-medium">
-                {current?.name || (loading ? 'Loading…' : 'Select restaurant')}
+                {current?.name || (loading ? 'Loading…' : 'Select a store')}
               </div>
               <div className="truncate text-xs text-stone-500">
-                {current ? `/r/${current.slug}` : 'Create or choose a restaurant'}
+                {current
+                  ? `${current.storeKind === 'retail' ? 'Retail' : 'Restaurant'} · /r/${current.slug}`
+                  : 'Create or choose a store'}
               </div>
             </div>
             <ChevronDown className="h-4 w-4 shrink-0 text-stone-400" />
@@ -100,7 +104,10 @@ export function DashboardLayout() {
                     setSwitcherOpen(false)
                   }}
                 >
-                  {r.name}
+                  <span className="block truncate font-medium">{r.name}</span>
+                  <span className="block text-xs text-stone-500 capitalize">
+                    {r.storeKind ?? 'restaurant'}
+                  </span>
                 </button>
               ))}
               <button
@@ -111,7 +118,7 @@ export function DashboardLayout() {
                   navigate('/dashboard/restaurants/new')
                 }}
               >
-                + New restaurant
+                + New store
               </button>
             </div>
           ) : null}

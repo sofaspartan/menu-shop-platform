@@ -27,14 +27,14 @@ export function LandingPage() {
         <section className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="animate-fade-up">
             <p className="mb-4 text-sm font-medium uppercase tracking-[0.2em] text-[var(--color-brand)]">
-              Digital restaurant ordering
+              Restaurants & retail storefronts
             </p>
             <h1 className="font-display text-5xl leading-[1.05] text-stone-900 md:text-6xl">
               MenuShop
             </h1>
             <p className="mt-5 max-w-xl text-lg text-stone-600">
-              Create a branded digital storefront, manage menus and modifiers, take simulated
-              orders, and track every step from kitchen to customer.
+              Create a branded digital storefront for restaurants or retail shops, manage menus
+              or product catalogs, take simulated orders, and track every step to the customer.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/signup">
@@ -45,7 +45,12 @@ export function LandingPage() {
               </Link>
               <Link to="/r/the-corner-table">
                 <Button size="lg" variant="outline">
-                  View demo storefront
+                  Demo restaurant
+                </Button>
+              </Link>
+              <Link to="/r/haven-and-hide">
+                <Button size="lg" variant="outline">
+                  Demo retail shop
                 </Button>
               </Link>
             </div>
@@ -84,12 +89,12 @@ export function LandingPage() {
             {
               icon: Smartphone,
               title: 'Mobile-first storefronts',
-              body: 'Beautiful menus, modifiers, combos, and a persistent shopping bag designed for phones.',
+              body: 'Menus or product catalogs, options, bundles, and a persistent bag/cart designed for phones.',
             },
             {
               icon: Store,
               title: 'Owner dashboard',
-              body: 'Menus, item library, branding, scheduling, orders, QR codes, and analytics in one place.',
+              body: 'Restaurant or retail stores, catalogs, branding, scheduling, orders, QR codes, and analytics.',
             },
             {
               icon: QrCode,

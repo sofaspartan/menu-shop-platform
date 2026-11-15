@@ -334,6 +334,7 @@ export function ItemsPage() {
             >
               <option value="food">Food</option>
               <option value="drink">Drink</option>
+              <option value="product">Product</option>
               <option value="combo">Combo</option>
               <option value="other">Other</option>
             </Select>

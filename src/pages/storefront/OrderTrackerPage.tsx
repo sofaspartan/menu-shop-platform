@@ -13,6 +13,12 @@ import type { Order, OrderStatus, Restaurant } from '@/types'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
 import { Button } from '@/components/ui/Button'
 import { useDb } from '@/hooks/useDb'
+import {
+  shortStatusLabel,
+  statusHeadlineFor,
+  statusSubtitleFor,
+  storeCopy,
+} from '@/lib/storeCopy'
 import { formatMoney, formatPhone, cn } from '@/lib/utils'
 import { DEFAULT_BRANDING } from '@/types'
 
@@ -62,9 +68,16 @@ export function OrderTrackerPage() {
   }
 
   const branding = restaurant?.branding ?? DEFAULT_BRANDING
-  const steps = trackerSteps(order)
-  const headline = statusHeadline(order)
-  const subtitle = statusSubtitle(order, restaurant?.name)
+  const kind = restaurant?.storeKind ?? 'restaurant'
+  const copy = storeCopy(kind)
+  const steps = trackerSteps(order, kind)
+  const headline = statusHeadlineFor(order.status, kind, order.fulfillment.type)
+  const subtitle = statusSubtitleFor(
+    order.status,
+    kind,
+    order.fulfillment.type,
+    restaurant?.name ?? copy.storeNounTitle,
+  )
   const StatusIcon = iconFor(order.status)
   const filledCount = steps.filter((s) => s.state === 'done' || s.state === 'current').length
   const isCancelled = order.status === 'cancelled'
@@ -309,7 +322,11 @@ function PickupAddress({
   inline?: boolean
 }) {
   if (!restaurant.address.line1) {
-    return inline ? <p className="font-medium">Pickup at restaurant</p> : null
+    return inline ? (
+      <p className="font-medium">
+        Pickup at {storeCopy(restaurant.storeKind).storeNoun}
+      </p>
+    ) : null
   }
   return (
     <div>
@@ -331,7 +348,7 @@ function PickupAddress({
 
 type StepState = 'done' | 'current' | 'upcoming'
 
-function trackerSteps(order: Order) {
+function trackerSteps(order: Order, kind: Restaurant['storeKind'] = 'restaurant') {
   const statuses =
     order.fulfillment.type === 'delivery'
       ? ([
@@ -355,8 +372,8 @@ function trackerSteps(order: Order) {
     return [
       ...reached.map((status) => ({
         status,
-        label: statusDisplayFor(status, order.fulfillment.type),
-        shortLabel: shortLabelFor(status, order.fulfillment.type),
+        label: statusHeadlineFor(status, kind, order.fulfillment.type),
+        shortLabel: shortStatusLabel(status, kind, order.fulfillment.type),
         state: 'done' as StepState,
       })),
       {
@@ -376,85 +393,11 @@ function trackerSteps(order: Order) {
     if (order.status === 'completed' && index === statuses.length - 1) state = 'done'
     return {
       status,
-      label: statusDisplayFor(status, order.fulfillment.type),
-      shortLabel: shortLabelFor(status, order.fulfillment.type),
+      label: statusHeadlineFor(status, kind, order.fulfillment.type),
+      shortLabel: shortStatusLabel(status, kind, order.fulfillment.type),
       state,
     }
   })
-}
-
-function statusHeadline(order: Order) {
-  const type = order.fulfillment.type
-  switch (order.status) {
-    case 'received':
-      return 'Order received'
-    case 'confirmed':
-      return 'Order confirmed'
-    case 'preparing':
-      return 'Preparing order'
-    case 'ready':
-      return type === 'pickup' ? 'Ready for pickup' : 'Ready'
-    case 'out_for_delivery':
-      return 'Out for delivery'
-    case 'completed':
-      return type === 'delivery' ? 'Delivered' : 'Picked up'
-    case 'cancelled':
-      return 'Order cancelled'
-    default:
-      return 'Tracking order'
-  }
-}
-
-function statusSubtitle(order: Order, restaurantName?: string) {
-  const name = restaurantName ?? 'The restaurant'
-  switch (order.status) {
-    case 'received':
-      return `${name} got your order and will confirm it shortly.`
-    case 'confirmed':
-      return `${name} confirmed your order and will start preparing soon.`
-    case 'preparing':
-      return `${name} is preparing your order.`
-    case 'ready':
-      return order.fulfillment.type === 'pickup'
-        ? `Your order is ready — head to ${name} to pick it up.`
-        : `Your order is ready for the next step.`
-    case 'out_for_delivery':
-      return `Your order from ${name} is on the way.`
-    case 'completed':
-      return order.fulfillment.type === 'delivery'
-        ? 'Your order has been delivered. Enjoy!'
-        : 'Your order has been picked up. Enjoy!'
-    case 'cancelled':
-      return 'This order was cancelled. Contact the restaurant if you have questions.'
-    default:
-      return 'We’ll update this page as your order progresses.'
-  }
-}
-
-function statusDisplayFor(status: OrderStatus, type: Order['fulfillment']['type']) {
-  const map: Record<OrderStatus, string> = {
-    received: 'Order received',
-    confirmed: 'Confirmed',
-    preparing: 'Preparing',
-    ready: type === 'pickup' ? 'Ready for pickup' : 'Ready',
-    out_for_delivery: 'Out for delivery',
-    completed: type === 'delivery' ? 'Delivered' : 'Picked up',
-    cancelled: 'Cancelled',
-  }
-  return map[status]
-}
-
-function shortLabelFor(status: OrderStatus, type: Order['fulfillment']['type']) {
-  const map: Record<OrderStatus, string> = {
-    received: 'Received',
-    confirmed: 'Confirmed',
-    preparing: 'Preparing',
-    ready: type === 'pickup' ? 'Ready' : 'Ready',
-    out_for_delivery: 'Delivery',
-    completed: type === 'delivery' ? 'Done' : 'Done',
-    cancelled: 'Cancelled',
-  }
-  return map[status]
 }
 
 function iconFor(status: OrderStatus) {

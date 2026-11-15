@@ -25,6 +25,7 @@ import { useDb } from '@/hooks/useDb'
 import { useBagStore, type BagLine } from '@/stores/bagStore'
 import { usePreviewStore } from '@/stores/previewStore'
 import { getAvailableMenus, isAcceptingOrders, isItemAvailableNow } from '@/lib/scheduling'
+import { storeCopy } from '@/lib/storeCopy'
 import { formatMoney, formatPhone, cn, getDayOfWeek } from '@/lib/utils'
 import { trackEvent } from '@/services/analyticsService'
 
@@ -281,6 +282,7 @@ export function RestaurantPage() {
   const hoursSummary = formatHoursSummary(restaurant, now)
   const activeDietary = dietaryLabels.find((l) => l.id === dietaryFilter)
   const showCover = restaurant.branding.coverDisplay !== 'none' && restaurant.coverImageUrl
+  const copy = storeCopy(restaurant.storeKind)
 
   return (
     <StorefrontShell branding={restaurant.branding}>
@@ -641,7 +643,7 @@ export function RestaurantPage() {
           >
             <span className="flex items-center gap-2 font-medium">
               <ShoppingBag className="h-5 w-5" />
-              View bag · {bagCount}
+              {copy.viewBag} · {bagCount}
             </span>
             <span className="font-semibold">{formatMoney(bagSubtotal)}</span>
           </button>
@@ -656,10 +658,13 @@ export function RestaurantPage() {
             bagPulseKey > 0 && 'bag-catch-pulse',
           )}
           key={`mobile-bag-fab-${bagPulseKey}`}
-          aria-label="Open bag"
+          aria-label={`Open ${copy.bagNoun}`}
         >
           <ShoppingBag className="h-5 w-5" />
-          <span className="font-medium">Bag{bagCount > 0 ? ` · ${bagCount}` : ''}</span>
+          <span className="font-medium">
+            {copy.bagNounTitle}
+            {bagCount > 0 ? ` · ${bagCount}` : ''}
+          </span>
           {bagCount > 0 ? (
             <span className="text-sm opacity-90">{formatMoney(bagSubtotal)}</span>
           ) : null}
@@ -677,7 +682,10 @@ export function RestaurantPage() {
         key={`desktop-bag-${bagPulseKey}`}
       >
         <ShoppingBag className="h-5 w-5" />
-        <span className="font-medium">Bag{bagCount > 0 ? ` · ${bagCount}` : ''}</span>
+        <span className="font-medium">
+          {copy.bagNounTitle}
+          {bagCount > 0 ? ` · ${bagCount}` : ''}
+        </span>
         {bagCount > 0 ? (
           <span className="text-sm opacity-90">{formatMoney(bagSubtotal)}</span>
         ) : null}

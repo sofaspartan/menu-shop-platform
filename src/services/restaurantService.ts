@@ -5,8 +5,9 @@ import type {
   RestaurantBranding,
   RestaurantMembership,
   OrderingSettings,
+  StoreKind,
 } from '@/types'
-import { DEFAULT_BRANDING, DEFAULT_ORDERING } from '@/types'
+import { DEFAULT_BRANDING, DEFAULT_ORDERING, DEFAULT_RETAIL_ORDERING } from '@/types'
 import { getDb, saveDb } from '@/data/db'
 import { createId, nowIso, slugify } from '@/lib/utils'
 
@@ -45,7 +46,7 @@ export async function assertRestaurantAccess(
 
 export async function createRestaurant(
   userId: string,
-  input: { name: string; description?: string },
+  input: { name: string; description?: string; storeKind?: StoreKind },
 ): Promise<Restaurant> {
   const ts = nowIso()
   const db = await getDb()
@@ -54,7 +55,8 @@ export async function createRestaurant(
     orgId = createId('org')
   }
 
-  let baseSlug = slugify(input.name) || 'restaurant'
+  const storeKind: StoreKind = input.storeKind === 'retail' ? 'retail' : 'restaurant'
+  let baseSlug = slugify(input.name) || (storeKind === 'retail' ? 'store' : 'restaurant')
   let slug = baseSlug
   let n = 2
   while (db.restaurants.some((r) => r.slug === slug)) {
@@ -66,7 +68,10 @@ export async function createRestaurant(
     organizationId: orgId,
     slug,
     name: input.name.trim(),
-    description: input.description?.trim() || 'Welcome to our restaurant.',
+    storeKind,
+    description:
+      input.description?.trim() ||
+      (storeKind === 'retail' ? 'Welcome to our store.' : 'Welcome to our restaurant.'),
     phone: '',
     email: '',
     address: {
@@ -85,7 +90,9 @@ export async function createRestaurant(
     })),
     timezone: 'America/New_York',
     branding: { ...DEFAULT_BRANDING },
-    ordering: { ...DEFAULT_ORDERING },
+    ordering: {
+      ...(storeKind === 'retail' ? DEFAULT_RETAIL_ORDERING : DEFAULT_ORDERING),
+    },
     overlapBehavior: 'show_both',
     createdAt: ts,
     updatedAt: ts,

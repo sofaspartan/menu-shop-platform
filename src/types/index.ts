@@ -14,6 +14,9 @@ export type ItemAvailability =
 
 export type OrderType = 'pickup' | 'delivery'
 
+/** Vertical for a storefront: food service vs general retail. */
+export type StoreKind = 'restaurant' | 'retail'
+
 export type OrderStatus =
   | 'received'
   | 'confirmed'
@@ -130,6 +133,8 @@ export interface Restaurant extends Timestamps {
   slug: string
   name: string
   description: string
+  /** restaurant = food menus; retail = product catalogs (bags, furniture, etc.) */
+  storeKind: StoreKind
   logoUrl?: string
   coverImageUrl?: string
   phone: string
@@ -204,7 +209,7 @@ export interface MenuItem extends Timestamps {
   shortDescription: string
   fullDescription?: string
   basePriceCents: CurrencyCents
-  itemType: 'food' | 'drink' | 'combo' | 'other'
+  itemType: 'food' | 'drink' | 'combo' | 'product' | 'other'
   sku?: string
   dietaryLabelIds: ID[]
   allergens: string[]
@@ -470,6 +475,15 @@ export const DEFAULT_ORDERING: OrderingSettings = {
   orderCutoffMinutesBeforeClose: 15,
   tipPresetsPercent: [15, 18, 20, 25],
   itemNotesEnabled: true,
+}
+
+/** Sensible fulfillment defaults when creating a retail store. */
+export const DEFAULT_RETAIL_ORDERING: OrderingSettings = {
+  ...DEFAULT_ORDERING,
+  minimumDeliveryCents: 5000,
+  deliveryFeeCents: 999,
+  estimatedPrepMinutes: 90,
+  tipPresetsPercent: [10, 15, 20],
 }
 
 export const FONT_OPTIONS = [

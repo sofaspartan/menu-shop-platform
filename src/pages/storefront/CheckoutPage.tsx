@@ -10,6 +10,7 @@ import { Field, Input, Textarea } from '@/components/ui/Input'
 import { useDb } from '@/hooks/useDb'
 import { useBagStore } from '@/stores/bagStore'
 import { calculateOrderPricing } from '@/lib/pricing'
+import { storeCopy } from '@/lib/storeCopy'
 import { formatMoney, cn } from '@/lib/utils'
 import { placeOrder } from '@/services/orderService'
 import { trackEvent } from '@/services/analyticsService'
@@ -88,7 +89,7 @@ export function CheckoutPage() {
 
   function validateCheckout(): string | null {
     if (!restaurant) return 'Restaurant not found.'
-    if (!lines.length) return 'Your bag is empty.'
+    if (!lines.length) return storeCopy(restaurant.storeKind).emptyBag + '.'
     if (!name.trim() || !phone.trim()) return 'Name and phone are required.'
     if (orderType === 'delivery') {
       if (!line1.trim() || !city.trim() || !state.trim() || !postalCode.trim()) {
@@ -187,7 +188,7 @@ export function CheckoutPage() {
   if (!restaurant) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
-        <h1 className="font-display text-3xl">Restaurant not found</h1>
+        <h1 className="font-display text-3xl">Store not found</h1>
         <Link to="/" className="mt-4">
           <Button>Home</Button>
         </Link>
@@ -195,6 +196,7 @@ export function CheckoutPage() {
     )
   }
 
+  const copy = storeCopy(restaurant.storeKind)
   const presets = restaurant.ordering.tipPresetsPercent
   const pickupOk = restaurant.ordering.pickupEnabled
   const deliveryOk = restaurant.ordering.deliveryEnabled
@@ -212,7 +214,7 @@ export function CheckoutPage() {
           `${restaurant.address.city}, ${restaurant.address.state} ${restaurant.address.postalCode}`,
         ]
           .filter(Boolean)
-          .join(', ') || 'Pickup at restaurant'
+          .join(', ') || `Pickup at ${copy.storeNoun}`
 
   return (
     <StorefrontShell branding={restaurant.branding}>
@@ -229,9 +231,9 @@ export function CheckoutPage() {
 
         {!lines.length ? (
           <div className="mt-10 rounded-2xl border border-dashed border-stone-300 bg-[var(--sf-surface)] p-10 text-center">
-            <p className="font-medium">Your bag is empty</p>
+            <p className="font-medium">{copy.emptyBag}</p>
             <Link to={`/r/${restaurant.slug}`} className="mt-4 inline-block">
-              <Button>Browse menu</Button>
+              <Button>{copy.browseCta}</Button>
             </Link>
           </div>
         ) : (

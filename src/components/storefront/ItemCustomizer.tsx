@@ -16,6 +16,7 @@ import {
   type BagModifierSelection,
 } from '@/lib/pricing'
 import { brandingStyleVars } from '@/lib/brandingCss'
+import { storeCopy } from '@/lib/storeCopy'
 import { formatMoney, cn } from '@/lib/utils'
 import { trackEvent } from '@/services/analyticsService'
 
@@ -287,6 +288,7 @@ export function ItemCustomizer({
 
   const lineTotal = priced.unitPriceCents * quantity
   const isEditing = Boolean(editingLine)
+  const copy = storeCopy(restaurant.storeKind)
 
   return (
     <Modal
@@ -455,7 +457,7 @@ export function ItemCustomizer({
             }}
             onClick={() => void handleSubmit()}
           >
-            {isEditing ? 'Update bag' : 'Add to bag'} · {formatMoney(lineTotal)}
+            {isEditing ? copy.updateBag : copy.addToBag} · {formatMoney(lineTotal)}
           </Button>
         </div>
       </div>
