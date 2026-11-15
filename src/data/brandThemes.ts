@@ -107,7 +107,7 @@ export const PRESET_BRAND_THEMES: PresetBrandTheme[] = [
       bodyFont: 'DM Sans',
       borderRadius: 'xl',
       cardStyle: 'elevated',
-      buttonStyle: 'soft',
+      buttonStyle: 'solid',
       logoPlacement: 'center',
       coverDisplay: 'full',
       imagePresentation: 'cover',

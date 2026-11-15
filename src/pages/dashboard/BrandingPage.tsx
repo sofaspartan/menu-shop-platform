@@ -510,20 +510,8 @@ export function BrandingPage() {
                     className="px-3 py-1.5 text-sm font-medium"
                     style={{
                       borderRadius: 'var(--brand-radius)',
-                      background:
-                        branding.buttonStyle === 'soft'
-                          ? 'color-mix(in srgb, var(--brand-button) 18%, white)'
-                          : branding.buttonStyle === 'outline'
-                            ? 'transparent'
-                            : 'var(--brand-button)',
-                      color:
-                        branding.buttonStyle === 'solid'
-                          ? 'var(--brand-button-text)'
-                          : 'var(--brand-button)',
-                      border:
-                        branding.buttonStyle === 'outline'
-                          ? '1px solid var(--brand-button)'
-                          : undefined,
+                      background: 'var(--brand-button)',
+                      color: 'var(--brand-button-text)',
                     }}
                   >
                     Add
@@ -675,20 +663,8 @@ function ThemeCard({
               className="px-2.5 py-1 text-[11px] font-semibold"
               style={{
                 borderRadius: radius,
-                background:
-                  branding.buttonStyle === 'soft'
-                    ? 'color-mix(in srgb, var(--brand-button) 18%, white)'
-                    : branding.buttonStyle === 'outline'
-                      ? 'transparent'
-                      : 'var(--brand-button)',
-                color:
-                  branding.buttonStyle === 'solid'
-                    ? 'var(--brand-button-text)'
-                    : 'var(--brand-button)',
-                border:
-                  branding.buttonStyle === 'outline'
-                    ? '1px solid var(--brand-button)'
-                    : undefined,
+                background: 'var(--brand-button)',
+                color: 'var(--brand-button-text)',
               }}
             >
               Add

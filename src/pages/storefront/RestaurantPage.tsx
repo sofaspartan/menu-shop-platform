@@ -487,7 +487,12 @@ export function RestaurantPage() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-5xl px-4 pb-32 pt-6 sm:px-6">
+      <main
+        className={cn(
+          'mx-auto max-w-5xl px-4 pt-6 sm:px-6',
+          bagCount > 0 ? 'pb-32' : 'pb-28',
+        )}
+      >
         {!selectedMenu ? (
           <EmptyState
             title="No menus available right now"
@@ -600,26 +605,41 @@ export function RestaurantPage() {
         )}
       </main>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 p-4 sm:hidden">
+      {bagCount > 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 p-4 sm:hidden">
+          <button
+            type="button"
+            data-bag-target
+            onClick={() => setBagOpen(true)}
+            className={cn(
+              'flex w-full items-center justify-between rounded-2xl bg-[var(--sf-button)] px-5 py-4 text-[var(--sf-button-text)] shadow-lg',
+              bagPulseKey > 0 && 'bag-catch-pulse',
+            )}
+            key={`mobile-bag-full-${bagPulseKey}`}
+          >
+            <span className="flex items-center gap-2 font-medium">
+              <ShoppingBag className="h-5 w-5" />
+              View bag · {bagCount}
+            </span>
+            <span className="font-semibold">{formatMoney(bagSubtotal)}</span>
+          </button>
+        </div>
+      ) : (
         <button
           type="button"
           data-bag-target
           onClick={() => setBagOpen(true)}
           className={cn(
-            'flex w-full items-center justify-between rounded-2xl bg-[var(--sf-button)] px-5 py-4 text-[var(--sf-button-text)] shadow-lg',
+            'fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-4 py-3 text-[var(--sf-button-text)] shadow-lg sm:hidden',
             bagPulseKey > 0 && 'bag-catch-pulse',
           )}
-          key={`mobile-bag-${bagPulseKey}`}
+          key={`mobile-bag-fab-${bagPulseKey}`}
+          aria-label="Open bag"
         >
-          <span className="flex items-center gap-2 font-medium">
-            <ShoppingBag className="h-5 w-5" />
-            {bagCount > 0 ? `View bag · ${bagCount}` : 'Your bag'}
-          </span>
-          <span className="font-semibold">
-            {bagCount > 0 ? formatMoney(bagSubtotal) : 'Empty'}
-          </span>
+          <ShoppingBag className="h-5 w-5" />
+          <span className="font-medium">Bag</span>
         </button>
-      </div>
+      )}
 
       <button
         type="button"
