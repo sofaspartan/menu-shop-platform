@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
@@ -24,21 +25,22 @@ export function Modal({
       if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
+      document.body.style.overflow = prevOverflow
     }
   }, [open, onClose])
 
-  if (!open) return null
+  if (!open || typeof document === 'undefined') return null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-end justify-center p-0 sm:items-center sm:p-4">
       <button
         type="button"
         aria-label="Close dialog"
-        className="absolute inset-0 bg-stone-900/40 animate-fade-in"
+        className="absolute inset-0 bg-stone-900/50 animate-fade-in"
         onClick={onClose}
       />
       <div
@@ -46,27 +48,28 @@ export function Modal({
         aria-modal="true"
         aria-label={title || 'Dialog'}
         className={cn(
-          'relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 shadow-xl animate-slide-up sm:rounded-2xl sm:animate-fade-up',
+          'relative z-10 flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-xl animate-slide-up sm:max-h-[85vh] sm:rounded-2xl sm:animate-fade-up',
           wide ? 'sm:max-w-3xl' : 'sm:max-w-lg',
           className,
         )}
       >
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          aria-label="Close"
-          className="absolute right-3 top-3 z-20 h-10 w-10 rounded-full bg-white/90 text-stone-800 shadow-sm ring-1 ring-black/5 hover:bg-white"
-        >
-          <X className="h-5 w-5" />
-        </Button>
-        {title ? (
-          <div className="mb-4 pr-12">
-            <h2 className="font-display text-xl text-stone-900">{title}</h2>
-          </div>
-        ) : null}
-        {children}
+        <div className="flex items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
+          <h2 className="font-display text-xl text-stone-900">
+            {title || 'Dialog'}
+          </h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label="Close"
+            className="h-10 w-10 shrink-0 rounded-full"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <div className="overflow-y-auto px-5 py-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
