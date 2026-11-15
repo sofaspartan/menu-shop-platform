@@ -49,6 +49,8 @@ export function CheckoutPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  /** Cleared on Go back so a late countdown tick cannot still place the order. */
+  const confirmAllowedRef = useRef(false)
 
   const checkoutTracked = useRef(false)
   useEffect(() => {
@@ -109,13 +111,15 @@ export function CheckoutPage() {
       return
     }
     setError('')
+    confirmAllowedRef.current = true
     setConfirmOpen(true)
   }
 
   async function placeConfirmedOrder() {
-    if (!restaurant || submitting) return
+    if (!restaurant || submitting || !confirmAllowedRef.current) return
     const validationError = validateCheckout()
     if (validationError) {
+      confirmAllowedRef.current = false
       setConfirmOpen(false)
       setError(validationError)
       return
@@ -164,6 +168,7 @@ export function CheckoutPage() {
         state: { justPlaced: true, restaurantSlug: restaurant.slug },
       })
     } catch (err) {
+      confirmAllowedRef.current = false
       setConfirmOpen(false)
       setError(err instanceof Error ? err.message : 'Unable to place order.')
     } finally {
@@ -562,6 +567,7 @@ export function CheckoutPage() {
         onConfirm={() => void placeConfirmedOrder()}
         onBack={() => {
           if (submitting) return
+          confirmAllowedRef.current = false
           setConfirmOpen(false)
         }}
         orderType={orderType}

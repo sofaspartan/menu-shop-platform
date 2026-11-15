@@ -5,7 +5,7 @@ import type { OrderType, RestaurantBranding } from '@/types'
 import { formatMoney, cn } from '@/lib/utils'
 import { brandingStyleVars } from '@/lib/brandingCss'
 
-const COUNTDOWN_MS = 5000
+const COUNTDOWN_MS = 8000
 
 export interface PlacingOrderLinePreview {
   id: string
@@ -43,6 +43,7 @@ export function PlacingOrderConfirm({
   const [remainingMs, setRemainingMs] = useState(COUNTDOWN_MS)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const firedRef = useRef(false)
+  const cancelledRef = useRef(false)
   const onConfirmRef = useRef(onConfirm)
   onConfirmRef.current = onConfirm
 
@@ -51,12 +52,14 @@ export function PlacingOrderConfirm({
     setRemainingMs(COUNTDOWN_MS)
     setSummaryOpen(false)
     firedRef.current = false
+    cancelledRef.current = false
     const start = Date.now()
     const id = window.setInterval(() => {
-      if (firedRef.current) return
+      if (firedRef.current || cancelledRef.current) return
       const left = Math.max(0, COUNTDOWN_MS - (Date.now() - start))
       setRemainingMs(left)
       if (left === 0) {
+        if (firedRef.current || cancelledRef.current) return
         firedRef.current = true
         onConfirmRef.current()
       }
@@ -81,9 +84,17 @@ export function PlacingOrderConfirm({
     orderType === 'delivery' ? 'Placing delivery order…' : 'Placing pickup order…'
 
   function confirmNow() {
-    if (firedRef.current || submitting) return
+    if (firedRef.current || cancelledRef.current || submitting) return
     firedRef.current = true
     onConfirmRef.current()
+  }
+
+  function goBack() {
+    if (submitting) return
+    // Cancel before closing so a mid-tick countdown cannot still submit.
+    cancelledRef.current = true
+    firedRef.current = true
+    onBack()
   }
 
   return createPortal(
@@ -95,7 +106,7 @@ export function PlacingOrderConfirm({
         type="button"
         aria-label="Go back"
         className="absolute inset-0 bg-stone-900/45 animate-fade-in"
-        onClick={onBack}
+        onClick={goBack}
         disabled={submitting}
       />
       <div
@@ -193,7 +204,7 @@ export function PlacingOrderConfirm({
           </button>
           <button
             type="button"
-            onClick={onBack}
+            onClick={goBack}
             disabled={submitting}
             className="flex h-14 w-full items-center justify-center rounded-full border border-stone-300 bg-white text-base font-semibold text-stone-900 disabled:opacity-60"
           >
