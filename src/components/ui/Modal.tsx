@@ -44,19 +44,25 @@ export function Modal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={title || 'Dialog'}
         className={cn(
           'relative z-10 max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white p-5 shadow-xl animate-slide-up sm:rounded-2xl sm:animate-fade-up',
           wide ? 'sm:max-w-3xl' : 'sm:max-w-lg',
           className,
         )}
       >
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute right-3 top-3 z-20 h-10 w-10 rounded-full bg-white/90 text-stone-800 shadow-sm ring-1 ring-black/5 hover:bg-white"
+        >
+          <X className="h-5 w-5" />
+        </Button>
         {title ? (
-          <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="mb-4 pr-12">
             <h2 className="font-display text-xl text-stone-900">{title}</h2>
-            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
-              <X className="h-5 w-5" />
-            </Button>
           </div>
         ) : null}
         {children}
