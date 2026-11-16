@@ -55,6 +55,34 @@ export function buildHavenHideSeed(userId: string, orgId: string, ts: string) {
     slug: 'haven-and-hide',
     name: 'Haven & Hide',
     storeKind: 'retail',
+    storefrontLayout: 'retail',
+    pages: {
+      about: {
+        enabled: true,
+        title: 'Our craft',
+        heroImageUrl:
+          'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=1400&q=80',
+        body: `Haven & Hide began as a small leather workshop in SoHo — one bench, a handful of knives, and a belief that everyday objects should feel better with time.
+
+We cut and stitch full-grain leather in short runs: bags that carry a laptop and a weekend, wallets that soften instead of crack, and lounge pieces upholstered to order.
+
+Every item is made to last. If something needs a repair years from now, bring it back — we’ll take care of it.`,
+      },
+      contact: {
+        enabled: true,
+        title: 'Visit & contact',
+        intro: 'Come by the Mercer Street showroom, or write us about custom work and wholesale.',
+        showPhone: true,
+        showEmail: true,
+        showAddress: true,
+        showHours: true,
+        showWebsite: true,
+        showInstagram: true,
+        showFacebook: false,
+        showTwitter: false,
+        showTiktok: false,
+      },
+    },
     description:
       'Handcrafted leather goods and small furniture — bags, wallets, belts, and living-room pieces made to last.',
     logoUrl: IMAGES.logo,

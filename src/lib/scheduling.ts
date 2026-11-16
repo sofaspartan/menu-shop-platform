@@ -1,6 +1,16 @@
 import type { DayOfWeek, Menu, MenuItem, Restaurant, ScheduleRule } from '@/types'
 import { getDayOfWeek, parseTimeToMinutes } from '@/lib/utils'
 
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+export function formatHoursSummary(restaurant: Restaurant, at: Date = new Date()) {
+  const day = getDayOfWeek(at)
+  const hours = restaurant.businessHours.find((h) => h.day === day)
+  if (!hours) return 'Hours unavailable'
+  if (hours.closed) return `Closed ${DAY_NAMES[day]}`
+  return `Today ${hours.open}–${hours.close}`
+}
+
 export interface SimulatedClock {
   date: Date
 }

@@ -14,6 +14,7 @@ import {
   Eye,
   ChevronDown,
   Layers,
+  FileText,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
@@ -41,6 +42,7 @@ export function DashboardLayout() {
     { to: '/dashboard/combos', label: copy.comboNounPlural, icon: Layers },
     { to: '/dashboard/scheduling', label: 'Scheduling', icon: Clock3 },
     { to: '/dashboard/branding', label: 'Branding', icon: Palette },
+    { to: '/dashboard/pages', label: 'Pages & layout', icon: FileText },
     { to: '/dashboard/qr', label: 'QR codes', icon: QrCode },
     { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/dashboard/preview', label: 'Preview', icon: Eye },

@@ -20,7 +20,10 @@ import { AnalyticsPage } from '@/pages/dashboard/AnalyticsPage'
 import { SchedulingPage } from '@/pages/dashboard/SchedulingPage'
 import { PreviewPage } from '@/pages/dashboard/PreviewPage'
 import { SettingsPage } from '@/pages/dashboard/SettingsPage'
+import { PagesPage } from '@/pages/dashboard/PagesPage'
 import { RestaurantPage } from '@/pages/storefront/RestaurantPage'
+import { AboutPage } from '@/pages/storefront/AboutPage'
+import { ContactPage } from '@/pages/storefront/ContactPage'
 import { CheckoutPage } from '@/pages/storefront/CheckoutPage'
 import { OrderTrackerPage } from '@/pages/storefront/OrderTrackerPage'
 import { useAuthStore } from '@/stores/authStore'
@@ -61,11 +64,14 @@ export default function App() {
           <Route path="scheduling" element={<SchedulingPage />} />
           <Route path="preview" element={<PreviewPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="pages" element={<PagesPage />} />
           <Route path="restaurants/new" element={<NewRestaurantPage />} />
         </Route>
 
         <Route path="/r/:slug" element={<RestaurantPage />} />
         <Route path="/r/:slug/menu/:menuSlug" element={<RestaurantPage />} />
+        <Route path="/r/:slug/about" element={<AboutPage />} />
+        <Route path="/r/:slug/contact" element={<ContactPage />} />
         <Route path="/r/:slug/checkout" element={<CheckoutPage />} />
         <Route path="/order/:reference" element={<OrderTrackerPage />} />
 

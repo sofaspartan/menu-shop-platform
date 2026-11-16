@@ -7,7 +7,12 @@ import type {
   OrderingSettings,
   StoreKind,
 } from '@/types'
-import { DEFAULT_BRANDING, DEFAULT_ORDERING, DEFAULT_RETAIL_ORDERING } from '@/types'
+import {
+  DEFAULT_BRANDING,
+  DEFAULT_ORDERING,
+  DEFAULT_RETAIL_ORDERING,
+  defaultStorePagesFor,
+} from '@/types'
 import { getDb, saveDb } from '@/data/db'
 import { createId, nowIso, slugify } from '@/lib/utils'
 
@@ -93,6 +98,8 @@ export async function createRestaurant(
     ordering: {
       ...(storeKind === 'retail' ? DEFAULT_RETAIL_ORDERING : DEFAULT_ORDERING),
     },
+    storefrontLayout: storeKind === 'retail' ? 'retail' : 'restaurant',
+    pages: defaultStorePagesFor(storeKind),
     overlapBehavior: 'show_both',
     createdAt: ts,
     updatedAt: ts,
@@ -140,6 +147,8 @@ export async function updateRestaurant(
       | 'logoUrl'
       | 'coverImageUrl'
       | 'overlapBehavior'
+      | 'storefrontLayout'
+      | 'pages'
     >
   >,
 ): Promise<Restaurant> {

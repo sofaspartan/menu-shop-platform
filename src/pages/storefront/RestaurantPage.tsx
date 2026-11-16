@@ -10,8 +10,9 @@ import {
   UtensilsCrossed,
   X,
 } from 'lucide-react'
-import type { MenuItem, Restaurant } from '@/types'
+import type { MenuItem } from '@/types'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
+import { StorefrontNav } from '@/components/storefront/StorefrontNav'
 import { ItemCustomizer } from '@/components/storefront/ItemCustomizer'
 import { BagDrawer } from '@/components/storefront/BagDrawer'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
@@ -24,12 +25,15 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { useDb } from '@/hooks/useDb'
 import { useBagStore, type BagLine } from '@/stores/bagStore'
 import { usePreviewStore } from '@/stores/previewStore'
-import { getAvailableMenus, isAcceptingOrders, isItemAvailableNow } from '@/lib/scheduling'
+import {
+  formatHoursSummary,
+  getAvailableMenus,
+  isAcceptingOrders,
+  isItemAvailableNow,
+} from '@/lib/scheduling'
 import { storeCopy } from '@/lib/storeCopy'
-import { formatMoney, formatPhone, cn, getDayOfWeek } from '@/lib/utils'
+import { formatMoney, formatPhone, cn } from '@/lib/utils'
 import { trackEvent } from '@/services/analyticsService'
-
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export function RestaurantPage() {
   const { slug, menuSlug } = useParams<{ slug: string; menuSlug?: string }>()
@@ -283,6 +287,9 @@ export function RestaurantPage() {
   const activeDietary = dietaryLabels.find((l) => l.id === dietaryFilter)
   const showCover = restaurant.branding.coverDisplay !== 'none' && restaurant.coverImageUrl
   const copy = storeCopy(restaurant.storeKind)
+  const isRetailLayout =
+    (restaurant.storefrontLayout ??
+      (restaurant.storeKind === 'retail' ? 'retail' : 'restaurant')) === 'retail'
 
   return (
     <StorefrontShell branding={restaurant.branding}>
@@ -390,6 +397,7 @@ export function RestaurantPage() {
 
       <div className="sticky top-0 z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur">
         <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
+          <StorefrontNav restaurant={restaurant} />
           {menus.length > 1 ? (
             <div className="mb-3 flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {menus.map((menu) => {
@@ -401,8 +409,8 @@ export function RestaurantPage() {
                     className={cn(
                       'shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors',
                       active
-                        ? 'bg-[var(--sf-button)] text-[var(--sf-button-text)]'
-                        : 'bg-[var(--sf-surface)] text-[var(--sf-text)]/75 ring-1 ring-stone-200/80 hover:bg-white',
+                        ? 'bg-[var(--sf-primary)]/15 text-[var(--sf-primary)] ring-1 ring-[var(--sf-primary)]/25'
+                        : 'text-[var(--sf-text)]/65 hover:text-[var(--sf-text)]',
                     )}
                   >
                     {menu.name}
@@ -528,27 +536,54 @@ export function RestaurantPage() {
                     Featured
                   </h2>
                 </div>
-                <div className="flex gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {featured.map(({ item, assignment }) => (
-                    <button
-                      key={assignment.id}
-                      type="button"
-                      onClick={() => openItem(item, assignment.priceOverrideCents)}
-                      className="w-60 shrink-0 text-left transition-transform hover:-translate-y-0.5"
-                    >
-                      <MenuItemImage
-                        src={item.imageUrl}
-                        alt=""
-                        className="mb-3 h-40 w-full rounded-[var(--sf-radius,12px)] object-cover"
-                        fallbackClassName="mb-3 h-40 w-full rounded-[var(--sf-radius,12px)]"
-                      />
-                      <p className="font-medium text-[var(--sf-text)]">{item.name}</p>
-                      <p className="mt-0.5 text-sm font-semibold text-[var(--sf-primary)]">
-                        {formatMoney(assignment.priceOverrideCents ?? item.basePriceCents)}
-                      </p>
-                    </button>
-                  ))}
-                </div>
+                {isRetailLayout ? (
+                  <ul className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4">
+                    {featured.map(({ item, assignment }) => (
+                      <li key={assignment.id}>
+                        <button
+                          type="button"
+                          onClick={() => openItem(item, assignment.priceOverrideCents)}
+                          className="w-full text-left transition-transform hover:-translate-y-0.5"
+                        >
+                          <MenuItemImage
+                            src={item.imageUrl}
+                            alt=""
+                            className="aspect-square w-full rounded-[var(--sf-radius,12px)] object-cover"
+                            fallbackClassName="aspect-square w-full rounded-[var(--sf-radius,12px)]"
+                          />
+                          <p className="mt-2.5 text-sm font-medium leading-snug text-[var(--sf-text)]">
+                            {item.name}
+                          </p>
+                          <p className="mt-0.5 text-sm font-semibold text-[var(--sf-primary)]">
+                            {formatMoney(assignment.priceOverrideCents ?? item.basePriceCents)}
+                          </p>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="flex gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {featured.map(({ item, assignment }) => (
+                      <button
+                        key={assignment.id}
+                        type="button"
+                        onClick={() => openItem(item, assignment.priceOverrideCents)}
+                        className="w-60 shrink-0 text-left transition-transform hover:-translate-y-0.5"
+                      >
+                        <MenuItemImage
+                          src={item.imageUrl}
+                          alt=""
+                          className="mb-3 h-40 w-full rounded-[var(--sf-radius,12px)] object-cover"
+                          fallbackClassName="mb-3 h-40 w-full rounded-[var(--sf-radius,12px)]"
+                        />
+                        <p className="font-medium text-[var(--sf-text)]">{item.name}</p>
+                        <p className="mt-0.5 text-sm font-semibold text-[var(--sf-primary)]">
+                          {formatMoney(assignment.priceOverrideCents ?? item.basePriceCents)}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </section>
             ) : null}
 
@@ -571,6 +606,51 @@ export function RestaurantPage() {
                 </div>
                 {items.length === 0 ? (
                   <p className="mt-4 text-sm text-stone-500">No items match your filters.</p>
+                ) : isRetailLayout ? (
+                  <ul className="grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4">
+                    {items.map(({ item, assignment }) => {
+                      const available = isItemOrderable(item, now)
+                      const price = assignment.priceOverrideCents ?? item.basePriceCents
+                      return (
+                        <li key={assignment.id}>
+                          <button
+                            type="button"
+                            disabled={!available}
+                            onClick={() => openItem(item, assignment.priceOverrideCents)}
+                            className={cn(
+                              'w-full text-left transition-transform',
+                              available
+                                ? 'hover:-translate-y-0.5'
+                                : 'cursor-not-allowed opacity-55',
+                            )}
+                          >
+                            <div className="relative">
+                              <MenuItemImage
+                                src={item.imageUrl}
+                                alt=""
+                                className="aspect-square w-full rounded-[var(--sf-radius,12px)] object-cover"
+                                fallbackClassName="aspect-square w-full rounded-[var(--sf-radius,12px)]"
+                              />
+                              {!available ? (
+                                <span className="absolute left-2 top-2">
+                                  <Badge tone="warning">{unavailableLabel(item)}</Badge>
+                                </span>
+                              ) : null}
+                            </div>
+                            <p className="mt-2.5 text-sm font-medium leading-snug text-[var(--sf-text)]">
+                              {item.name}
+                            </p>
+                            <p className="mt-0.5 line-clamp-2 text-xs text-[var(--sf-text)]/55">
+                              {item.shortDescription}
+                            </p>
+                            <p className="mt-1.5 text-sm font-semibold text-[var(--sf-primary)]">
+                              {formatMoney(price)}
+                            </p>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
                 ) : (
                   <ul className="divide-y divide-stone-200/70">
                     {items.map(({ item, assignment }) => {
@@ -742,10 +822,3 @@ function unavailableLabel(item: MenuItem) {
   }
 }
 
-function formatHoursSummary(restaurant: Restaurant, at: Date) {
-  const day = getDayOfWeek(at)
-  const hours = restaurant.businessHours.find((h) => h.day === day)
-  if (!hours) return 'Hours unavailable'
-  if (hours.closed) return `Closed ${DAY_NAMES[day]}`
-  return `Today ${hours.open}–${hours.close}`
-}

@@ -96,6 +96,23 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     slug: 'the-corner-table',
     name: 'The Corner Table',
     storeKind: 'restaurant',
+    storefrontLayout: 'restaurant',
+    pages: {
+      about: { enabled: false, title: 'About', body: '' },
+      contact: {
+        enabled: false,
+        title: 'Contact',
+        showPhone: true,
+        showEmail: true,
+        showAddress: true,
+        showHours: true,
+        showWebsite: true,
+        showInstagram: true,
+        showFacebook: true,
+        showTwitter: false,
+        showTiktok: false,
+      },
+    },
     description:
       'A contemporary neighborhood restaurant serving seasonal plates, craft drinks, and weekend brunch favorites. Casual, polished, and always welcoming.',
     logoUrl: IMAGES.logo,
@@ -1211,7 +1228,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
   return {
-    version: 3,
+    version: 4,
     users: [
       {
         id: userId,

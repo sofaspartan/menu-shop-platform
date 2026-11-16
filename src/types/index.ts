@@ -17,6 +17,39 @@ export type OrderType = 'pickup' | 'delivery'
 /** Vertical for a storefront: food service vs general retail. */
 export type StoreKind = 'restaurant' | 'retail'
 
+/** Visual catalog layout: list menu vs merch product grid. */
+export type StorefrontLayout = 'restaurant' | 'retail'
+
+export interface StoreAboutPage {
+  enabled: boolean
+  title: string
+  heroImageUrl?: string
+  /** Plain text; blank lines become paragraphs. */
+  body: string
+}
+
+export interface StoreContactPage {
+  enabled: boolean
+  title: string
+  intro?: string
+  showPhone: boolean
+  phoneOverride?: string
+  showEmail: boolean
+  emailOverride?: string
+  showAddress: boolean
+  showHours: boolean
+  showWebsite: boolean
+  showInstagram: boolean
+  showFacebook: boolean
+  showTwitter: boolean
+  showTiktok: boolean
+}
+
+export interface StorePages {
+  about: StoreAboutPage
+  contact: StoreContactPage
+}
+
 export type OrderStatus =
   | 'received'
   | 'confirmed'
@@ -135,6 +168,9 @@ export interface Restaurant extends Timestamps {
   description: string
   /** restaurant = food menus; retail = product catalogs (bags, furniture, etc.) */
   storeKind: StoreKind
+  /** Catalog presentation — independent of storeKind so owners can choose. */
+  storefrontLayout: StorefrontLayout
+  pages: StorePages
   logoUrl?: string
   coverImageUrl?: string
   phone: string
@@ -484,6 +520,44 @@ export const DEFAULT_RETAIL_ORDERING: OrderingSettings = {
   deliveryFeeCents: 999,
   estimatedPrepMinutes: 90,
   tipPresetsPercent: [10, 15, 20],
+}
+
+export const DEFAULT_STORE_PAGES: StorePages = {
+  about: {
+    enabled: false,
+    title: 'About',
+    body: '',
+  },
+  contact: {
+    enabled: false,
+    title: 'Contact',
+    intro: '',
+    showPhone: true,
+    showEmail: true,
+    showAddress: true,
+    showHours: true,
+    showWebsite: true,
+    showInstagram: true,
+    showFacebook: true,
+    showTwitter: true,
+    showTiktok: true,
+  },
+}
+
+export function defaultStorePagesFor(kind: StoreKind): StorePages {
+  if (kind !== 'retail') return { ...DEFAULT_STORE_PAGES, about: { ...DEFAULT_STORE_PAGES.about }, contact: { ...DEFAULT_STORE_PAGES.contact } }
+  return {
+    about: {
+      enabled: true,
+      title: 'About',
+      body: 'Tell your story — craft, materials, and what makes your shop unique.',
+    },
+    contact: {
+      ...DEFAULT_STORE_PAGES.contact,
+      enabled: true,
+      intro: 'Questions about an order or a custom piece? Reach out anytime.',
+    },
+  }
 }
 
 export const FONT_OPTIONS = [
