@@ -1211,7 +1211,7 @@ export function PagesPage() {
                 }))
               }
             />
-            Powered by MenuShop
+            Powered by Counter
           </label>
         </div>
       </section>

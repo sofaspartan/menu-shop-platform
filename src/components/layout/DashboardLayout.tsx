@@ -25,6 +25,7 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { useRestaurantStore } from '@/stores/restaurantStore'
+import { PLATFORM_NAME } from '@/lib/platformBrand'
 import { storeCopy } from '@/lib/storeCopy'
 import { cn } from '@/lib/utils'
 
@@ -185,10 +186,10 @@ export function DashboardLayout() {
       >
         <div className="mb-6 flex shrink-0 items-center gap-3 px-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-brand)] text-white">
-            <UtensilsCrossed className="h-5 w-5" />
+            <Store className="h-5 w-5" />
           </div>
           <div>
-            <div className="font-display text-lg leading-none">MenuShop</div>
+            <div className="font-display text-lg leading-none">{PLATFORM_NAME}</div>
             <div className="text-xs text-stone-500">{copy.dashboardSubtitle}</div>
           </div>
         </div>

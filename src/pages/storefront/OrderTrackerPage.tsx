@@ -382,7 +382,7 @@ export function OrderTrackerPage() {
               <Button variant="outline">Order again</Button>
             </Link>
             <Link to="/">
-              <Button variant="ghost">MenuShop home</Button>
+              <Button variant="ghost">Counter home</Button>
             </Link>
           </div>
         ) : null}

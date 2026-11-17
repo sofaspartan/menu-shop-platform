@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import type { Restaurant } from '@/types'
 import { normalizeStoreFooter } from '@/types'
 import { logoImageClass } from '@/lib/logoStyle'
+import { PLATFORM_NAME } from '@/lib/platformBrand'
 import { storefrontNavLinks } from '@/lib/storefrontNav'
 import { storefrontContentClass } from '@/lib/storefrontWidth'
 import { cn } from '@/lib/utils'
@@ -59,7 +60,7 @@ export function StorefrontFooter({ restaurant }: { restaurant: Restaurant }) {
         <div className="border-t border-[color-mix(in_srgb,var(--sf-text)_8%,transparent)] px-4 py-3 text-center text-xs text-[var(--sf-text)]/45">
           Powered by{' '}
           <a href="/" className="font-medium text-[var(--sf-text)]/65 hover:text-[var(--sf-text)]">
-            MenuShop
+            {PLATFORM_NAME}
           </a>
         </div>
       ) : null}

@@ -1,4 +1,4 @@
-/** Core domain types for the MenuShop platform */
+/** Core domain types for the Counter platform */
 
 export type ID = string
 export type ISODateTime = string
@@ -81,7 +81,7 @@ export interface StoreFooter {
   /** Shop / About / Contact / Home links when those pages are enabled. */
   showPageLinks: boolean
   showLogo?: boolean
-  /** “Powered by MenuShop” credit. */
+  /** “Powered by Counter” credit. */
   showPoweredBy?: boolean
 }
 
