@@ -715,6 +715,11 @@ export interface Display extends Timestamps {
   showItemImages: boolean
   /** Auto mode: max items per rotating page. */
   itemsPerAutoSlide: number
+  /**
+   * Featured board: show the slide title above the item(s)
+   * (e.g. “Featured drink”). Defaults on.
+   */
+  showFeaturedTitle: boolean
   /** Manual mode pages. */
   itemSlides: DisplayItemSlide[]
 

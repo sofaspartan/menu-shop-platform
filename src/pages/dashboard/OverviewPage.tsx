@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowUpRight, ClipboardList, DollarSign, ShoppingBag, Utensils } from 'lucide-react'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useDb } from '@/hooks/useDb'
-import { formatMoney } from '@/lib/utils'
+import { cn, formatMoney } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { shortStatusLabel, storeCopy } from '@/lib/storeCopy'
@@ -40,26 +40,94 @@ export function OverviewPage() {
   const menuCount = db.menus.filter((m) => m.restaurantId === current.id).length
   const itemCount = db.items.filter((i) => i.restaurantId === current.id).length
   const kind = current.storeKind ?? 'restaurant'
+  const hasCover = Boolean(current.coverImageUrl)
+  const hasLogo = Boolean(current.logoUrl)
 
   return (
     <div className="space-y-8 animate-fade-up">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl text-stone-900">{current.name}</h1>
-          <p className="mt-1 text-stone-500">{copy.overviewToday}</p>
+      <section
+        className={cn(
+          'relative overflow-hidden rounded-2xl border border-stone-200',
+          hasCover ? 'min-h-[200px] sm:min-h-[240px]' : 'bg-white',
+        )}
+      >
+        {hasCover ? (
+          <>
+            <img
+              src={current.coverImageUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-stone-950/45 to-stone-950/20" />
+          </>
+        ) : null}
+
+        <div
+          className={cn(
+            'relative z-10 flex flex-wrap items-end justify-between gap-4 p-5 sm:p-7',
+            hasCover && 'min-h-[200px] sm:min-h-[240px]',
+          )}
+        >
+          <div className="flex min-w-0 items-center gap-4">
+            {hasLogo ? (
+              <img
+                src={current.logoUrl}
+                alt=""
+                className={cn(
+                  'h-14 w-14 shrink-0 rounded-2xl object-cover shadow-md sm:h-16 sm:w-16',
+                  hasCover
+                    ? 'ring-2 ring-white/70'
+                    : 'ring-1 ring-stone-200',
+                )}
+              />
+            ) : (
+              <span
+                className={cn(
+                  'flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-lg font-semibold sm:h-16 sm:w-16',
+                  hasCover
+                    ? 'bg-white/20 text-white ring-2 ring-white/40'
+                    : 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]',
+                )}
+              >
+                {current.name.slice(0, 1)}
+              </span>
+            )}
+            <div className="min-w-0">
+              <h1
+                className={cn(
+                  'font-display text-3xl tracking-tight sm:text-4xl',
+                  hasCover ? 'text-white' : 'text-stone-900',
+                )}
+              >
+                {current.name}
+              </h1>
+              <p
+                className={cn(
+                  'mt-1 text-sm sm:text-base',
+                  hasCover ? 'text-white/75' : 'text-stone-500',
+                )}
+              >
+                {copy.overviewToday}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone={current.ordering.acceptingOrders ? 'success' : 'warning'}>
+              {current.ordering.acceptingOrders ? 'Accepting orders' : 'Orders paused'}
+            </Badge>
+            <Link
+              to={`/r/${current.slug}`}
+              className={cn(
+                'inline-flex items-center gap-1 text-sm font-medium',
+                hasCover ? 'text-white hover:text-white/85' : 'text-[var(--color-brand)]',
+              )}
+            >
+              Open storefront <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge tone={current.ordering.acceptingOrders ? 'success' : 'warning'}>
-            {current.ordering.acceptingOrders ? 'Accepting orders' : 'Orders paused'}
-          </Badge>
-          <Link
-            to={`/r/${current.slug}`}
-            className="inline-flex items-center gap-1 text-sm font-medium text-[var(--color-brand)]"
-          >
-            Open storefront <ArrowUpRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </div>
+      </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[

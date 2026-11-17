@@ -215,10 +215,11 @@ export function RestaurantPage() {
   const featured = useMemo(() => {
     if (!db || !selectedMenu) return []
     return db.assignments
-      .filter((a) => a.menuId === selectedMenu.id && a.featured && a.visible)
+      .filter((a) => a.menuId === selectedMenu.id && a.visible)
       .map((a) => {
         const item = itemsById.get(a.itemId)
         if (!item || item.availability === 'hidden') return null
+        if (!(a.featured || item.featured)) return null
         return { assignment: a, item }
       })
       .filter(Boolean) as Array<{

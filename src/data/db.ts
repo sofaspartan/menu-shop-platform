@@ -177,10 +177,15 @@ export async function getDb(): Promise<AppDatabase> {
           brandingLayout: d.brandingLayout === 'fullbleed' ? 'fullbleed' : 'card',
           showItemImages: d.showItemImages !== false,
           itemsPerAutoSlide: d.itemsPerAutoSlide || 4,
+          showFeaturedTitle: d.showFeaturedTitle !== false,
           itemSlides: d.itemSlides ?? [],
           showLogo: d.showLogo !== false,
           showStoreName: d.showStoreName !== false,
           showDate: d.showDate !== false,
+          showLive: d.showLive !== false,
+          showTime: d.showTime !== false,
+          showHeader: d.showHeader !== false,
+          logoStyle: d.logoStyle === 'natural' ? 'natural' : 'roundedSquare',
           slideDurationSec: d.slideDurationSec || 8,
         }
       })

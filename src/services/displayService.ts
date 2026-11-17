@@ -61,6 +61,7 @@ function defaultsForKind(kind: DisplayKind): Pick<
   | 'menuLayout'
   | 'showItemImages'
   | 'itemsPerAutoSlide'
+  | 'showFeaturedTitle'
   | 'itemSlides'
 > {
   return {
@@ -78,6 +79,7 @@ function defaultsForKind(kind: DisplayKind): Pick<
     menuLayout: 'cards',
     showItemImages: true,
     itemsPerAutoSlide: 4,
+    showFeaturedTitle: true,
     itemSlides: [],
   }
 }
@@ -158,6 +160,7 @@ export type DisplayPatch = Partial<
     | 'menuLayout'
     | 'showItemImages'
     | 'itemsPerAutoSlide'
+    | 'showFeaturedTitle'
     | 'itemSlides'
   >
 > & { slug?: string }
@@ -229,6 +232,9 @@ export async function updateDisplay(
     if (patch.showItemImages !== undefined) next.showItemImages = patch.showItemImages
     if (patch.itemsPerAutoSlide !== undefined) {
       next.itemsPerAutoSlide = Math.max(1, Math.min(8, patch.itemsPerAutoSlide))
+    }
+    if (patch.showFeaturedTitle !== undefined) {
+      next.showFeaturedTitle = patch.showFeaturedTitle
     }
     if (patch.itemSlides !== undefined) next.itemSlides = patch.itemSlides
     if (patch.slug !== undefined) {

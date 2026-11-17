@@ -77,12 +77,14 @@ export function DisplayBoardPage() {
 
   useEffect(() => {
     // Ordering menu boards are static — no slideshow rotation.
+    // Do not depend on `revision`: DB polls every few seconds and would
+    // constantly restart the timer before the slide duration elapses.
     if (isMenuBoard || slides.length <= 1) return
     const id = window.setInterval(() => {
       setSlideIndex((i) => (i + 1) % slides.length)
     }, durationMs)
     return () => window.clearInterval(id)
-  }, [slides.length, durationMs, revision, isMenuBoard])
+  }, [slides.length, durationMs, isMenuBoard])
 
   if (loading) {
     return (
@@ -217,6 +219,7 @@ export function DisplayBoardPage() {
             slide={slide}
             showPrices={display.showPrices}
             showItemImages={display.showItemImages}
+            showFeaturedTitle={display.showFeaturedTitle !== false}
             menuLayout={display.menuLayout}
             brandingLayout={display.brandingLayout}
             showLogo={display.showLogo}
@@ -291,6 +294,7 @@ function SlideView({
   slide,
   showPrices,
   showItemImages,
+  showFeaturedTitle,
   menuLayout,
   brandingLayout,
   showLogo,
@@ -302,6 +306,7 @@ function SlideView({
   slide: BoardSlide
   showPrices: boolean
   showItemImages: boolean
+  showFeaturedTitle: boolean
   menuLayout: 'cards' | 'columns'
   brandingLayout: 'card' | 'fullbleed'
   showLogo: boolean
@@ -394,12 +399,14 @@ function SlideView({
         className="flex flex-1 flex-col overflow-hidden rounded-[2rem] p-6 animate-fade-up sm:p-8"
         style={{ backgroundColor: surface }}
       >
-        <h2
-          className="mb-5 text-3xl font-semibold tracking-tight sm:text-4xl"
-          style={{ fontFamily: 'var(--brand-heading)', color: 'var(--brand-primary)' }}
-        >
-          {slide.title}
-        </h2>
+        {showFeaturedTitle && slide.title ? (
+          <h2
+            className="mb-5 text-3xl font-semibold tracking-tight sm:text-4xl"
+            style={{ fontFamily: 'var(--brand-heading)', color: 'var(--brand-primary)' }}
+          >
+            {slide.title}
+          </h2>
+        ) : null}
         <article
           className={cn(
             'grid min-h-0 flex-1 overflow-hidden rounded-2xl border border-black/5 bg-[var(--brand-bg)] lg:grid-cols-2',
@@ -465,12 +472,14 @@ function SlideView({
       className="flex flex-1 flex-col overflow-hidden rounded-[2rem] p-6 animate-fade-up sm:p-8"
       style={{ backgroundColor: surface }}
     >
-      <h2
-        className="mb-5 text-3xl font-semibold tracking-tight sm:text-4xl"
-        style={{ fontFamily: 'var(--brand-heading)', color: 'var(--brand-primary)' }}
-      >
-        {slide.title}
-      </h2>
+      {showFeaturedTitle && slide.title ? (
+        <h2
+          className="mb-5 text-3xl font-semibold tracking-tight sm:text-4xl"
+          style={{ fontFamily: 'var(--brand-heading)', color: 'var(--brand-primary)' }}
+        >
+          {slide.title}
+        </h2>
+      ) : null}
       <div className={cn('grid flex-1 gap-4', cols)}>
         {slide.items.map((item) => (
           <article

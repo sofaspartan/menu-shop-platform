@@ -904,6 +904,18 @@ export function DisplaysPage() {
                       />
                       Show sold-out items
                     </label>
+                    <label className="flex items-center gap-2 text-sm text-stone-700">
+                      <input
+                        type="checkbox"
+                        checked={selected.showFeaturedTitle !== false}
+                        onChange={(e) =>
+                          void patchSelected({
+                            showFeaturedTitle: e.target.checked,
+                          })
+                        }
+                      />
+                      Show title above {copy.itemNounPlural.toLowerCase()}
+                    </label>
                   </div>
 
                   {selected.featuredSource === 'auto' ? (

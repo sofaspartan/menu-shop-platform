@@ -251,6 +251,15 @@ export async function updateItem(
     if (!item) throw new Error('Item not found.')
     const { id: _id, restaurantId: _rid, createdAt: _c, ...rest } = patch
     Object.assign(item, rest, { updatedAt: nowIso() })
+    // Keep menu-assignment featured flags in sync with the catalog item toggle.
+    if (typeof patch.featured === 'boolean') {
+      for (const a of d.assignments) {
+        if (a.itemId === itemId && a.restaurantId === restaurantId) {
+          a.featured = patch.featured
+          a.updatedAt = nowIso()
+        }
+      }
+    }
     updated = item
   })
   return updated!

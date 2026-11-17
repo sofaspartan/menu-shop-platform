@@ -177,10 +177,11 @@ function collectCatalogCards(
       .sort((a, b) => a.sortOrder - b.sortOrder)
 
     for (const assignment of assignments) {
-      if (opts.featuredOnly && !assignment.featured) continue
       const item = db.items.find((i) => i.id === assignment.itemId)
       if (!item || !item.active) continue
       if (item.availability === 'hidden') continue
+      // Featured can be set on the catalog item and/or the menu assignment.
+      if (opts.featuredOnly && !(assignment.featured || item.featured)) continue
 
       const available = isItemAvailableNow(item, now)
       const soldOut =
@@ -338,6 +339,18 @@ function chunkCardsIntoFeaturedSlides(
   per: number,
 ): BoardSlide[] {
   const slides: BoardSlide[] = []
+  const size = Math.max(1, per)
+
+  // One item per slide: each featured item is its own page (rotation).
+  if (size === 1) {
+    return pool.map((card, i) => ({
+      id: `auto-featured-${i}`,
+      kind: 'items' as const,
+      title: featuredTitleForItems([card]),
+      items: [card],
+    }))
+  }
+
   // Keep items from the same section together so titles stay meaningful.
   const bySection = new Map<string, BoardItemCard[]>()
   for (const card of pool) {
@@ -349,8 +362,8 @@ function chunkCardsIntoFeaturedSlides(
 
   let slideN = 0
   for (const group of bySection.values()) {
-    for (let i = 0; i < group.length; i += per) {
-      const items = group.slice(i, i + per)
+    for (let i = 0; i < group.length; i += size) {
+      const items = group.slice(i, i + size)
       slides.push({
         id: `auto-featured-${slideN++}`,
         kind: 'items',

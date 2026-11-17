@@ -98,6 +98,7 @@ export function normalizeDisplay(raw: Display): Display {
     menuLayout: (raw.menuLayout === 'columns' ? 'columns' : 'cards') as MenuBoardLayout,
     showItemImages: raw.showItemImages !== false,
     itemsPerAutoSlide: Math.max(1, Math.min(8, raw.itemsPerAutoSlide || 4)),
+    showFeaturedTitle: raw.showFeaturedTitle !== false,
     itemSlides,
   }
 }
