@@ -225,6 +225,7 @@ export function DisplayBoardPage() {
             showLogo={display.showLogo}
             logoUrl={restaurant.logoUrl}
             logoStyle={display.logoStyle}
+            storeKind={restaurant.storeKind ?? 'restaurant'}
             surface={restaurant.branding.surfaceColor}
             fullscreenGraphic={!showChrome || brandingFullBleed}
           />
@@ -300,6 +301,7 @@ function SlideView({
   showLogo,
   logoUrl,
   logoStyle,
+  storeKind,
   surface,
   fullscreenGraphic,
 }: {
@@ -312,6 +314,7 @@ function SlideView({
   showLogo: boolean
   logoUrl?: string
   logoStyle: LogoStyle
+  storeKind: 'restaurant' | 'retail'
   surface: string
   fullscreenGraphic: boolean
 }) {
@@ -322,6 +325,7 @@ function SlideView({
         showPrices={showPrices}
         showItemImages={showItemImages}
         menuLayout={menuLayout}
+        storeKind={storeKind}
         surface={surface}
       />
     )
@@ -416,6 +420,7 @@ function SlideView({
           <MenuItemImage
             src={item.imageUrl}
             alt=""
+            storeKind={storeKind}
             className="h-56 w-full object-cover sm:h-72 lg:h-full lg:min-h-[22rem]"
             fallbackClassName="h-56 w-full sm:h-72 lg:h-full lg:min-h-[22rem]"
           />
@@ -461,13 +466,18 @@ function SlideView({
   }
 
   const count = slide.items.length
-  const pair = count === 2
+  // Match column count to items so a 3-up board doesn't leave an empty 4th column.
   const cols =
-    count <= 2
-      ? 'grid-cols-1 sm:grid-cols-2'
-      : count <= 4
-        ? 'grid-cols-2 lg:grid-cols-4'
-        : 'grid-cols-2 lg:grid-cols-3'
+    count === 1
+      ? 'grid-cols-1'
+      : count === 2
+        ? 'grid-cols-1 sm:grid-cols-2'
+        : count === 3
+          ? 'grid-cols-1 sm:grid-cols-3'
+          : count === 4
+            ? 'grid-cols-2 lg:grid-cols-4'
+            : 'grid-cols-2 lg:grid-cols-3'
+  const roomy = count <= 3
 
   return (
     <section
@@ -478,14 +488,20 @@ function SlideView({
         <h2
           className={cn(
             'mb-4 font-semibold tracking-tight sm:mb-5',
-            pair ? 'text-3xl sm:text-4xl lg:text-5xl' : 'text-2xl sm:text-3xl lg:text-4xl',
+            roomy ? 'text-3xl sm:text-4xl lg:text-5xl' : 'text-2xl sm:text-3xl lg:text-4xl',
           )}
           style={{ fontFamily: 'var(--brand-heading)', color: 'var(--brand-primary)' }}
         >
           {slide.title}
         </h2>
       ) : null}
-      <div className={cn('grid min-h-0 flex-1', pair ? 'gap-5 sm:gap-6 lg:gap-8' : 'gap-4', cols)}>
+      <div
+        className={cn(
+          'grid min-h-0 flex-1',
+          roomy ? 'gap-5 sm:gap-6 lg:gap-7' : 'gap-4',
+          cols,
+        )}
+      >
         {slide.items.map((item) => (
           <article
             key={item.id}
@@ -494,18 +510,17 @@ function SlideView({
               item.soldOut && 'opacity-55',
             )}
           >
-            {/* Image fills remaining height; square crop keeps TV boards from looking letterboxed. */}
+            {/* Taller image panel fills the card; text stays compact below. */}
             <div
               className={cn(
-                'relative w-full shrink-0 overflow-hidden',
-                pair
-                  ? 'min-h-0 flex-[1.35] basis-0'
-                  : 'aspect-square max-h-[55%]',
+                'relative w-full min-h-0 overflow-hidden',
+                roomy ? 'flex-[1.4] basis-0' : 'flex-[1.15] basis-0',
               )}
             >
               <MenuItemImage
                 src={item.imageUrl}
                 alt=""
+                storeKind={storeKind}
                 className="absolute inset-0 h-full w-full object-cover"
                 fallbackClassName="absolute inset-0 h-full w-full"
               />
@@ -513,8 +528,8 @@ function SlideView({
             <div
               className={cn(
                 'flex shrink-0 flex-col',
-                pair
-                  ? 'gap-2 px-5 py-5 sm:gap-2.5 sm:px-6 sm:py-6 lg:px-7 lg:py-7'
+                roomy
+                  ? 'gap-2 px-4 py-4 sm:gap-2.5 sm:px-5 sm:py-5 lg:px-6 lg:py-6'
                   : 'gap-1.5 p-3 sm:p-4',
               )}
             >
@@ -522,11 +537,11 @@ function SlideView({
                 <h3
                   className={cn(
                     'min-w-0 font-semibold leading-snug tracking-tight',
-                    pair
-                      ? 'text-2xl sm:text-3xl lg:text-4xl'
+                    roomy
+                      ? 'text-xl sm:text-2xl lg:text-3xl'
                       : 'text-base sm:text-lg lg:text-xl',
                   )}
-                  style={pair ? { fontFamily: 'var(--brand-heading)' } : undefined}
+                  style={roomy ? { fontFamily: 'var(--brand-heading)' } : undefined}
                 >
                   {item.name}
                 </h3>
@@ -535,7 +550,7 @@ function SlideView({
                     <p
                       className={cn(
                         'font-semibold tabular-nums text-[var(--brand-primary)]',
-                        pair ? 'text-2xl sm:text-3xl' : 'text-base sm:text-lg',
+                        roomy ? 'text-xl sm:text-2xl lg:text-3xl' : 'text-base sm:text-lg',
                       )}
                     >
                       {formatMoney(item.priceCents)}
@@ -544,7 +559,7 @@ function SlideView({
                       <p
                         className={cn(
                           'opacity-50 line-through',
-                          pair ? 'text-sm sm:text-base' : 'text-xs',
+                          roomy ? 'text-sm sm:text-base' : 'text-xs',
                         )}
                       >
                         {formatMoney(item.listPriceCents)}
@@ -557,8 +572,8 @@ function SlideView({
                 <p
                   className={cn(
                     'opacity-65',
-                    pair
-                      ? 'line-clamp-3 text-base leading-relaxed sm:text-lg lg:text-xl'
+                    roomy
+                      ? 'line-clamp-3 text-sm leading-relaxed sm:text-base lg:text-lg'
                       : 'line-clamp-2 text-sm',
                   )}
                 >
@@ -569,7 +584,7 @@ function SlideView({
                 <p
                   className={cn(
                     'font-semibold uppercase tracking-wider text-red-700',
-                    pair ? 'pt-1 text-sm sm:text-base' : 'pt-1 text-xs',
+                    roomy ? 'pt-1 text-sm sm:text-base' : 'pt-1 text-xs',
                   )}
                 >
                   Sold out
@@ -578,7 +593,7 @@ function SlideView({
                 <p
                   className={cn(
                     'font-semibold uppercase tracking-wider text-[var(--brand-accent)]',
-                    pair ? 'pt-1 text-sm sm:text-base' : 'pt-1 text-xs',
+                    roomy ? 'pt-1 text-sm sm:text-base' : 'pt-1 text-xs',
                   )}
                 >
                   On sale
@@ -690,12 +705,14 @@ function MenuBoardView({
   showPrices,
   showItemImages,
   menuLayout,
+  storeKind,
   surface,
 }: {
   slide: Extract<BoardSlide, { kind: 'menu' }>
   showPrices: boolean
   showItemImages: boolean
   menuLayout: 'cards' | 'columns'
+  storeKind: 'restaurant' | 'retail'
   surface: string
 }) {
   const sectionCount = slide.sections.length
@@ -852,6 +869,7 @@ function MenuBoardView({
                     <MenuItemImage
                       src={item.imageUrl}
                       alt=""
+                      storeKind={storeKind}
                       className="h-12 w-12 shrink-0 rounded-xl object-cover sm:h-14 sm:w-14"
                       fallbackClassName="h-12 w-12 shrink-0 rounded-xl sm:h-14 sm:w-14"
                     />

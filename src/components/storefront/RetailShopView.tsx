@@ -449,6 +449,7 @@ function FeaturedHero({
           <MenuItemImage
             src={item.imageUrl}
             alt=""
+            storeKind="retail"
             className="aspect-[4/5] w-full object-cover transition-transform duration-700 group-hover:scale-[1.02] sm:aspect-[5/4] lg:aspect-[4/5]"
             fallbackClassName="aspect-[4/5] w-full sm:aspect-[5/4] lg:aspect-[4/5]"
           />
@@ -531,6 +532,7 @@ function ProductGrid({
                 <MenuItemImage
                   src={item.imageUrl}
                   alt=""
+                  storeKind="retail"
                   className="aspect-square w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                   fallbackClassName="aspect-square w-full"
                 />

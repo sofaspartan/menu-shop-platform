@@ -450,6 +450,7 @@ export function RestaurantPage() {
                   <MenuItemImage
                     src={restaurant.logoUrl}
                     alt=""
+                    storeKind={store.storeKind}
                     className="mt-1 h-16 w-16 shrink-0 rounded-[var(--sf-radius,12px)] border-2 border-white/80 object-cover shadow-lg sm:h-20 sm:w-20"
                     fallbackClassName="mt-1 h-16 w-16 shrink-0 rounded-[var(--sf-radius,12px)] border-2 border-white/80 bg-white/20 sm:h-20 sm:w-20"
                   />
@@ -692,6 +693,7 @@ export function RestaurantPage() {
                           <MenuItemImage
                             src={item.imageUrl}
                             alt=""
+                            storeKind={store.storeKind}
                             className="aspect-square w-full rounded-[var(--sf-radius,12px)] object-cover"
                             fallbackClassName="aspect-square w-full rounded-[var(--sf-radius,12px)]"
                           />
@@ -730,6 +732,7 @@ export function RestaurantPage() {
                         <MenuItemImage
                           src={item.imageUrl}
                           alt=""
+                            storeKind={store.storeKind}
                           className="mb-3 h-40 w-full rounded-[var(--sf-radius,12px)] object-cover"
                           fallbackClassName="mb-3 h-40 w-full rounded-[var(--sf-radius,12px)]"
                         />
@@ -796,6 +799,7 @@ export function RestaurantPage() {
                               <MenuItemImage
                                 src={item.imageUrl}
                                 alt=""
+                            storeKind={store.storeKind}
                                 className="aspect-square w-full rounded-[var(--sf-radius,12px)] object-cover"
                                 fallbackClassName="aspect-square w-full rounded-[var(--sf-radius,12px)]"
                               />
@@ -891,6 +895,7 @@ export function RestaurantPage() {
                             <MenuItemImage
                               src={item.imageUrl}
                               alt=""
+                            storeKind={store.storeKind}
                               className="h-24 w-24 shrink-0 rounded-[var(--sf-radius,12px)] object-cover sm:h-28 sm:w-28"
                               fallbackClassName="h-24 w-24 shrink-0 rounded-[var(--sf-radius,12px)] sm:h-28 sm:w-28"
                             />

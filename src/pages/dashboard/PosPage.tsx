@@ -649,6 +649,7 @@ function StaffFace({
                       <MenuItemImage
                         src={entry.item.imageUrl}
                         alt=""
+                        storeKind={restaurant.storeKind}
                         className="aspect-[4/3] w-full object-cover"
                         fallbackClassName="aspect-[4/3] w-full"
                       />

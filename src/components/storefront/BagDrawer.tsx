@@ -81,6 +81,7 @@ export function BagDrawer({
                   <MenuItemImage
                     src={line.imageUrl}
                     alt=""
+                    storeKind={restaurant.storeKind}
                     className="h-16 w-16 shrink-0 rounded-[var(--sf-radius,12px)] object-cover"
                     fallbackClassName="h-16 w-16 shrink-0 rounded-[var(--sf-radius,12px)]"
                   />

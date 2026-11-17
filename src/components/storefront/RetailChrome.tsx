@@ -54,6 +54,7 @@ export function RetailChrome({
               <MenuItemImage
                 src={restaurant.logoUrl}
                 alt=""
+                storeKind={restaurant.storeKind ?? 'retail'}
                 className="h-11 w-11 shrink-0 rounded-full object-cover sm:h-12 sm:w-12"
                 fallbackClassName="h-11 w-11 shrink-0 rounded-full sm:h-12 sm:w-12"
               />

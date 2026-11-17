@@ -301,6 +301,7 @@ export function HomeFeaturedSection({
             <MenuItemImage
               src={entry.item.imageUrl}
               alt=""
+              storeKind={restaurant.storeKind}
               className="h-full w-full object-cover"
               fallbackClassName="h-full min-h-[240px] w-full"
             />
@@ -354,6 +355,7 @@ export function HomeFeaturedSection({
                   <MenuItemImage
                     src={entry.item.imageUrl}
                     alt=""
+                    storeKind={restaurant.storeKind}
                     className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                     fallbackClassName="h-full w-full"
                   />
