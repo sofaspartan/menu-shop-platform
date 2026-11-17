@@ -99,6 +99,7 @@ export async function createRestaurant(
       ...(storeKind === 'retail' ? DEFAULT_RETAIL_ORDERING : DEFAULT_ORDERING),
     },
     storefrontLayout: storeKind === 'retail' ? 'retail' : 'restaurant',
+    storefrontWidth: 'margined',
     pages: defaultStorePagesFor(storeKind),
     overlapBehavior: 'show_both',
     createdAt: ts,
@@ -148,6 +149,7 @@ export async function updateRestaurant(
       | 'coverImageUrl'
       | 'overlapBehavior'
       | 'storefrontLayout'
+      | 'storefrontWidth'
       | 'pages'
     >
   >,

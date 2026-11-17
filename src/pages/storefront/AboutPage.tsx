@@ -2,11 +2,14 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
 import { RetailChrome } from '@/components/storefront/RetailChrome'
+import { RetailBagFab } from '@/components/storefront/RetailBagFab'
 import { StorefrontNav } from '@/components/storefront/StorefrontNav'
 import { BagDrawer } from '@/components/storefront/BagDrawer'
 import { Button } from '@/components/ui/Button'
 import { useDb } from '@/hooks/useDb'
 import { useBagStore } from '@/stores/bagStore'
+import { storefrontContentClass } from '@/lib/storefrontWidth'
+import { cn } from '@/lib/utils'
 import { DEFAULT_BRANDING } from '@/types'
 
 function paragraphs(body: string) {
@@ -52,19 +55,15 @@ export function AboutPage() {
   const isRetailLayout =
     (restaurant.storefrontLayout ??
       (restaurant.storeKind === 'retail' ? 'retail' : 'restaurant')) === 'retail'
-  const bagCount = bagLines
-    .filter((l) => l.restaurantId === restaurant.id)
-    .reduce((n, l) => n + l.quantity, 0)
+  const restaurantLines = bagLines.filter((l) => l.restaurantId === restaurant.id)
+  const bagCount = restaurantLines.reduce((n, l) => n + l.quantity, 0)
+  const bagSubtotal = restaurantLines.reduce((n, l) => n + l.unitPriceCents * l.quantity, 0)
+  const contentClass = storefrontContentClass(restaurant.storefrontWidth)
 
   return (
     <StorefrontShell branding={restaurant.branding ?? DEFAULT_BRANDING}>
       {isRetailLayout ? (
-        <RetailChrome
-          restaurant={restaurant}
-          bagCount={bagCount}
-          showSearch={false}
-          onOpenBag={() => setBagOpen(true)}
-        />
+        <RetailChrome restaurant={restaurant} showSearch={false} />
       ) : (
         <div className="sticky top-0 z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 backdrop-blur">
           <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
@@ -81,22 +80,22 @@ export function AboutPage() {
             className="absolute inset-0 h-full w-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 mx-auto max-w-3xl px-4 pb-8 sm:px-6">
-            <h1 className="font-display text-4xl text-white drop-shadow sm:text-5xl">
+          <div className={cn(contentClass, 'absolute inset-x-0 bottom-0 pb-8')}>
+            <h1 className="max-w-3xl font-display text-4xl text-white drop-shadow sm:text-5xl">
               {about.title || 'About'}
             </h1>
           </div>
         </div>
       ) : (
-        <div className="mx-auto max-w-3xl px-4 pt-10 sm:px-6">
-          <h1 className="font-display text-4xl text-[var(--sf-text)] sm:text-5xl">
+        <div className={cn(contentClass, 'pt-10')}>
+          <h1 className="max-w-3xl font-display text-4xl text-[var(--sf-text)] sm:text-5xl">
             {about.title || 'About'}
           </h1>
         </div>
       )}
 
-      <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-        <div className="space-y-5 text-[17px] leading-relaxed text-[var(--sf-text)]/85">
+      <article className={cn(contentClass, 'py-10 pb-28')}>
+        <div className="max-w-3xl space-y-5 text-[17px] leading-relaxed text-[var(--sf-text)]/85">
           {body.length ? (
             body.map((p) => <p key={p.slice(0, 24)}>{p}</p>)
           ) : (
@@ -104,6 +103,15 @@ export function AboutPage() {
           )}
         </div>
       </article>
+
+      {isRetailLayout ? (
+        <RetailBagFab
+          storeKind={restaurant.storeKind}
+          bagCount={bagCount}
+          bagSubtotal={bagSubtotal}
+          onOpen={() => setBagOpen(true)}
+        />
+      ) : null}
 
       <BagDrawer
         open={bagOpen}

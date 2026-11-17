@@ -97,6 +97,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     name: 'The Corner Table',
     storeKind: 'restaurant',
     storefrontLayout: 'restaurant',
+    storefrontWidth: 'margined',
     pages: {
       about: { enabled: false, title: 'About', body: '' },
       contact: {
@@ -1228,7 +1229,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
   return {
-    version: 4,
+    version: 5,
     users: [
       {
         id: userId,

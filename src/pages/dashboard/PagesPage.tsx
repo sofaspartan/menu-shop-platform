@@ -4,7 +4,7 @@ import { useRestaurantStore } from '@/stores/restaurantStore'
 import * as restaurantService from '@/services/restaurantService'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Textarea } from '@/components/ui/Input'
-import type { StorefrontLayout, StorePages } from '@/types'
+import type { StorefrontLayout, StorefrontWidth, StorePages } from '@/types'
 import { defaultStorePagesFor } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -14,6 +14,7 @@ export function PagesPage() {
   const load = useRestaurantStore((s) => s.load)
 
   const [layout, setLayout] = useState<StorefrontLayout>('restaurant')
+  const [width, setWidth] = useState<StorefrontWidth>('margined')
   const [pages, setPages] = useState<StorePages>(defaultStorePagesFor('restaurant'))
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -22,6 +23,7 @@ export function PagesPage() {
   useEffect(() => {
     if (!current) return
     setLayout(current.storefrontLayout ?? (current.storeKind === 'retail' ? 'retail' : 'restaurant'))
+    setWidth(current.storefrontWidth === 'full' ? 'full' : 'margined')
     setPages(
       current.pages
         ? {
@@ -44,6 +46,7 @@ export function PagesPage() {
     try {
       await restaurantService.updateRestaurant(user.id, current.id, {
         storefrontLayout: layout,
+        storefrontWidth: width,
         pages,
       })
       await load(user.id)
@@ -105,6 +108,45 @@ export function PagesPage() {
             <div className="font-medium">Retail</div>
             <p className="mt-1 text-xs text-stone-500">
               Square product tiles in a grid — feels like a merch shop.
+            </p>
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-5">
+        <h2 className="font-display text-xl">Storefront width</h2>
+        <p className="mt-1 text-sm text-stone-500">
+          Choose a centered content column or a wider, near full-bleed layout.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => setWidth('margined')}
+            className={cn(
+              'rounded-2xl border px-4 py-4 text-left',
+              width === 'margined'
+                ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                : 'border-stone-200 hover:bg-stone-50',
+            )}
+          >
+            <div className="font-medium">Margined</div>
+            <p className="mt-1 text-xs text-stone-500">
+              Centered column with comfortable side margins (default).
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setWidth('full')}
+            className={cn(
+              'rounded-2xl border px-4 py-4 text-left',
+              width === 'full'
+                ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                : 'border-stone-200 hover:bg-stone-50',
+            )}
+          >
+            <div className="font-medium">Full width</div>
+            <p className="mt-1 text-xs text-stone-500">
+              Wider content that uses more of the screen on large displays.
             </p>
           </button>
         </div>

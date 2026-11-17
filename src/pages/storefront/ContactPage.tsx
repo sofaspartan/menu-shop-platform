@@ -3,13 +3,15 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Clock3, Globe, Mail, MapPin, Phone } from 'lucide-react'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
 import { RetailChrome } from '@/components/storefront/RetailChrome'
+import { RetailBagFab } from '@/components/storefront/RetailBagFab'
 import { StorefrontNav } from '@/components/storefront/StorefrontNav'
 import { BagDrawer } from '@/components/storefront/BagDrawer'
 import { Button } from '@/components/ui/Button'
 import { useDb } from '@/hooks/useDb'
 import { useBagStore } from '@/stores/bagStore'
 import { formatHoursSummary } from '@/lib/scheduling'
-import { formatPhone } from '@/lib/utils'
+import { storefrontContentClass } from '@/lib/storefrontWidth'
+import { formatPhone, cn } from '@/lib/utils'
 import { DEFAULT_BRANDING } from '@/types'
 
 export function ContactPage() {
@@ -51,9 +53,10 @@ export function ContactPage() {
   const isRetailLayout =
     (restaurant.storefrontLayout ??
       (restaurant.storeKind === 'retail' ? 'retail' : 'restaurant')) === 'retail'
-  const bagCount = bagLines
-    .filter((l) => l.restaurantId === restaurant.id)
-    .reduce((n, l) => n + l.quantity, 0)
+  const restaurantLines = bagLines.filter((l) => l.restaurantId === restaurant.id)
+  const bagCount = restaurantLines.reduce((n, l) => n + l.quantity, 0)
+  const bagSubtotal = restaurantLines.reduce((n, l) => n + l.unitPriceCents * l.quantity, 0)
+  const contentClass = storefrontContentClass(restaurant.storefrontWidth)
 
   const rows: Array<{
     key: string
@@ -122,12 +125,7 @@ export function ContactPage() {
   return (
     <StorefrontShell branding={restaurant.branding ?? DEFAULT_BRANDING}>
       {isRetailLayout ? (
-        <RetailChrome
-          restaurant={restaurant}
-          bagCount={bagCount}
-          showSearch={false}
-          onOpenBag={() => setBagOpen(true)}
-        />
+        <RetailChrome restaurant={restaurant} showSearch={false} />
       ) : (
         <div className="sticky top-0 z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 backdrop-blur">
           <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
@@ -136,7 +134,8 @@ export function ContactPage() {
         </div>
       )}
 
-      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+      <div className={cn(contentClass, 'py-10 pb-28')}>
+        <div className="max-w-3xl">
         <h1 className="font-display text-4xl text-[var(--sf-text)] sm:text-5xl">
           {contact.title || 'Contact'}
         </h1>
@@ -197,7 +196,17 @@ export function ContactPage() {
         {!rows.length && !socialLinks.length ? (
           <p className="mt-8 text-[var(--sf-text)]/55">No contact details are published yet.</p>
         ) : null}
+        </div>
       </div>
+
+      {isRetailLayout ? (
+        <RetailBagFab
+          storeKind={restaurant.storeKind}
+          bagCount={bagCount}
+          bagSubtotal={bagSubtotal}
+          onOpen={() => setBagOpen(true)}
+        />
+      ) : null}
 
       <BagDrawer
         open={bagOpen}

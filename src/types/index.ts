@@ -19,6 +19,8 @@ export type StoreKind = 'restaurant' | 'retail'
 
 /** Visual catalog layout: list menu vs merch product grid. */
 export type StorefrontLayout = 'restaurant' | 'retail'
+/** Content column: centered with max width, or edge-to-edge. */
+export type StorefrontWidth = 'margined' | 'full'
 
 export interface StoreAboutPage {
   enabled: boolean
@@ -170,6 +172,8 @@ export interface Restaurant extends Timestamps {
   storeKind: StoreKind
   /** Catalog presentation — independent of storeKind so owners can choose. */
   storefrontLayout: StorefrontLayout
+  /** Full-bleed vs centered content column (applies mainly to retail chrome). */
+  storefrontWidth: StorefrontWidth
   pages: StorePages
   logoUrl?: string
   coverImageUrl?: string

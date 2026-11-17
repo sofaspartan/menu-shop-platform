@@ -5,6 +5,7 @@ import { MenuItemImage } from '@/components/storefront/MenuItemImage'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { storeCopy } from '@/lib/storeCopy'
+import { storefrontContentClass } from '@/lib/storefrontWidth'
 import { formatMoney, cn } from '@/lib/utils'
 
 type CatalogItem = {
@@ -20,9 +21,6 @@ export function RetailShopView({
   featured,
   search,
   onSearchChange,
-  bagCount,
-  bagPulse,
-  onOpenBag,
   onOpenItem,
   isItemOrderable,
   unavailableLabel,
@@ -34,26 +32,27 @@ export function RetailShopView({
   featured: CatalogItem[]
   search: string
   onSearchChange: (value: string) => void
-  bagCount: number
-  bagPulse: boolean
-  onOpenBag: () => void
   onOpenItem: (item: MenuItem, priceOverride?: number) => void
   isItemOrderable: (item: MenuItem) => boolean
   unavailableLabel: (item: MenuItem) => string
 }) {
   const copy = storeCopy(restaurant.storeKind)
+  const contentClass = storefrontContentClass(restaurant.storefrontWidth)
   const showHero =
     restaurant.branding.coverDisplay !== 'none' && Boolean(restaurant.coverImageUrl)
+  const featuredHero = featured[0] ?? null
+  const sectionLinks =
+    sectionItems.length > 1 && !search
+      ? sectionItems.map(({ section }) => ({ id: section.id, name: section.name }))
+      : undefined
 
   return (
     <>
       <RetailChrome
         restaurant={restaurant}
-        bagCount={bagCount}
-        bagPulse={bagPulse}
-        onOpenBag={onOpenBag}
         search={search}
         onSearchChange={onSearchChange}
+        sectionLinks={sectionLinks}
       />
 
       {showHero ? (
@@ -65,7 +64,7 @@ export function RetailShopView({
               className="absolute inset-0 h-full w-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 mx-auto max-w-6xl px-4 pb-8 sm:px-6 sm:pb-10">
+            <div className={cn(contentClass, 'absolute inset-x-0 bottom-0 pb-8 sm:pb-10')}>
               <p className="max-w-2xl text-base leading-relaxed text-white/90 sm:text-lg">
                 {restaurant.description}
               </p>
@@ -73,14 +72,14 @@ export function RetailShopView({
           </div>
         </div>
       ) : (
-        <div className="mx-auto max-w-6xl px-4 pb-2 pt-8 sm:px-6">
+        <div className={cn(contentClass, 'pb-2 pt-8')}>
           <p className="max-w-2xl text-base leading-relaxed text-[var(--sf-text)]/80 sm:text-lg">
             {restaurant.description}
           </p>
         </div>
       )}
 
-      <main className="mx-auto max-w-6xl px-4 pb-24 pt-8 sm:px-6">
+      <main className={cn(contentClass, 'pb-28 pt-8')}>
         {menus.length > 1 ? (
           <div className="mb-8 flex flex-wrap gap-2">
             {menus.map((menu) => {
@@ -107,9 +106,9 @@ export function RetailShopView({
           <EmptyState title={copy.noCatalogTitle} description={copy.noCatalogBody} />
         ) : (
           <>
-            {sectionItems.length > 1 && !search ? (
-              <div className="mb-10 flex gap-6 overflow-x-auto border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {sectionItems.map(({ section }) => (
+            {sectionLinks ? (
+              <div className="mb-10 flex gap-6 overflow-x-auto border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] pb-3 md:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {sectionLinks.map((section) => (
                   <a
                     key={section.id}
                     href={`#section-${section.id}`}
@@ -121,25 +120,20 @@ export function RetailShopView({
               </div>
             ) : null}
 
-            {featured.length > 0 && !search ? (
-              <section className="mb-14">
-                <h2 className="mb-6 font-display text-2xl font-semibold tracking-tight text-[var(--sf-text)] sm:text-[1.75rem]">
-                  Featured
-                </h2>
-                <ProductGrid
-                  items={featured}
-                  onOpenItem={onOpenItem}
-                  isItemOrderable={isItemOrderable}
-                  unavailableLabel={unavailableLabel}
-                />
-              </section>
+            {featuredHero && !search ? (
+              <FeaturedHero
+                entry={featuredHero}
+                onOpenItem={onOpenItem}
+                isItemOrderable={isItemOrderable}
+                unavailableLabel={unavailableLabel}
+              />
             ) : null}
 
             {sectionItems.map(({ section, items }) => (
               <section
                 key={section.id}
                 id={`section-${section.id}`}
-                className="mb-16 scroll-mt-28"
+                className="mb-16 scroll-mt-36"
               >
                 <div className="mb-6">
                   <h2 className="font-display text-2xl font-semibold tracking-tight text-[var(--sf-text)] sm:text-[1.75rem]">
@@ -167,6 +161,68 @@ export function RetailShopView({
         )}
       </main>
     </>
+  )
+}
+
+function FeaturedHero({
+  entry,
+  onOpenItem,
+  isItemOrderable,
+  unavailableLabel,
+}: {
+  entry: CatalogItem
+  onOpenItem: (item: MenuItem, priceOverride?: number) => void
+  isItemOrderable: (item: MenuItem) => boolean
+  unavailableLabel: (item: MenuItem) => string
+}) {
+  const { item, assignment } = entry
+  const available = isItemOrderable(item)
+  const price = assignment.priceOverrideCents ?? item.basePriceCents
+  const blurb = item.shortDescription || item.fullDescription
+
+  return (
+    <section className="mb-16">
+      <button
+        type="button"
+        disabled={!available}
+        onClick={() => onOpenItem(item, assignment.priceOverrideCents)}
+        className={cn(
+          'group grid w-full gap-6 text-left lg:grid-cols-2 lg:items-center lg:gap-12',
+          available ? '' : 'cursor-not-allowed opacity-55',
+        )}
+      >
+        <div className="relative overflow-hidden bg-[color-mix(in_srgb,var(--sf-primary)_6%,white)]">
+          <MenuItemImage
+            src={item.imageUrl}
+            alt=""
+            className="aspect-[4/5] w-full object-cover transition-transform duration-700 group-hover:scale-[1.02] sm:aspect-[5/4] lg:aspect-[4/5]"
+            fallbackClassName="aspect-[4/5] w-full sm:aspect-[5/4] lg:aspect-[4/5]"
+          />
+          {!available ? (
+            <span className="absolute left-4 top-4">
+              <Badge tone="warning">{unavailableLabel(item)}</Badge>
+            </span>
+          ) : null}
+        </div>
+        <div className="flex flex-col justify-center px-0 lg:py-6">
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-[var(--sf-text)]/55">
+            Featured
+          </p>
+          <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-[var(--sf-text)] sm:text-4xl lg:text-5xl">
+            {item.name}
+          </h2>
+          {blurb ? (
+            <p className="mt-4 max-w-lg text-base leading-relaxed text-[var(--sf-text)]/75 sm:text-lg">
+              {blurb}
+            </p>
+          ) : null}
+          <p className="mt-5 text-xl text-[var(--sf-text)]">{formatMoney(price)}</p>
+          <span className="mt-6 inline-flex w-fit items-center rounded-full bg-[var(--sf-button)] px-5 py-2.5 text-base font-medium text-[var(--sf-button-text)] transition-transform group-hover:-translate-y-0.5">
+            {available ? 'View product' : unavailableLabel(item)}
+          </span>
+        </div>
+      </button>
+    </section>
   )
 }
 

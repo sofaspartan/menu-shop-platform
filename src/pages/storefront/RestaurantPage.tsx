@@ -14,6 +14,7 @@ import type { MenuItem } from '@/types'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
 import { StorefrontNav } from '@/components/storefront/StorefrontNav'
 import { RetailShopView } from '@/components/storefront/RetailShopView'
+import { RetailBagFab } from '@/components/storefront/RetailBagFab'
 import { ItemCustomizer } from '@/components/storefront/ItemCustomizer'
 import { BagDrawer } from '@/components/storefront/BagDrawer'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
@@ -303,12 +304,17 @@ export function RestaurantPage() {
           featured={featured}
           search={search}
           onSearchChange={setSearch}
-          bagCount={bagCount}
-          bagPulse={bagPulseKey > 0}
-          onOpenBag={() => setBagOpen(true)}
           onOpenItem={(item, override) => openItem(item, override)}
           isItemOrderable={(item) => isItemOrderable(item, now)}
           unavailableLabel={unavailableLabel}
+        />
+        <RetailBagFab
+          storeKind={restaurant.storeKind}
+          bagCount={bagCount}
+          bagSubtotal={bagSubtotal}
+          bagPulse={bagPulseKey > 0}
+          bagCatchExpanded={bagCatchExpanded}
+          onOpen={() => setBagOpen(true)}
         />
         <FlyToBagOverlay />
         <BagDrawer
