@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Search, Trash2 } from 'lucide-react'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -62,6 +62,7 @@ export function ModifiersPage() {
   const user = useAuthStore((s) => s.user)
   const { db } = useDb()
   const [modalOpen, setModalOpen] = useState(false)
+  const [query, setQuery] = useState('')
   const [form, setForm] = useState<GroupForm>(emptyForm())
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -70,6 +71,17 @@ export function ModifiersPage() {
     if (!db || !current) return []
     return db.modifierGroups.filter((g) => g.restaurantId === current.id)
   }, [db, current])
+
+  const filteredGroups = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return groups
+    return groups.filter(
+      (g) =>
+        g.name.toLowerCase().includes(q) ||
+        (g.description || '').toLowerCase().includes(q) ||
+        g.options.some((o) => o.name.toLowerCase().includes(q)),
+    )
+  }, [groups, query])
 
   const items = useMemo(() => {
     if (!db || !current) return []
@@ -188,16 +200,26 @@ export function ModifiersPage() {
         </Button>
       </div>
 
-      {groups.length === 0 ? (
+      <div className="relative max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+        <Input
+          className="pl-9"
+          placeholder="Search modifiers…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+
+      {filteredGroups.length === 0 ? (
         <EmptyState
-          title="No modifier groups"
+          title={query ? 'No matching modifiers' : 'No modifier groups'}
           description="Create size, add-on, or preparation choices customers can select."
-          actionLabel="Create group"
-          onAction={openCreate}
+          actionLabel={query ? undefined : 'Create group'}
+          onAction={query ? undefined : openCreate}
         />
       ) : (
         <div className="grid gap-3">
-          {groups.map((group) => {
+          {filteredGroups.map((group) => {
             const assigned = itemModifiers.filter((m) => m.modifierGroupId === group.id)
             return (
               <div key={group.id} className="rounded-2xl border border-stone-200 bg-white p-4">

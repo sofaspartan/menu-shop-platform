@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Search, Settings2, Trash2, Users } from 'lucide-react'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { storeCopy } from '@/lib/storeCopy'
-import { createId, formatMoney } from '@/lib/utils'
+import { createId, formatMoney, cn } from '@/lib/utils'
 import type { LoyaltyReward, LoyaltySettings } from '@/types'
+
+type LoyaltyTab = 'settings' | 'rewards' | 'members'
 
 export function LoyaltyPage() {
   const current = useRestaurantStore((s) => s.current())
@@ -20,6 +22,9 @@ export function LoyaltyPage() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [tab, setTab] = useState<LoyaltyTab>('settings')
+  const [query, setQuery] = useState('')
+  const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null)
 
   const copy = storeCopy(current?.storeKind)
   const accounts = useMemo(() => {
@@ -36,6 +41,34 @@ export function LoyaltyPage() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [db, current])
 
+  const filteredRewards = useMemo(() => {
+    if (!settings) return []
+    const q = query.trim().toLowerCase()
+    if (!q) return settings.rewards
+    return settings.rewards.filter(
+      (r) =>
+        r.label.toLowerCase().includes(q) ||
+        r.type.toLowerCase().includes(q) ||
+        String(r.pointsCost).includes(q),
+    )
+  }, [settings, query])
+
+  const filteredAccounts = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return accounts
+    return accounts.filter(
+      (a) =>
+        (a.name || '').toLowerCase().includes(q) ||
+        a.email.toLowerCase().includes(q) ||
+        (a.phone || '').toLowerCase().includes(q),
+    )
+  }, [accounts, query])
+
+  const selectedReward =
+    filteredRewards.find((r) => r.id === selectedRewardId) ??
+    filteredRewards[0] ??
+    null
+
   useEffect(() => {
     if (!current) return
     setSettings({
@@ -50,17 +83,17 @@ export function LoyaltyPage() {
   }
 
   function addReward() {
-    setSettings((s) => {
-      if (!s) return s
-      const reward: LoyaltyReward = {
-        id: createId('rew'),
-        type: 'percent_off',
-        label: '10% off',
-        pointsCost: 100,
-        percentOff: 10,
-      }
-      return { ...s, rewards: [...s.rewards, reward] }
-    })
+    const reward: LoyaltyReward = {
+      id: createId('rew'),
+      type: 'percent_off',
+      label: '10% off',
+      pointsCost: 100,
+      percentOff: 10,
+    }
+    setSettings((s) => (s ? { ...s, rewards: [...s.rewards, reward] } : s))
+    setSelectedRewardId(reward.id)
+    setTab('rewards')
+    setQuery('')
   }
 
   function updateReward(id: string, patch: Partial<LoyaltyReward>) {
@@ -75,6 +108,7 @@ export function LoyaltyPage() {
 
   function removeReward(id: string) {
     setSettings((s) => (s ? { ...s, rewards: s.rewards.filter((r) => r.id !== id) } : s))
+    setSelectedRewardId((cur) => (cur === id ? null : cur))
   }
 
   async function save() {
@@ -94,203 +128,296 @@ export function LoyaltyPage() {
   }
 
   return (
-    <div className="space-y-8 animate-fade-up">
-      <div>
-        <h1 className="font-display text-3xl text-stone-900">Loyalty</h1>
-        <p className="mt-1 text-sm text-stone-500">
-          Customers earn points with each order (matched by email). Configure rewards they can
-          redeem at checkout — works for {copy.storeNoun} and retail alike.
-        </p>
-      </div>
-
-      <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5">
-        <label className="flex items-center gap-3 text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={settings.enabled}
-            onChange={(e) => setSettings((s) => (s ? { ...s, enabled: e.target.checked } : s))}
-            className="h-4 w-4 rounded border-stone-300"
-          />
-          Enable loyalty program
-        </label>
-        <Field label="Points per dollar spent" htmlFor="pts-rate">
-          <Input
-            id="pts-rate"
-            type="number"
-            min={0}
-            step={0.5}
-            value={settings.pointsPerDollar}
-            onChange={(e) =>
-              setSettings((s) =>
-                s
-                  ? {
-                      ...s,
-                      pointsPerDollar: Number.parseFloat(e.target.value) || 0,
-                    }
-                  : s,
-              )
-            }
-          />
-        </Field>
-        <p className="text-xs text-stone-500">
-          Points are calculated on the merchandise subtotal after coupons and loyalty discounts,
-          before tax and tip.
-        </p>
-      </section>
-
-      <section className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold">Rewards</h2>
-          <Button type="button" variant="outline" size="sm" onClick={addReward}>
-            <Plus className="h-4 w-4" />
-            Add reward
+    <div className="space-y-6 animate-fade-up">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl text-stone-900">Loyalty</h1>
+          <p className="mt-1 text-sm text-stone-500">
+            Customers earn points with each order (matched by email). Configure rewards they can
+            redeem at checkout — works for {copy.storeNoun} and retail alike.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {tab === 'rewards' ? (
+            <Button type="button" variant="outline" onClick={addReward}>
+              <Plus className="h-4 w-4" />
+              Add reward
+            </Button>
+          ) : null}
+          <Button type="button" onClick={() => void save()} disabled={busy}>
+            {busy ? 'Saving…' : 'Save loyalty'}
           </Button>
         </div>
-        {settings.rewards.length === 0 ? (
-          <p className="text-sm text-stone-500">No rewards yet. Add a discount or free item.</p>
-        ) : (
-          <ul className="space-y-4">
-            {settings.rewards.map((reward) => (
-              <li
-                key={reward.id}
-                className="space-y-3 rounded-2xl border border-stone-200 bg-white p-4"
-              >
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Label" htmlFor={`rew-label-${reward.id}`}>
-                    <Input
-                      id={`rew-label-${reward.id}`}
-                      value={reward.label}
-                      onChange={(e) => updateReward(reward.id, { label: e.target.value })}
-                    />
-                  </Field>
-                  <Field label="Points cost" htmlFor={`rew-cost-${reward.id}`}>
-                    <Input
-                      id={`rew-cost-${reward.id}`}
-                      type="number"
-                      min={1}
-                      value={reward.pointsCost}
-                      onChange={(e) =>
-                        updateReward(reward.id, {
-                          pointsCost: Number.parseInt(e.target.value, 10) || 0,
-                        })
-                      }
-                    />
-                  </Field>
-                  <Field label="Type" htmlFor={`rew-type-${reward.id}`}>
-                    <Select
-                      id={`rew-type-${reward.id}`}
-                      value={reward.type}
-                      onChange={(e) =>
-                        updateReward(reward.id, {
-                          type: e.target.value as LoyaltyReward['type'],
-                        })
-                      }
-                    >
-                      <option value="percent_off">Percent off</option>
-                      <option value="amount_off">Fixed amount off</option>
-                      <option value="free_item">Free item</option>
-                    </Select>
-                  </Field>
-                  {reward.type === 'percent_off' ? (
-                    <Field label="Percent off" htmlFor={`rew-pct-${reward.id}`}>
-                      <Input
-                        id={`rew-pct-${reward.id}`}
-                        type="number"
-                        min={1}
-                        max={100}
-                        value={reward.percentOff ?? 10}
-                        onChange={(e) =>
-                          updateReward(reward.id, {
-                            percentOff: Number.parseFloat(e.target.value) || 0,
-                          })
-                        }
-                      />
-                    </Field>
-                  ) : null}
-                  {reward.type === 'amount_off' ? (
-                    <Field label="Amount off ($)" htmlFor={`rew-amt-${reward.id}`}>
-                      <Input
-                        id={`rew-amt-${reward.id}`}
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        value={((reward.amountOffCents ?? 0) / 100).toFixed(2)}
-                        onChange={(e) =>
-                          updateReward(reward.id, {
-                            amountOffCents: Math.round(
-                              (Number.parseFloat(e.target.value) || 0) * 100,
-                            ),
-                          })
-                        }
-                      />
-                    </Field>
-                  ) : null}
-                  {reward.type === 'free_item' ? (
-                    <Field label="Free item" htmlFor={`rew-item-${reward.id}`}>
-                      <Select
-                        id={`rew-item-${reward.id}`}
-                        value={reward.itemId ?? ''}
-                        onChange={(e) => updateReward(reward.id, { itemId: e.target.value })}
-                      >
-                        <option value="">Select item…</option>
-                        {items.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.name} ({formatMoney(item.basePriceCents)})
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
-                  ) : null}
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeReward(reward.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Remove
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
-      <Button type="button" onClick={() => void save()} disabled={busy}>
-        {busy ? 'Saving…' : 'Save loyalty'}
-      </Button>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Customer balances</h2>
-        {accounts.length === 0 ? (
-          <p className="text-sm text-stone-500">
-            No loyalty accounts yet. They appear after a guest checks out with an email.
-          </p>
-        ) : (
-          <ul className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white">
-            {accounts.map((account) => (
-              <li
-                key={account.id}
-                className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
-              >
-                <div>
-                  <div className="text-sm font-medium">{account.name || account.email}</div>
-                  <div className="text-xs text-stone-500">{account.email}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge tone="accent">{account.pointsBalance} pts</Badge>
-                  <span className="text-xs text-stone-400">
-                    {account.lifetimePoints} lifetime
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            { id: 'settings' as const, label: 'Settings', icon: Settings2 },
+            { id: 'rewards' as const, label: 'Rewards', icon: Plus },
+            { id: 'members' as const, label: 'Members', icon: Users },
+          ] as const
+        ).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => {
+              setTab(t.id)
+              setQuery('')
+            }}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium',
+              tab === t.id
+                ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white'
+                : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50',
+            )}
+          >
+            <t.icon className="h-3.5 w-3.5" />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab !== 'settings' ? (
+        <div className="relative max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+          <Input
+            className="pl-9"
+            placeholder={tab === 'rewards' ? 'Search rewards…' : 'Search members…'}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+      ) : null}
+
+      {tab === 'settings' ? (
+        <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display text-2xl">Program settings</h2>
+              <p className="mt-1 text-sm text-stone-500">
+                Points are calculated on the merchandise subtotal after coupons and loyalty
+                discounts, before tax and tip.
+              </p>
+            </div>
+          </div>
+          <label className="flex items-center gap-3 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={settings.enabled}
+              onChange={(e) =>
+                setSettings((s) => (s ? { ...s, enabled: e.target.checked } : s))
+              }
+              className="h-4 w-4 rounded border-stone-300"
+            />
+            Enable loyalty program
+          </label>
+          <Field label="Points per dollar spent" htmlFor="pts-rate">
+            <Input
+              id="pts-rate"
+              type="number"
+              min={0}
+              step={0.5}
+              value={settings.pointsPerDollar}
+              onChange={(e) =>
+                setSettings((s) =>
+                  s
+                    ? {
+                        ...s,
+                        pointsPerDollar: Number.parseFloat(e.target.value) || 0,
+                      }
+                    : s,
+                )
+              }
+            />
+          </Field>
+        </section>
+      ) : null}
+
+      {tab === 'rewards' ? (
+        <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
+          <aside className="space-y-1">
+            {filteredRewards.length === 0 ? (
+              <p className="px-3 py-4 text-sm text-stone-500">
+                {query ? 'No matching rewards.' : 'No rewards yet.'}
+              </p>
+            ) : (
+              filteredRewards.map((reward) => (
+                <button
+                  key={reward.id}
+                  type="button"
+                  onClick={() => setSelectedRewardId(reward.id)}
+                  className={cn(
+                    'flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm',
+                    (selectedReward?.id ?? '') === reward.id
+                      ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+                      : 'text-stone-700 hover:bg-stone-50',
+                  )}
+                >
+                  <span className="truncate font-medium">{reward.label}</span>
+                  <span className="mt-0.5 text-[11px] opacity-70">
+                    {reward.pointsCost} pts · {reward.type.replaceAll('_', ' ')}
                   </span>
+                </button>
+              ))
+            )}
+          </aside>
+
+          {selectedReward ? (
+            <div className="space-y-5 rounded-2xl border border-stone-200 bg-white p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-2xl">{selectedReward.label || 'Reward'}</h2>
+                  <p className="mt-1 text-sm text-stone-500">
+                    Edit this reward, then save loyalty to publish changes.
+                  </p>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  onClick={() => removeReward(selectedReward.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Label" htmlFor={`rew-label-${selectedReward.id}`}>
+                  <Input
+                    id={`rew-label-${selectedReward.id}`}
+                    value={selectedReward.label}
+                    onChange={(e) =>
+                      updateReward(selectedReward.id, { label: e.target.value })
+                    }
+                  />
+                </Field>
+                <Field label="Points cost" htmlFor={`rew-cost-${selectedReward.id}`}>
+                  <Input
+                    id={`rew-cost-${selectedReward.id}`}
+                    type="number"
+                    min={1}
+                    value={selectedReward.pointsCost}
+                    onChange={(e) =>
+                      updateReward(selectedReward.id, {
+                        pointsCost: Number.parseInt(e.target.value, 10) || 0,
+                      })
+                    }
+                  />
+                </Field>
+                <Field label="Type" htmlFor={`rew-type-${selectedReward.id}`}>
+                  <Select
+                    id={`rew-type-${selectedReward.id}`}
+                    value={selectedReward.type}
+                    onChange={(e) =>
+                      updateReward(selectedReward.id, {
+                        type: e.target.value as LoyaltyReward['type'],
+                      })
+                    }
+                  >
+                    <option value="percent_off">Percent off</option>
+                    <option value="amount_off">Fixed amount off</option>
+                    <option value="free_item">Free item</option>
+                  </Select>
+                </Field>
+                {selectedReward.type === 'percent_off' ? (
+                  <Field label="Percent off" htmlFor={`rew-pct-${selectedReward.id}`}>
+                    <Input
+                      id={`rew-pct-${selectedReward.id}`}
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={selectedReward.percentOff ?? 10}
+                      onChange={(e) =>
+                        updateReward(selectedReward.id, {
+                          percentOff: Number.parseFloat(e.target.value) || 0,
+                        })
+                      }
+                    />
+                  </Field>
+                ) : null}
+                {selectedReward.type === 'amount_off' ? (
+                  <Field label="Amount off ($)" htmlFor={`rew-amt-${selectedReward.id}`}>
+                    <Input
+                      id={`rew-amt-${selectedReward.id}`}
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      value={((selectedReward.amountOffCents ?? 0) / 100).toFixed(2)}
+                      onChange={(e) =>
+                        updateReward(selectedReward.id, {
+                          amountOffCents: Math.round(
+                            (Number.parseFloat(e.target.value) || 0) * 100,
+                          ),
+                        })
+                      }
+                    />
+                  </Field>
+                ) : null}
+                {selectedReward.type === 'free_item' ? (
+                  <Field label="Free item" htmlFor={`rew-item-${selectedReward.id}`}>
+                    <Select
+                      id={`rew-item-${selectedReward.id}`}
+                      value={selectedReward.itemId ?? ''}
+                      onChange={(e) =>
+                        updateReward(selectedReward.id, { itemId: e.target.value })
+                      }
+                    >
+                      <option value="">Select item…</option>
+                      {items.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} ({formatMoney(item.basePriceCents)})
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center rounded-2xl border border-dashed border-stone-200 bg-white p-10 text-sm text-stone-500">
+              {query ? 'No matches for your search.' : 'Add a reward to get started.'}
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {tab === 'members' ? (
+        <section className="rounded-2xl border border-stone-200 bg-white">
+          {filteredAccounts.length === 0 ? (
+            <p className="px-4 py-8 text-sm text-stone-500">
+              {query
+                ? 'No matching members.'
+                : 'No loyalty accounts yet. They appear after a guest checks out with an email.'}
+            </p>
+          ) : (
+            <ul className="divide-y divide-stone-100">
+              {filteredAccounts.map((account) => (
+                <li
+                  key={account.id}
+                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
+                >
+                  <div>
+                    <div className="text-sm font-medium">
+                      {account.name || account.email}
+                    </div>
+                    <div className="text-xs text-stone-500">{account.email}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge tone="accent">{account.pointsBalance} pts</Badge>
+                    <span className="text-xs text-stone-400">
+                      {account.lifetimePoints} lifetime
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
     </div>
   )
 }

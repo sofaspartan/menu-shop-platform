@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Search, Trash2 } from 'lucide-react'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -60,6 +60,7 @@ export function CombosPage() {
   const user = useAuthStore((s) => s.user)
   const { db } = useDb()
   const [modalOpen, setModalOpen] = useState(false)
+  const [query, setQuery] = useState('')
   const [selectedItemId, setSelectedItemId] = useState('')
   const [basePriceDollars, setBasePriceDollars] = useState('0.00')
   const [groups, setGroups] = useState<GroupDraft[]>([emptyGroup()])
@@ -75,6 +76,17 @@ export function CombosPage() {
     () => items.filter((i) => i.isCombo || i.itemType === 'combo'),
     [items],
   )
+
+  const filteredComboItems = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return comboItems
+    return comboItems.filter(
+      (i) =>
+        i.name.toLowerCase().includes(q) ||
+        (i.shortDescription || '').toLowerCase().includes(q) ||
+        (i.fullDescription || '').toLowerCase().includes(q),
+    )
+  }, [comboItems, query])
 
   const combos = useMemo(() => {
     if (!db || !current) return []
@@ -186,16 +198,26 @@ export function CombosPage() {
         </Button>
       </div>
 
-      {comboItems.length === 0 ? (
+      <div className="relative max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+        <Input
+          className="pl-9"
+          placeholder="Search combos…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+
+      {filteredComboItems.length === 0 ? (
         <EmptyState
-          title="No combo items yet"
+          title={query ? 'No matching combos' : 'No combo items yet'}
           description="Mark an item as a combo in the item library, or create a combo config here."
-          actionLabel="Create combo"
-          onAction={openCreate}
+          actionLabel={query ? undefined : 'Create combo'}
+          onAction={query ? undefined : openCreate}
         />
       ) : (
         <div className="grid gap-3">
-          {comboItems.map((item) => {
+          {filteredComboItems.map((item) => {
             const combo = combos.find((c) => c.itemId === item.id)
             return (
               <div key={item.id} className="rounded-2xl border border-stone-200 bg-white p-4">

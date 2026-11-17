@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Percent, Tag, Trash2 } from 'lucide-react'
+import { Percent, Plus, Search, Tag, Trash2 } from 'lucide-react'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -65,6 +65,11 @@ export function PromotionsPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [tick, setTick] = useState(0)
+  const [tab, setTab] = useState<'coupons' | 'sales'>('coupons')
+  const [query, setQuery] = useState('')
+  const [selectedCouponId, setSelectedCouponId] = useState<string | null>(null)
+  const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
 
   const [couponCode, setCouponCode] = useState('')
   const [couponType, setCouponType] = useState<'percent_off' | 'amount_off'>('percent_off')
@@ -121,8 +126,53 @@ export function PromotionsPage() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [db, current])
 
+  const filteredCoupons = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return coupons
+    return coupons.filter(
+      (c) =>
+        c.code.toLowerCase().includes(q) ||
+        describeCouponSchedule(c).toLowerCase().includes(q),
+    )
+  }, [coupons, query])
+
+  const filteredSales = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return sales
+    return sales.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        describeSaleSchedule(s).toLowerCase().includes(q),
+    )
+  }, [sales, query])
+
+  const selectedCoupon =
+    filteredCoupons.find((c) => c.id === selectedCouponId) ??
+    (!creating && !query ? coupons[0] : null) ??
+    null
+  const selectedSale =
+    filteredSales.find((s) => s.id === selectedSaleId) ??
+    (!creating && !query ? sales[0] : null) ??
+    null
+
   if (!current || !user) {
     return <p className="text-sm text-stone-500">Select a store to manage promotions.</p>
+  }
+
+  function startCreate() {
+    setCreating(true)
+    setSelectedCouponId(null)
+    setSelectedSaleId(null)
+  }
+
+  function selectCoupon(id: string) {
+    setCreating(false)
+    setSelectedCouponId(id)
+  }
+
+  function selectSale(id: string) {
+    setCreating(false)
+    setSelectedSaleId(id)
   }
 
   async function createCoupon() {
@@ -131,7 +181,7 @@ export function PromotionsPage() {
     setError('')
     try {
       const value = Number.parseFloat(couponValue)
-      await promotionService.createCoupon(user.id, current.id, {
+      const created = await promotionService.createCoupon(user.id, current.id, {
         code: couponCode,
         type: couponType,
         percentOff: couponType === 'percent_off' ? value : undefined,
@@ -157,6 +207,8 @@ export function PromotionsPage() {
       setCouponDays([1, 2, 3, 4, 5])
       setCouponStartTime('00:00')
       setCouponEndTime('23:59')
+      setCreating(false)
+      setSelectedCouponId(created.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create coupon.')
     } finally {
@@ -204,7 +256,7 @@ export function PromotionsPage() {
           throw new Error('Enter item names (one per line) or mark the sale storewide.')
         }
       }
-      await promotionService.createSale(user.id, current.id, {
+      const created = await promotionService.createSale(user.id, current.id, {
         name: saleName.trim() || `${percent}% off`,
         percentOff: percent,
         itemIds,
@@ -226,6 +278,8 @@ export function PromotionsPage() {
       setSaleDays([5, 6])
       setSaleStartTime('00:00')
       setSaleEndTime('23:59')
+      setCreating(false)
+      setSelectedSaleId(created.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create sale.')
     } finally {
@@ -254,439 +308,589 @@ export function PromotionsPage() {
     if (!window.confirm('Delete this sale?')) return
     await promotionService.deleteSale(user.id, current.id, id)
   }
+  void tick
+
+  const listEmpty =
+    tab === 'coupons' ? filteredCoupons.length === 0 : filteredSales.length === 0
 
   return (
-    <div className="space-y-10 animate-fade-up">
-      <div>
-        <h1 className="font-display text-3xl text-stone-900">Coupons & sales</h1>
-        <p className="mt-1 text-sm text-stone-500">
-          Coupons apply at checkout. Sales discount listed prices on the {copy.catalogNoun} so
-          customers see the original price struck through.
-        </p>
+    <div className="space-y-6 animate-fade-up">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl text-stone-900">Coupons & sales</h1>
+          <p className="mt-1 text-sm text-stone-500">
+            Coupons apply at checkout. Sales discount listed prices on the {copy.catalogNoun} so
+            customers see the original price struck through.
+          </p>
+        </div>
+        <Button type="button" onClick={startCreate}>
+          <Plus className="h-4 w-4" />
+          New {tab === 'coupons' ? 'coupon' : 'sale'}
+        </Button>
       </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Tag className="h-5 w-5 text-stone-500" />
-          <h2 className="text-lg font-semibold">Coupons</h2>
-        </div>
-        <div className="grid gap-3 rounded-2xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
-          <Field label="Code" htmlFor="cpn-code">
-            <Input
-              id="cpn-code"
-              value={couponCode}
-              onChange={(e) => setCouponCode(e.target.value)}
-              placeholder="SAVE10"
-            />
-          </Field>
-          <Field label="Type" htmlFor="cpn-type">
-            <Select
-              id="cpn-type"
-              value={couponType}
-              onChange={(e) =>
-                setCouponType(e.target.value as 'percent_off' | 'amount_off')
-              }
-            >
-              <option value="percent_off">Percent off</option>
-              <option value="amount_off">Fixed $ off</option>
-            </Select>
-          </Field>
-          <Field
-            label={couponType === 'percent_off' ? 'Percent' : 'Amount ($)'}
-            htmlFor="cpn-val"
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            { id: 'coupons' as const, label: 'Coupons', icon: Tag },
+            { id: 'sales' as const, label: 'Sales', icon: Percent },
+          ] as const
+        ).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => {
+              setTab(t.id)
+              setCreating(false)
+              setQuery('')
+            }}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium',
+              tab === t.id
+                ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white'
+                : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50',
+            )}
           >
-            <Input
-              id="cpn-val"
-              type="number"
-              min={0}
-              step={couponType === 'percent_off' ? 1 : 0.01}
-              value={couponValue}
-              onChange={(e) => setCouponValue(e.target.value)}
-            />
-          </Field>
-          <Field label="Min subtotal ($) optional" htmlFor="cpn-min">
-            <Input
-              id="cpn-min"
-              type="number"
-              min={0}
-              step={0.01}
-              value={couponMin}
-              onChange={(e) => setCouponMin(e.target.value)}
-            />
-          </Field>
-          <Field label="Schedule" htmlFor="cpn-mode">
-            <Select
-              id="cpn-mode"
-              value={couponMode}
-              onChange={(e) => setCouponMode(e.target.value as PromoScheduleMode)}
-            >
-              <option value="always">Always on</option>
-              <option value="fixed">One-time (expires)</option>
-              <option value="weekly">Weekly (cyclical)</option>
-            </Select>
-          </Field>
-          {couponMode !== 'always' ? (
-            <>
-              <Field
-                label={couponMode === 'weekly' ? 'Campaign start (optional)' : 'Starts'}
-                htmlFor="cpn-start"
-              >
-                <Input
-                  id="cpn-start"
-                  type="datetime-local"
-                  value={couponStartsAt}
-                  onChange={(e) => setCouponStartsAt(e.target.value)}
-                />
-              </Field>
-              <Field
-                label={
-                  couponMode === 'weekly'
-                    ? 'Campaign end (auto-expires)'
-                    : 'Ends (auto-expires)'
-                }
-                htmlFor="cpn-end"
-                hint="When this passes, the coupon turns off but stays in your list."
-              >
-                <Input
-                  id="cpn-end"
-                  type="datetime-local"
-                  value={couponEndsAt}
-                  onChange={(e) => setCouponEndsAt(e.target.value)}
-                  min={couponStartsAt || undefined}
-                />
-              </Field>
-            </>
-          ) : (
-            <p className="sm:col-span-2 text-xs text-stone-500">
-              This code stays redeemable until you disable it (or it hits a usage limit).
+            <t.icon className="h-3.5 w-3.5" />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="relative max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+        <Input
+          className="pl-9"
+          placeholder={tab === 'coupons' ? 'Search coupons…' : 'Search sales…'}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
+        <aside className="space-y-1">
+          {listEmpty && !creating ? (
+            <p className="px-3 py-4 text-sm text-stone-500">
+              {query
+                ? 'No matches.'
+                : tab === 'coupons'
+                  ? 'No coupons yet.'
+                  : 'No sales yet.'}
             </p>
-          )}
-          {couponMode === 'weekly' ? (
-            <>
-              <div className="sm:col-span-2">
-                <p className="mb-2 text-sm font-medium text-stone-700">Days of week</p>
-                <div className="flex flex-wrap gap-2">
-                  {DAY_OPTIONS.map((day) => {
-                    const on = couponDays.includes(day.value)
-                    return (
-                      <button
-                        key={day.value}
-                        type="button"
-                        onClick={() => toggleCouponDay(day.value)}
-                        className={cn(
-                          'rounded-lg border px-3 py-1.5 text-sm font-medium',
-                          on
-                            ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
-                            : 'border-stone-200 text-stone-600 hover:bg-stone-50',
-                        )}
-                      >
-                        {day.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-              <Field label="Daily start time" htmlFor="cpn-time-start">
-                <Input
-                  id="cpn-time-start"
-                  type="time"
-                  value={couponStartTime}
-                  onChange={(e) => setCouponStartTime(e.target.value)}
-                />
-              </Field>
-              <Field label="Daily end time" htmlFor="cpn-time-end">
-                <Input
-                  id="cpn-time-end"
-                  type="time"
-                  value={couponEndTime}
-                  onChange={(e) => setCouponEndTime(e.target.value)}
-                />
-              </Field>
-            </>
           ) : null}
-          <div className="sm:col-span-2">
+          {tab === 'coupons'
+            ? filteredCoupons.map((coupon) => {
+                const status = getCouponLifecycleStatus(coupon, new Date())
+                const badge = lifecycleBadge(status)
+                const active =
+                  !creating && (selectedCoupon?.id ?? '') === coupon.id
+                return (
+                  <button
+                    key={coupon.id}
+                    type="button"
+                    onClick={() => selectCoupon(coupon.id)}
+                    className={cn(
+                      'flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm',
+                      active
+                        ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+                        : 'text-stone-700 hover:bg-stone-50',
+                    )}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="truncate font-mono font-medium">{coupon.code}</span>
+                      <Badge tone={badge.tone}>{badge.label}</Badge>
+                    </span>
+                    <span className="mt-0.5 text-[11px] opacity-70">
+                      {coupon.type === 'percent_off'
+                        ? `${coupon.percentOff}% off`
+                        : `${formatMoney(coupon.amountOffCents ?? 0)} off`}
+                    </span>
+                  </button>
+                )
+              })
+            : filteredSales.map((sale) => {
+                const status = getSaleLifecycleStatus(sale, new Date())
+                const badge = lifecycleBadge(status)
+                const active = !creating && (selectedSale?.id ?? '') === sale.id
+                return (
+                  <button
+                    key={sale.id}
+                    type="button"
+                    onClick={() => selectSale(sale.id)}
+                    className={cn(
+                      'flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm',
+                      active
+                        ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+                        : 'text-stone-700 hover:bg-stone-50',
+                    )}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="truncate font-medium">{sale.name}</span>
+                      <Badge tone={badge.tone}>{badge.label}</Badge>
+                    </span>
+                    <span className="mt-0.5 text-[11px] opacity-70">
+                      {sale.percentOff}% off
+                    </span>
+                  </button>
+                )
+              })}
+          {creating ? (
+            <div className="rounded-xl bg-[var(--color-brand-soft)] px-3 py-2.5 text-sm font-medium text-[var(--color-brand)]">
+              New {tab === 'coupons' ? 'coupon' : 'sale'}
+            </div>
+          ) : null}
+        </aside>
+
+        {creating && tab === 'coupons' ? (
+          <div className="space-y-5 rounded-2xl border border-stone-200 bg-white p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-2xl">New coupon</h2>
+                <p className="mt-1 text-sm text-stone-500">
+                  Create a checkout code customers can redeem.
+                </p>
+              </div>
+              <Button type="button" variant="outline" onClick={() => setCreating(false)}>
+                Cancel
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Code" htmlFor="cpn-code">
+                <Input
+                  id="cpn-code"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  placeholder="SAVE10"
+                />
+              </Field>
+              <Field label="Type" htmlFor="cpn-type">
+                <Select
+                  id="cpn-type"
+                  value={couponType}
+                  onChange={(e) =>
+                    setCouponType(e.target.value as 'percent_off' | 'amount_off')
+                  }
+                >
+                  <option value="percent_off">Percent off</option>
+                  <option value="amount_off">Fixed $ off</option>
+                </Select>
+              </Field>
+              <Field
+                label={couponType === 'percent_off' ? 'Percent' : 'Amount ($)'}
+                htmlFor="cpn-val"
+              >
+                <Input
+                  id="cpn-val"
+                  type="number"
+                  min={0}
+                  step={couponType === 'percent_off' ? 1 : 0.01}
+                  value={couponValue}
+                  onChange={(e) => setCouponValue(e.target.value)}
+                />
+              </Field>
+              <Field label="Min subtotal ($) optional" htmlFor="cpn-min">
+                <Input
+                  id="cpn-min"
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={couponMin}
+                  onChange={(e) => setCouponMin(e.target.value)}
+                />
+              </Field>
+              <Field label="Schedule" htmlFor="cpn-mode">
+                <Select
+                  id="cpn-mode"
+                  value={couponMode}
+                  onChange={(e) => setCouponMode(e.target.value as PromoScheduleMode)}
+                >
+                  <option value="always">Always on</option>
+                  <option value="fixed">One-time (expires)</option>
+                  <option value="weekly">Weekly (cyclical)</option>
+                </Select>
+              </Field>
+              {couponMode !== 'always' ? (
+                <>
+                  <Field
+                    label={couponMode === 'weekly' ? 'Campaign start (optional)' : 'Starts'}
+                    htmlFor="cpn-start"
+                  >
+                    <Input
+                      id="cpn-start"
+                      type="datetime-local"
+                      value={couponStartsAt}
+                      onChange={(e) => setCouponStartsAt(e.target.value)}
+                    />
+                  </Field>
+                  <Field
+                    label={
+                      couponMode === 'weekly'
+                        ? 'Campaign end (auto-expires)'
+                        : 'Ends (auto-expires)'
+                    }
+                    htmlFor="cpn-end"
+                  >
+                    <Input
+                      id="cpn-end"
+                      type="datetime-local"
+                      value={couponEndsAt}
+                      onChange={(e) => setCouponEndsAt(e.target.value)}
+                      min={couponStartsAt || undefined}
+                    />
+                  </Field>
+                </>
+              ) : null}
+              {couponMode === 'weekly' ? (
+                <>
+                  <div className="sm:col-span-2">
+                    <p className="mb-2 text-sm font-medium text-stone-700">Days of week</p>
+                    <div className="flex flex-wrap gap-2">
+                      {DAY_OPTIONS.map((day) => {
+                        const on = couponDays.includes(day.value)
+                        return (
+                          <button
+                            key={day.value}
+                            type="button"
+                            onClick={() => toggleCouponDay(day.value)}
+                            className={cn(
+                              'rounded-lg border px-3 py-1.5 text-sm font-medium',
+                              on
+                                ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+                                : 'border-stone-200 text-stone-600 hover:bg-stone-50',
+                            )}
+                          >
+                            {day.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <Field label="Daily start time" htmlFor="cpn-time-start">
+                    <Input
+                      id="cpn-time-start"
+                      type="time"
+                      value={couponStartTime}
+                      onChange={(e) => setCouponStartTime(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Daily end time" htmlFor="cpn-time-end">
+                    <Input
+                      id="cpn-time-end"
+                      type="time"
+                      value={couponEndTime}
+                      onChange={(e) => setCouponEndTime(e.target.value)}
+                    />
+                  </Field>
+                </>
+              ) : null}
+            </div>
             <Button type="button" disabled={busy} onClick={() => void createCoupon()}>
               Create coupon
             </Button>
           </div>
-        </div>
-        <ul className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white">
-          {coupons.length === 0 ? (
-            <li className="px-4 py-6 text-sm text-stone-500">No coupons yet.</li>
-          ) : (
-            coupons.map((coupon) => {
-              const status = getCouponLifecycleStatus(coupon, new Date())
-              void tick
-              const badge = lifecycleBadge(status)
-              return (
-                <li
-                  key={coupon.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
-                >
-                  <div className="min-w-0">
-                    <div className="font-mono text-sm font-semibold">{coupon.code}</div>
-                    <div className="text-xs text-stone-500">
-                      {coupon.type === 'percent_off'
-                        ? `${coupon.percentOff}% off`
-                        : `${formatMoney(coupon.amountOffCents ?? 0)} off`}
-                      {coupon.minSubtotalCents
-                        ? ` · min ${formatMoney(coupon.minSubtotalCents)}`
-                        : ''}
-                      {` · used ${coupon.usedCount}${coupon.usageLimit ? `/${coupon.usageLimit}` : ''}`}
-                      {' · '}
-                      {describeCouponSchedule(coupon)}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge tone={badge.tone}>{badge.label}</Badge>
-                    <button type="button" onClick={() => void toggleCoupon(coupon)}>
-                      <Badge tone={coupon.active ? 'success' : 'neutral'}>
-                        {coupon.active ? 'Enabled' : 'Disabled'}
-                      </Badge>
-                    </button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Delete coupon"
-                      onClick={() => void removeCoupon(coupon.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </li>
-              )
-            })
-          )}
-        </ul>
-      </section>
+        ) : null}
 
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Percent className="h-5 w-5 text-stone-500" />
-          <h2 className="text-lg font-semibold">Sales</h2>
-        </div>
-        <p className="text-sm text-stone-500">
-          Always-on, one-time, or weekly. Fixed/weekly campaigns auto-expire when their end
-          passes (turned off, not deleted).
-        </p>
-        <div className="grid gap-3 rounded-2xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
-          <Field label="Sale name" htmlFor="sale-name">
-            <Input
-              id="sale-name"
-              value={saleName}
-              onChange={(e) => setSaleName(e.target.value)}
-              placeholder="Weekend sale"
-            />
-          </Field>
-          <Field label="Percent off" htmlFor="sale-pct">
-            <Input
-              id="sale-pct"
-              type="number"
-              min={1}
-              max={90}
-              value={salePercent}
-              onChange={(e) => setSalePercent(e.target.value)}
-            />
-          </Field>
-          <Field label="Schedule" htmlFor="sale-mode">
-            <Select
-              id="sale-mode"
-              value={saleMode}
-              onChange={(e) => setSaleMode(e.target.value as PromoScheduleMode)}
-            >
-              <option value="always">Always on</option>
-              <option value="fixed">One-time (expires)</option>
-              <option value="weekly">Weekly (cyclical)</option>
-            </Select>
-          </Field>
-          <div className="hidden sm:block" />
-          {saleMode !== 'always' ? (
-            <>
-              <Field
-                label={saleMode === 'weekly' ? 'Campaign start (optional)' : 'Starts'}
-                htmlFor="sale-start"
-                hint={
-                  saleMode === 'fixed'
-                    ? 'Leave blank to start immediately.'
-                    : 'Weekly cycles begin after this time.'
-                }
-              >
-                <Input
-                  id="sale-start"
-                  type="datetime-local"
-                  value={saleStartsAt}
-                  onChange={(e) => setSaleStartsAt(e.target.value)}
-                />
-              </Field>
-              <Field
-                label={
-                  saleMode === 'weekly' ? 'Campaign end (auto-expires)' : 'Ends (auto-expires)'
-                }
-                htmlFor="sale-end"
-                hint="When this passes, the sale turns off but stays in your list."
-              >
-                <Input
-                  id="sale-end"
-                  type="datetime-local"
-                  value={saleEndsAt}
-                  onChange={(e) => setSaleEndsAt(e.target.value)}
-                  min={saleStartsAt || undefined}
-                />
-              </Field>
-            </>
-          ) : (
-            <p className="sm:col-span-2 text-xs text-stone-500">
-              Stays on the storefront until you disable it.
-            </p>
-          )}
-          {saleMode === 'weekly' ? (
-            <>
-              <div className="sm:col-span-2">
-                <p className="mb-2 text-sm font-medium text-stone-700">Days of week</p>
-                <div className="flex flex-wrap gap-2">
-                  {DAY_OPTIONS.map((day) => {
-                    const on = saleDays.includes(day.value)
-                    return (
-                      <button
-                        key={day.value}
-                        type="button"
-                        onClick={() => toggleSaleDay(day.value)}
-                        className={cn(
-                          'rounded-lg border px-3 py-1.5 text-sm font-medium',
-                          on
-                            ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
-                            : 'border-stone-200 text-stone-600 hover:bg-stone-50',
-                        )}
-                      >
-                        {day.label}
-                      </button>
-                    )
-                  })}
-                </div>
+        {creating && tab === 'sales' ? (
+          <div className="space-y-5 rounded-2xl border border-stone-200 bg-white p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-2xl">New sale</h2>
+                <p className="mt-1 text-sm text-stone-500">
+                  Discount listed prices on the {copy.catalogNoun}.
+                </p>
               </div>
-              <Field label="Daily start time" htmlFor="sale-time-start">
-                <Input
-                  id="sale-time-start"
-                  type="time"
-                  value={saleStartTime}
-                  onChange={(e) => setSaleStartTime(e.target.value)}
-                />
-              </Field>
-              <Field label="Daily end time" htmlFor="sale-time-end">
-                <Input
-                  id="sale-time-end"
-                  type="time"
-                  value={saleEndTime}
-                  onChange={(e) => setSaleEndTime(e.target.value)}
-                />
-              </Field>
-            </>
-          ) : null}
-          <div className="sm:col-span-2">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={saleStorewide}
-                onChange={(e) => setSaleStorewide(e.target.checked)}
-                className="h-4 w-4 rounded border-stone-300"
-              />
-              Storewide (all items)
-            </label>
-          </div>
-          {!saleStorewide ? (
-            <div className="sm:col-span-2">
-              <Field
-                label="Item names (one per line)"
-                htmlFor="sale-items"
-                hint="Match catalog item names exactly."
-              >
-                <Textarea
-                  id="sale-items"
-                  rows={3}
-                  value={saleItemIds}
-                  onChange={(e) => setSaleItemIds(e.target.value)}
-                  placeholder={items.slice(0, 3).map((i) => i.name).join('\n')}
-                />
-              </Field>
+              <Button type="button" variant="outline" onClick={() => setCreating(false)}>
+                Cancel
+              </Button>
             </div>
-          ) : null}
-          <div className="sm:col-span-2 flex flex-wrap gap-2">
-            <Button type="button" disabled={busy} onClick={() => void createSale()}>
-              Create sale
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                const start = new Date()
-                start.setMinutes(0, 0, 0)
-                const end = new Date(start)
-                end.setMonth(end.getMonth() + 3)
-                setSaleMode('weekly')
-                setSaleDays([5, 6])
-                setSaleStartTime('00:00')
-                setSaleEndTime('23:59')
-                setSaleStartsAt(toDatetimeLocalValue(start))
-                setSaleEndsAt(toDatetimeLocalValue(end))
-                setSaleName((n) => n || 'Weekend sale')
-              }}
-            >
-              Prefill weekend cycle
-            </Button>
-          </div>
-        </div>
-        <ul className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white">
-          {sales.length === 0 ? (
-            <li className="px-4 py-6 text-sm text-stone-500">No sales yet.</li>
-          ) : (
-            sales.map((sale) => {
-              const status = getSaleLifecycleStatus(sale, new Date())
-              // tick forces re-eval of live/between_cycles without remounting
-              void tick
-              const badge = lifecycleBadge(status)
-              return (
-                <li
-                  key={sale.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Sale name" htmlFor="sale-name">
+                <Input
+                  id="sale-name"
+                  value={saleName}
+                  onChange={(e) => setSaleName(e.target.value)}
+                  placeholder="Weekend sale"
+                />
+              </Field>
+              <Field label="Percent off" htmlFor="sale-pct">
+                <Input
+                  id="sale-pct"
+                  type="number"
+                  min={1}
+                  max={90}
+                  value={salePercent}
+                  onChange={(e) => setSalePercent(e.target.value)}
+                />
+              </Field>
+              <Field label="Schedule" htmlFor="sale-mode">
+                <Select
+                  id="sale-mode"
+                  value={saleMode}
+                  onChange={(e) => setSaleMode(e.target.value as PromoScheduleMode)}
                 >
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold">
-                      {sale.name} · {sale.percentOff}% off
-                    </div>
-                    <div className="text-xs text-stone-500">
-                      {sale.itemIds.length === 0
-                        ? 'Storewide'
-                        : `${sale.itemIds.length} item${sale.itemIds.length === 1 ? '' : 's'}`}
-                      {' · '}
-                      {describeSaleSchedule(sale)}
+                  <option value="always">Always on</option>
+                  <option value="fixed">One-time (expires)</option>
+                  <option value="weekly">Weekly (cyclical)</option>
+                </Select>
+              </Field>
+              {saleMode !== 'always' ? (
+                <>
+                  <Field
+                    label={saleMode === 'weekly' ? 'Campaign start (optional)' : 'Starts'}
+                    htmlFor="sale-start"
+                  >
+                    <Input
+                      id="sale-start"
+                      type="datetime-local"
+                      value={saleStartsAt}
+                      onChange={(e) => setSaleStartsAt(e.target.value)}
+                    />
+                  </Field>
+                  <Field
+                    label={
+                      saleMode === 'weekly'
+                        ? 'Campaign end (auto-expires)'
+                        : 'Ends (auto-expires)'
+                    }
+                    htmlFor="sale-end"
+                  >
+                    <Input
+                      id="sale-end"
+                      type="datetime-local"
+                      value={saleEndsAt}
+                      onChange={(e) => setSaleEndsAt(e.target.value)}
+                      min={saleStartsAt || undefined}
+                    />
+                  </Field>
+                </>
+              ) : null}
+              {saleMode === 'weekly' ? (
+                <>
+                  <div className="sm:col-span-2">
+                    <p className="mb-2 text-sm font-medium text-stone-700">Days of week</p>
+                    <div className="flex flex-wrap gap-2">
+                      {DAY_OPTIONS.map((day) => {
+                        const on = saleDays.includes(day.value)
+                        return (
+                          <button
+                            key={day.value}
+                            type="button"
+                            onClick={() => toggleSaleDay(day.value)}
+                            className={cn(
+                              'rounded-lg border px-3 py-1.5 text-sm font-medium',
+                              on
+                                ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+                                : 'border-stone-200 text-stone-600 hover:bg-stone-50',
+                            )}
+                          >
+                            {day.label}
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge tone={badge.tone}>{badge.label}</Badge>
-                    <button type="button" onClick={() => void toggleSale(sale)}>
-                      <Badge tone={sale.active ? 'success' : 'neutral'}>
-                        {sale.active ? 'Enabled' : 'Disabled'}
-                      </Badge>
-                    </button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Delete sale"
-                      onClick={() => void removeSale(sale.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </li>
-              )
-            })
-          )}
-        </ul>
-      </section>
+                  <Field label="Daily start time" htmlFor="sale-time-start">
+                    <Input
+                      id="sale-time-start"
+                      type="time"
+                      value={saleStartTime}
+                      onChange={(e) => setSaleStartTime(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Daily end time" htmlFor="sale-time-end">
+                    <Input
+                      id="sale-time-end"
+                      type="time"
+                      value={saleEndTime}
+                      onChange={(e) => setSaleEndTime(e.target.value)}
+                    />
+                  </Field>
+                </>
+              ) : null}
+              <div className="sm:col-span-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={saleStorewide}
+                    onChange={(e) => setSaleStorewide(e.target.checked)}
+                    className="h-4 w-4 rounded border-stone-300"
+                  />
+                  Storewide (all items)
+                </label>
+              </div>
+              {!saleStorewide ? (
+                <div className="sm:col-span-2">
+                  <Field label="Item names (one per line)" htmlFor="sale-items">
+                    <Textarea
+                      id="sale-items"
+                      rows={3}
+                      value={saleItemIds}
+                      onChange={(e) => setSaleItemIds(e.target.value)}
+                      placeholder={items
+                        .slice(0, 3)
+                        .map((i) => i.name)
+                        .join('\n')}
+                    />
+                  </Field>
+                </div>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" disabled={busy} onClick={() => void createSale()}>
+                Create sale
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  const start = new Date()
+                  start.setMinutes(0, 0, 0)
+                  const end = new Date(start)
+                  end.setMonth(end.getMonth() + 3)
+                  setSaleMode('weekly')
+                  setSaleDays([5, 6])
+                  setSaleStartTime('00:00')
+                  setSaleEndTime('23:59')
+                  setSaleStartsAt(toDatetimeLocalValue(start))
+                  setSaleEndsAt(toDatetimeLocalValue(end))
+                  setSaleName((n) => n || 'Weekend sale')
+                }}
+              >
+                Prefill weekend cycle
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {!creating && tab === 'coupons' && selectedCoupon ? (
+          <div className="space-y-5 rounded-2xl border border-stone-200 bg-white p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-2xl font-mono">{selectedCoupon.code}</h2>
+                <p className="mt-1 text-sm text-stone-500">
+                  {describeCouponSchedule(selectedCoupon)}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void toggleCoupon(selectedCoupon)}
+                >
+                  {selectedCoupon.active ? 'Disable' : 'Enable'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  onClick={() => void removeCoupon(selectedCoupon.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 text-sm">
+              <div className="rounded-xl border border-stone-100 bg-stone-50 px-3 py-2">
+                <p className="text-xs uppercase tracking-wider text-stone-400">Discount</p>
+                <p className="mt-1 font-medium">
+                  {selectedCoupon.type === 'percent_off'
+                    ? `${selectedCoupon.percentOff}% off`
+                    : `${formatMoney(selectedCoupon.amountOffCents ?? 0)} off`}
+                </p>
+              </div>
+              <div className="rounded-xl border border-stone-100 bg-stone-50 px-3 py-2">
+                <p className="text-xs uppercase tracking-wider text-stone-400">Status</p>
+                <p className="mt-1 font-medium">
+                  {lifecycleBadge(getCouponLifecycleStatus(selectedCoupon, new Date())).label}
+                  {' · '}
+                  {selectedCoupon.active ? 'Enabled' : 'Disabled'}
+                </p>
+              </div>
+              <div className="rounded-xl border border-stone-100 bg-stone-50 px-3 py-2">
+                <p className="text-xs uppercase tracking-wider text-stone-400">Usage</p>
+                <p className="mt-1 font-medium">
+                  {selectedCoupon.usedCount}
+                  {selectedCoupon.usageLimit ? ` / ${selectedCoupon.usageLimit}` : ''}
+                </p>
+              </div>
+              <div className="rounded-xl border border-stone-100 bg-stone-50 px-3 py-2">
+                <p className="text-xs uppercase tracking-wider text-stone-400">Min subtotal</p>
+                <p className="mt-1 font-medium">
+                  {selectedCoupon.minSubtotalCents
+                    ? formatMoney(selectedCoupon.minSubtotalCents)
+                    : 'None'}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {!creating && tab === 'sales' && selectedSale ? (
+          <div className="space-y-5 rounded-2xl border border-stone-200 bg-white p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-2xl">{selectedSale.name}</h2>
+                <p className="mt-1 text-sm text-stone-500">
+                  {describeSaleSchedule(selectedSale)}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void toggleSale(selectedSale)}
+                >
+                  {selectedSale.active ? 'Disable' : 'Enable'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  onClick={() => void removeSale(selectedSale.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 text-sm">
+              <div className="rounded-xl border border-stone-100 bg-stone-50 px-3 py-2">
+                <p className="text-xs uppercase tracking-wider text-stone-400">Discount</p>
+                <p className="mt-1 font-medium">{selectedSale.percentOff}% off</p>
+              </div>
+              <div className="rounded-xl border border-stone-100 bg-stone-50 px-3 py-2">
+                <p className="text-xs uppercase tracking-wider text-stone-400">Scope</p>
+                <p className="mt-1 font-medium">
+                  {selectedSale.itemIds.length === 0
+                    ? 'Storewide'
+                    : `${selectedSale.itemIds.length} item${selectedSale.itemIds.length === 1 ? '' : 's'}`}
+                </p>
+              </div>
+              <div className="rounded-xl border border-stone-100 bg-stone-50 px-3 py-2 sm:col-span-2">
+                <p className="text-xs uppercase tracking-wider text-stone-400">Status</p>
+                <p className="mt-1 font-medium">
+                  {lifecycleBadge(getSaleLifecycleStatus(selectedSale, new Date())).label}
+                  {' · '}
+                  {selectedSale.active ? 'Enabled' : 'Disabled'}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {!creating && listEmpty ? (
+          <div className="flex items-center justify-center rounded-2xl border border-dashed border-stone-200 bg-white p-10 text-sm text-stone-500">
+            {query
+              ? 'No matches for your search.'
+              : `Create a ${tab === 'coupons' ? 'coupon' : 'sale'} to get started.`}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

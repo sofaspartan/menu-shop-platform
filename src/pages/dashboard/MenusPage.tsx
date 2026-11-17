@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Plus, EyeOff, Eye, Trash2, Pencil } from 'lucide-react'
+import { GripVertical, Plus, EyeOff, Eye, Trash2, Pencil, Search } from 'lucide-react'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -72,6 +72,7 @@ export function MenusPage() {
   const { db } = useDb()
 
   const [selectedMenuId, setSelectedMenuId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [menuName, setMenuName] = useState('')
   const [menuDescription, setMenuDescription] = useState('')
@@ -90,7 +91,23 @@ export function MenusPage() {
       .sort((a, b) => a.sortOrder - b.sortOrder)
   }, [db, current])
 
-  const selectedMenu = menus.find((m) => m.id === selectedMenuId) ?? menus[0] ?? null
+  const filteredMenus = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return menus
+    return menus.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.description.toLowerCase().includes(q) ||
+        m.slug.toLowerCase().includes(q),
+    )
+  }, [menus, query])
+
+  const selectedMenu =
+    filteredMenus.find((m) => m.id === selectedMenuId) ??
+    menus.find((m) => m.id === selectedMenuId) ??
+    filteredMenus[0] ??
+    menus[0] ??
+    null
   const activeMenuId = selectedMenu?.id ?? null
 
   const sections = useMemo(() => {
@@ -248,22 +265,36 @@ export function MenusPage() {
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
+      <div className="relative max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+        <Input
+          className="pl-9"
+          placeholder="Search menus…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+
       <div className="flex flex-wrap gap-2">
-        {menus.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            onClick={() => setSelectedMenuId(m.id)}
-            className={`rounded-full border px-3 py-1.5 text-sm ${
-              activeMenuId === m.id
-                ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white'
-                : 'border-stone-200 bg-white text-stone-700'
-            }`}
-          >
-            {m.name}
-            {!m.active ? ' (inactive)' : ''}
-          </button>
-        ))}
+        {filteredMenus.length === 0 ? (
+          <p className="text-sm text-stone-500">No menus match “{query.trim()}”.</p>
+        ) : (
+          filteredMenus.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setSelectedMenuId(m.id)}
+              className={`rounded-full border px-3 py-1.5 text-sm ${
+                activeMenuId === m.id
+                  ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white'
+                  : 'border-stone-200 bg-white text-stone-700'
+              }`}
+            >
+              {m.name}
+              {!m.active ? ' (inactive)' : ''}
+            </button>
+          ))
+        )}
       </div>
 
       {selectedMenu ? (
