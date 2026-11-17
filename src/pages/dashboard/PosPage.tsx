@@ -46,6 +46,7 @@ import {
 import { normalizeLoyaltySettings } from '@/types'
 
 type PosPhase = 'staff' | 'customer' | 'processing' | 'complete'
+type CustomerWizardStep = 'loyalty' | 'tip' | 'pay'
 
 type PosLine = {
   id: string
@@ -839,12 +840,39 @@ function CustomerFace({
   onPay: () => void
   onNewSale: () => void
 }) {
+  const wizardSteps = useMemo(() => {
+    const steps: Array<{ id: CustomerWizardStep; label: string }> = []
+    if (loyaltyEnabled) steps.push({ id: 'loyalty', label: 'Loyalty' })
+    steps.push({ id: 'tip', label: 'Tip' }, { id: 'pay', label: 'Pay' })
+    return steps
+  }, [loyaltyEnabled])
+
+  const [wizardStep, setWizardStep] = useState<CustomerWizardStep>(
+    loyaltyEnabled ? 'loyalty' : 'tip',
+  )
+
+  useEffect(() => {
+    if (phase === 'customer') {
+      setWizardStep(loyaltyEnabled ? 'loyalty' : 'tip')
+    }
+  }, [phase, loyaltyEnabled])
+
+  const stepIndex = Math.max(
+    0,
+    wizardSteps.findIndex((s) => s.id === wizardStep),
+  )
+
   if (phase === 'processing') {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
         <div className="h-14 w-14 animate-pulse rounded-full bg-[var(--brand-primary)]/15" />
         <h2 className="font-display text-2xl text-stone-900">Processing payment…</h2>
         <p className="text-sm text-stone-500">Simulated card authorization — no real charge.</p>
+        {pricing ? (
+          <p className="text-lg font-semibold text-stone-800">
+            {formatMoney(pricing.totalCents)}
+          </p>
+        ) : null}
       </div>
     )
   }
@@ -904,196 +932,297 @@ function CustomerFace({
     )
   }
 
+  const brandButton = {
+    backgroundColor: restaurant.branding.buttonColor,
+    color: restaurant.branding.buttonTextColor,
+  }
+
+  const phoneReady = normalizePhoneKey(loyaltyPhone).length >= 10
+
+  function goNextFromLoyalty(skip: boolean) {
+    if (skip) onSkipLoyalty()
+    setWizardStep('tip')
+  }
+
+  function goBackInWizard() {
+    if (wizardStep === 'pay') {
+      setWizardStep('tip')
+      return
+    }
+    if (wizardStep === 'tip') {
+      if (loyaltyEnabled) setWizardStep('loyalty')
+      else onBack()
+      return
+    }
+    onBack()
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="shrink-0 border-b border-stone-200 px-5 py-4">
-        <button
-          type="button"
-          onClick={onBack}
-          className="mb-3 text-xs font-medium text-stone-500 hover:text-stone-800"
-        >
-          ← Back to staff
-        </button>
-        <h2 className="font-display text-2xl text-stone-900">Your order</h2>
-        <p className="text-sm text-stone-500">
-          {guestName.trim() || 'Guest'} · {restaurant.name}
-        </p>
+      <div className="shrink-0 border-b border-stone-200 px-5 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={goBackInWizard}
+            className="text-xs font-medium text-stone-500 hover:text-stone-800"
+          >
+            ← {wizardStep === 'loyalty' || (!loyaltyEnabled && wizardStep === 'tip')
+              ? 'Staff'
+              : 'Back'}
+          </button>
+          <p className="text-xs text-stone-400">
+            {guestName.trim() || 'Guest'} · {restaurant.name}
+          </p>
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          {wizardSteps.map((step, index) => {
+            const active = index === stepIndex
+            const done = index < stepIndex
+            return (
+              <div key={step.id} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+                <div
+                  className={cn(
+                    'h-1.5 w-full rounded-full transition-colors',
+                    active || done
+                      ? 'bg-[var(--brand-primary)]'
+                      : 'bg-stone-200',
+                  )}
+                />
+                <span
+                  className={cn(
+                    'text-[11px] font-medium',
+                    active
+                      ? 'text-[var(--brand-primary)]'
+                      : done
+                        ? 'text-stone-600'
+                        : 'text-stone-400',
+                  )}
+                >
+                  {index + 1}. {step.label}
+                </span>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
-      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-5 py-4">
-        {lines.map((line) => (
-          <li key={line.id} className="flex justify-between gap-3 text-sm">
-            <span className="min-w-0">
-              <span className="block">
-                {line.quantity}× {line.name}
-              </span>
-              {line.modifierLabels.length ? (
-                <span className="block text-xs text-stone-500">
-                  {line.modifierLabels.join(', ')}
-                </span>
-              ) : null}
-            </span>
-            <span className="shrink-0 font-medium">
-              {formatMoney(line.unitPriceCents * line.quantity)}
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      <div className="shrink-0 space-y-4 border-t border-stone-200 px-5 py-5">
-        {loyaltyEnabled ? (
-          <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-sm font-medium text-stone-800">Earn loyalty points</p>
-                <p className="text-xs text-stone-500">
-                  {pointsPerDollar} pt{pointsPerDollar === 1 ? '' : 's'} per $1 · optional
-                </p>
-              </div>
-              {!loyaltySkipped ? (
-                <button
-                  type="button"
-                  onClick={onSkipLoyalty}
-                  className="shrink-0 text-xs font-medium text-stone-500 hover:text-stone-800"
-                >
-                  Skip
-                </button>
-              ) : null}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
+        {wizardStep === 'loyalty' ? (
+          <div className="mx-auto flex h-full max-w-md flex-col justify-center text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+              <Gift className="h-7 w-7" strokeWidth={1.75} />
             </div>
-            {loyaltySkipped ? (
-              <div className="mt-2 flex items-center justify-between gap-2">
-                <p className="text-xs text-stone-500">Skipped — no points this visit.</p>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-[var(--brand-primary)]"
-                  onClick={() => onLoyaltyPhone('')}
-                >
-                  Add phone
-                </button>
-              </div>
-            ) : (
-              <div className="mt-2 space-y-1.5">
+            <h2 className="mt-4 font-display text-3xl text-stone-900">
+              Join the loyalty program?
+            </h2>
+            <p className="mt-2 text-sm text-stone-500">
+              Earn {pointsPerDollar} point{pointsPerDollar === 1 ? '' : 's'} per $1 spent.
+              Enter your phone to save points, or skip for now.
+            </p>
+            <div className="mt-6 text-left">
+              <Field label="Mobile number" htmlFor="pos-loyalty-phone">
                 <Input
+                  id="pos-loyalty-phone"
                   type="tel"
                   inputMode="tel"
                   autoComplete="tel"
                   placeholder="(555) 555-5555"
                   value={loyaltyPhone}
                   onChange={(e) => onLoyaltyPhone(e.target.value)}
-                  aria-label="Phone number for loyalty points"
+                  className="mt-1.5 text-center text-lg tracking-wide"
                 />
-                {estimatedLoyaltyPoints > 0 ? (
-                  <p className="text-xs font-medium text-[var(--brand-primary)]">
-                    You’ll earn {estimatedLoyaltyPoints} points on this order
-                  </p>
-                ) : loyaltyPhone.trim() ? (
-                  <p className="text-xs text-stone-500">Enter a 10-digit mobile number</p>
-                ) : (
-                  <p className="text-xs text-stone-500">
-                    Enter your phone to save points, or skip
-                  </p>
-                )}
-              </div>
-            )}
+              </Field>
+              {estimatedLoyaltyPoints > 0 ? (
+                <p className="mt-2 text-center text-sm font-medium text-[var(--brand-primary)]">
+                  You’ll earn {estimatedLoyaltyPoints} points on this order
+                </p>
+              ) : loyaltyPhone.trim() && !phoneReady ? (
+                <p className="mt-2 text-center text-xs text-stone-500">
+                  Enter a 10-digit mobile number to continue
+                </p>
+              ) : null}
+            </div>
+            <div className="mt-6 space-y-2">
+              <Button
+                type="button"
+                size="lg"
+                className="w-full border-0"
+                style={brandButton}
+                disabled={!phoneReady}
+                onClick={() => goNextFromLoyalty(false)}
+              >
+                Continue with points
+              </Button>
+              <Button
+                type="button"
+                size="lg"
+                variant="outline"
+                className="w-full"
+                onClick={() => goNextFromLoyalty(true)}
+              >
+                Skip for now
+              </Button>
+            </div>
           </div>
         ) : null}
 
-        <div>
-          <p className="mb-2 text-sm font-medium text-stone-800">Add a tip</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => onTipPreset(0)}
-              className={cn(
-                'rounded-lg border px-3 py-2 text-sm',
-                tipPreset === 0
-                  ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/5'
-                  : 'border-stone-200',
-              )}
-            >
-              No tip
-            </button>
-            {tipPresets.map((p) => (
+        {wizardStep === 'tip' ? (
+          <div className="mx-auto flex h-full max-w-md flex-col justify-center text-center">
+            <h2 className="font-display text-3xl text-stone-900">Add a tip?</h2>
+            <p className="mt-2 text-sm text-stone-500">
+              Optional — tap an amount, then continue to payment.
+            </p>
+            <p className="mt-4 text-sm text-stone-500">
+              Subtotal {formatMoney(pricing?.subtotalCents ?? 0)}
+            </p>
+            <div className="mt-5 grid grid-cols-2 gap-2">
               <button
-                key={p}
                 type="button"
-                onClick={() => onTipPreset(p)}
+                onClick={() => onTipPreset(0)}
                 className={cn(
-                  'rounded-lg border px-3 py-2 text-sm',
-                  tipPreset === p
-                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/5'
-                    : 'border-stone-200',
+                  'rounded-xl border px-3 py-4 text-base font-medium transition',
+                  tipPreset === 0
+                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/5 text-[var(--brand-primary)]'
+                    : 'border-stone-200 bg-white text-stone-800 hover:border-stone-300',
                 )}
               >
-                {p}%
+                No tip
               </button>
-            ))}
-            <button
+              {tipPresets.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => onTipPreset(p)}
+                  className={cn(
+                    'rounded-xl border px-3 py-4 text-base font-medium transition',
+                    tipPreset === p
+                      ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/5 text-[var(--brand-primary)]'
+                      : 'border-stone-200 bg-white text-stone-800 hover:border-stone-300',
+                  )}
+                >
+                  <span className="block text-lg font-semibold">{p}%</span>
+                  <span className="mt-0.5 block text-xs text-stone-500">
+                    {formatMoney(
+                      Math.round((pricing?.subtotalCents ?? 0) * (p / 100)),
+                    )}
+                  </span>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => onTipPreset('custom')}
+                className={cn(
+                  'rounded-xl border px-3 py-4 text-base font-medium transition',
+                  tipPreset === 'custom'
+                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/5 text-[var(--brand-primary)]'
+                    : 'border-stone-200 bg-white text-stone-800 hover:border-stone-300',
+                )}
+              >
+                Custom
+              </button>
+            </div>
+            {tipPreset === 'custom' ? (
+              <Input
+                className="mt-3 text-center text-lg"
+                type="number"
+                min={0}
+                step={0.01}
+                value={customTip}
+                onChange={(e) => onCustomTip(e.target.value)}
+                placeholder="Tip amount ($)"
+              />
+            ) : null}
+            <p className="mt-4 text-sm font-medium text-stone-700">
+              Tip {formatMoney(tipCents)}
+            </p>
+            <Button
               type="button"
-              onClick={() => onTipPreset('custom')}
-              className={cn(
-                'rounded-lg border px-3 py-2 text-sm',
-                tipPreset === 'custom'
-                  ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/5'
-                  : 'border-stone-200',
-              )}
+              size="lg"
+              className="mt-6 w-full border-0"
+              style={brandButton}
+              onClick={() => setWizardStep('pay')}
             >
-              Custom
-            </button>
+              Continue to payment
+            </Button>
           </div>
-          {tipPreset === 'custom' ? (
-            <Input
-              className="mt-2"
-              type="number"
-              min={0}
-              step={0.01}
-              value={customTip}
-              onChange={(e) => onCustomTip(e.target.value)}
-              placeholder="Tip amount ($)"
-            />
-          ) : null}
-        </div>
-
-        {pricing ? (
-          <dl className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-stone-500">Subtotal</dt>
-              <dd>{formatMoney(pricing.subtotalCents)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-stone-500">Tax</dt>
-              <dd>{formatMoney(pricing.taxCents)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-stone-500">Tip</dt>
-              <dd>{formatMoney(tipCents)}</dd>
-            </div>
-            <div className="flex justify-between text-base font-semibold">
-              <dt>Total</dt>
-              <dd>{formatMoney(pricing.totalCents)}</dd>
-            </div>
-          </dl>
         ) : null}
 
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {wizardStep === 'pay' ? (
+          <div className="mx-auto flex h-full max-w-md flex-col">
+            <div className="text-center">
+              <h2 className="font-display text-3xl text-stone-900">Ready to pay</h2>
+              <p className="mt-2 text-sm text-stone-500">
+                Review your total, then tap or insert card.
+              </p>
+            </div>
 
-        <Button
-          type="button"
-          size="lg"
-          className="w-full border-0"
-          style={{
-            backgroundColor: restaurant.branding.buttonColor,
-            color: restaurant.branding.buttonTextColor,
-          }}
-          disabled={busy}
-          onClick={onPay}
-        >
-          <CreditCard className="h-4 w-4" />
-          Tap or insert card · {formatMoney(pricing?.totalCents ?? 0)}
-        </Button>
-        <p className="text-center text-xs text-stone-500">
-          Simulated payment — demo card ending 4242
-        </p>
+            <ul className="mt-5 max-h-40 space-y-2 overflow-y-auto rounded-xl border border-stone-200 bg-stone-50 px-3 py-3 text-left text-sm">
+              {lines.map((line) => (
+                <li key={line.id} className="flex justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="block font-medium">
+                      {line.quantity}× {line.name}
+                    </span>
+                    {line.modifierLabels.length ? (
+                      <span className="block text-xs text-stone-500">
+                        {line.modifierLabels.join(', ')}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="shrink-0 font-medium">
+                    {formatMoney(line.unitPriceCents * line.quantity)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            {pricing ? (
+              <dl className="mt-4 space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-stone-500">Subtotal</dt>
+                  <dd>{formatMoney(pricing.subtotalCents)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-stone-500">Tax</dt>
+                  <dd>{formatMoney(pricing.taxCents)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-stone-500">Tip</dt>
+                  <dd>{formatMoney(tipCents)}</dd>
+                </div>
+                {loyaltyEnabled && !loyaltySkipped && phoneReady ? (
+                  <div className="flex justify-between text-[var(--brand-primary)]">
+                    <dt>Loyalty</dt>
+                    <dd>+{estimatedLoyaltyPoints} pts</dd>
+                  </div>
+                ) : null}
+                <div className="flex justify-between border-t border-stone-200 pt-2 text-lg font-semibold">
+                  <dt>Total</dt>
+                  <dd>{formatMoney(pricing.totalCents)}</dd>
+                </div>
+              </dl>
+            ) : null}
+
+            {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+
+            <div className="mt-auto space-y-2 pt-6">
+              <Button
+                type="button"
+                size="lg"
+                className="w-full border-0"
+                style={brandButton}
+                disabled={busy}
+                onClick={onPay}
+              >
+                <CreditCard className="h-4 w-4" />
+                Tap or insert card · {formatMoney(pricing?.totalCents ?? 0)}
+              </Button>
+              <p className="text-center text-xs text-stone-500">
+                Simulated payment — demo card ending 4242
+              </p>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   )
