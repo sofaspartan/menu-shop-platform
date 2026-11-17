@@ -902,6 +902,36 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     },
   ]
 
+  const displays = [
+    {
+      id: 'disp_ct_main',
+      restaurantId,
+      name: 'Dining room menu board',
+      slug: 'dining-room',
+      active: true,
+      mode: 'mixed' as const,
+      menuIds: [],
+      slideDurationSec: 8,
+      showPrices: true,
+      showSoldOut: false,
+      showLogo: true,
+      showStoreName: true,
+      headline: 'The Corner Table',
+      tagline: 'Seasonal plates, ready when you are',
+      customSlides: [
+        {
+          id: 'dslide_ct_1',
+          title: 'Ask about tonight’s specials',
+          subtitle: 'Our team can walk you through pairings',
+          imageUrl: undefined,
+          sortOrder: 0,
+        },
+      ],
+      createdAt: ts,
+      updatedAt: ts,
+    },
+  ]
+
   const qrCodes: QrCode[] = [
     {
       id: 'qr_main',
@@ -1276,7 +1306,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
   return {
-    version: 11,
+    version: 12,
     users: [
       {
         id: userId,
@@ -1318,6 +1348,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     combos,
     dietaryLabels: [...labels, ...haven.dietaryLabels],
     qrCodes: [...qrCodes, ...haven.qrCodes],
+    displays: [...displays, ...haven.displays],
     brandThemes: [],
     orders: [...orders, ...haven.orders],
     coupons: [

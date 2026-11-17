@@ -19,6 +19,7 @@ import {
   Percent,
   TabletSmartphone,
   Monitor,
+  MonitorPlay,
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -118,6 +119,7 @@ export function DashboardLayout() {
         items: [
           { to: '/dashboard/branding', label: 'Branding', icon: Palette },
           { to: '/dashboard/pages', label: 'Pages & layout', icon: FileText },
+          { to: '/dashboard/displays', label: copy.displayNounPlural, icon: MonitorPlay },
           { to: '/dashboard/preview', label: 'Preview', icon: Eye },
         ],
       },

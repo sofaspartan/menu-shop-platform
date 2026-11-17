@@ -530,6 +530,40 @@ export interface QrCode extends Timestamps {
   scanCount: number
 }
 
+/** What a TV / digital board shows. */
+export type DisplayMode = 'featured' | 'catalog' | 'mixed'
+
+export interface DisplayCustomSlide {
+  id: ID
+  title?: string
+  subtitle?: string
+  imageUrl?: string
+  sortOrder: number
+}
+
+/**
+ * URL-based digital menu board / store display.
+ * Open `/r/{storeSlug}/display/{display.slug}` on a TV; updates live from the DB.
+ */
+export interface Display extends Timestamps {
+  id: ID
+  restaurantId: ID
+  name: string
+  slug: string
+  active: boolean
+  mode: DisplayMode
+  /** Limit to these menus; empty/omit = all currently available menus. */
+  menuIds: ID[]
+  slideDurationSec: number
+  showPrices: boolean
+  showSoldOut: boolean
+  showLogo: boolean
+  showStoreName: boolean
+  headline?: string
+  tagline?: string
+  customSlides: DisplayCustomSlide[]
+}
+
 export interface OrderCustomer {
   name: string
   phone: string
@@ -663,6 +697,7 @@ export interface AppDatabase {
   combos: ComboConfig[]
   dietaryLabels: DietaryLabel[]
   qrCodes: QrCode[]
+  displays: Display[]
   brandThemes: BrandTheme[]
   orders: Order[]
   coupons: Coupon[]

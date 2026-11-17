@@ -25,6 +25,8 @@ import { LoyaltyPage } from '@/pages/dashboard/LoyaltyPage'
 import { PromotionsPage } from '@/pages/dashboard/PromotionsPage'
 import { PosPage } from '@/pages/dashboard/PosPage'
 import { KitchenDisplayPage } from '@/pages/dashboard/KitchenDisplayPage'
+import { DisplaysPage } from '@/pages/dashboard/DisplaysPage'
+import { DisplayBoardPage } from '@/pages/storefront/DisplayBoardPage'
 import { RestaurantPage } from '@/pages/storefront/RestaurantPage'
 import { AboutPage } from '@/pages/storefront/AboutPage'
 import { ContactPage } from '@/pages/storefront/ContactPage'
@@ -69,6 +71,7 @@ export default function App() {
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="scheduling" element={<SchedulingPage />} />
           <Route path="preview" element={<PreviewPage />} />
+          <Route path="displays" element={<DisplaysPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="pages" element={<PagesPage />} />
           <Route path="loyalty" element={<LoyaltyPage />} />
@@ -81,6 +84,7 @@ export default function App() {
         <Route path="/r/:slug/about" element={<AboutPage />} />
         <Route path="/r/:slug/contact" element={<ContactPage />} />
         <Route path="/r/:slug/checkout" element={<CheckoutPage />} />
+        <Route path="/r/:slug/display/:displaySlug" element={<DisplayBoardPage />} />
         <Route path="/order/:reference" element={<OrderTrackerPage />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />

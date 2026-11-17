@@ -109,12 +109,13 @@ export async function getDb(): Promise<AppDatabase> {
     const adapter = getPersistenceAdapter()
     const existing = await adapter.load()
     // Bump when seed assets/schema change so demos refresh cleanly.
-    if (existing && existing.version === 11) {
+    if (existing && (existing.version === 11 || existing.version === 12)) {
       if (!existing.brandThemes) existing.brandThemes = []
       if (!existing.coupons) existing.coupons = []
       if (!existing.sales) existing.sales = []
       if (!existing.loyaltyAccounts) existing.loyaltyAccounts = []
       if (!existing.loyaltyLedger) existing.loyaltyLedger = []
+      if (!existing.displays) existing.displays = []
       const expiredSales = applySaleExpirations(existing.sales, new Date(), nowIso)
       const expiredCoupons = applyCouponExpirations(existing.coupons, new Date(), nowIso)
       if (expiredSales + expiredCoupons > 0) {
