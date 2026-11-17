@@ -24,7 +24,12 @@ import {
   type BagComboSelection,
   type BagModifierSelection,
 } from '@/lib/pricing'
-import { createId, nowIso } from '@/lib/utils'
+import {
+  createId,
+  normalizePhoneKey,
+  nowIso,
+  phoneLoyaltyEmail,
+} from '@/lib/utils'
 import { assertRestaurantAccess } from '@/services/restaurantService'
 import { trackEvent } from '@/services/analyticsService'
 import { expireEndedPromotions } from '@/services/promotionService'
@@ -45,6 +50,11 @@ export interface PlaceOrderInput {
   }>
   couponCode?: string
   loyaltyRewardId?: string
+  /**
+   * POS walk-in path: earn/lookup loyalty by customer.phone when no email.
+   * Online checkout continues to use email.
+   */
+  loyaltyByPhone?: boolean
   /** Client-submitted total is ignored — server recalculates */
   clientTotalCents?: number
 }
@@ -214,15 +224,29 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
   let loyaltyPointsRedeemed = 0
   let loyaltyAccountId: string | undefined
   const email = input.customer.email?.trim().toLowerCase()
+  const phoneKey = normalizePhoneKey(input.customer.phone)
+  const phoneLoyalty =
+    Boolean(input.loyaltyByPhone) && !email && phoneKey.length >= 10
+  const canAccrueLoyalty = Boolean(email) || phoneLoyalty
 
   if (input.loyaltyRewardId) {
     if (!loyalty.enabled) throw new Error('Loyalty rewards are not enabled.')
-    if (!email) throw new Error('Enter your email to redeem loyalty rewards.')
+    if (!email && !phoneLoyalty) {
+      throw new Error('Enter your email or phone to redeem loyalty rewards.')
+    }
     const reward = loyalty.rewards.find((r) => r.id === input.loyaltyRewardId)
     if (!reward) throw new Error('Loyalty reward not found.')
-    const account = db.loyaltyAccounts.find(
-      (a) => a.restaurantId === restaurant.id && a.email === email,
-    )
+    const account = db.loyaltyAccounts.find((a) => {
+      if (a.restaurantId !== restaurant.id) return false
+      if (email && a.email === email) return true
+      if (phoneLoyalty) {
+        return (
+          a.email === phoneLoyaltyEmail(phoneKey) ||
+          normalizePhoneKey(a.phone || '') === phoneKey
+        )
+      }
+      return false
+    })
     if (!account || account.pointsBalance < reward.pointsCost) {
       throw new Error('Not enough loyalty points for that reward.')
     }
@@ -258,7 +282,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
       discountCents,
       discountLabel,
       couponCode,
-      loyaltyPointsEarned: loyalty.enabled && email ? earned : undefined,
+      loyaltyPointsEarned: loyalty.enabled && canAccrueLoyalty ? earned : undefined,
       loyaltyPointsRedeemed: loyaltyPointsRedeemed || undefined,
       loyaltyRewardId,
     },
@@ -318,16 +342,24 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
       }
     }
 
-    // Loyalty earn / redeem
-    if (loyalty.enabled && email) {
-      let account = d.loyaltyAccounts.find(
-        (a) => a.restaurantId === restaurant.id && a.email === email,
-      )
+    // Loyalty earn / redeem (email online, or opted-in phone on POS)
+    if (loyalty.enabled && canAccrueLoyalty) {
+      let account = d.loyaltyAccounts.find((a) => {
+        if (a.restaurantId !== restaurant.id) return false
+        if (email && a.email === email) return true
+        if (phoneLoyalty) {
+          return (
+            a.email === phoneLoyaltyEmail(phoneKey) ||
+            normalizePhoneKey(a.phone || '') === phoneKey
+          )
+        }
+        return false
+      })
       if (!account) {
         account = {
           id: createId('loyal'),
           restaurantId: restaurant.id,
-          email,
+          email: email || phoneLoyaltyEmail(phoneKey),
           phone: input.customer.phone.trim(),
           name: input.customer.name.trim(),
           pointsBalance: 0,
@@ -339,6 +371,9 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
       } else {
         account.phone = input.customer.phone.trim()
         account.name = input.customer.name.trim()
+        if (email && (!account.email || account.email.startsWith('phone:'))) {
+          account.email = email
+        }
       }
 
       if (loyaltyPointsRedeemed > 0) {

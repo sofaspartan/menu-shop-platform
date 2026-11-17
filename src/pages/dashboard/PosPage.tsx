@@ -24,7 +24,7 @@ import { MenuItemImage } from '@/components/storefront/MenuItemImage'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
-import { resolveListedPrice } from '@/lib/commerce'
+import { pointsEarnedForSubtotal, resolveListedPrice } from '@/lib/commerce'
 import {
   calculateLineUnitPrice,
   calculateOrderPricing,
@@ -35,7 +35,14 @@ import {
 import { brandingStyleVars } from '@/lib/brandingCss'
 import { isItemAvailableNow } from '@/lib/scheduling'
 import { storeCopy } from '@/lib/storeCopy'
-import { createId, formatMoney, cn } from '@/lib/utils'
+import {
+  createId,
+  formatMoney,
+  formatPhone,
+  normalizePhoneKey,
+  cn,
+} from '@/lib/utils'
+import { normalizeLoyaltySettings } from '@/types'
 
 type PosPhase = 'staff' | 'customer' | 'processing' | 'complete'
 
@@ -115,13 +122,20 @@ export function PosPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [customizing, setCustomizing] = useState<CatalogEntry | null>(null)
+  const [loyaltyPhone, setLoyaltyPhone] = useState('')
+  const [loyaltySkipped, setLoyaltySkipped] = useState(false)
   const [completedOrder, setCompletedOrder] = useState<{
     orderNumber: string
     totalCents: number
     reference: string
+    loyaltyPointsEarned?: number
+    loyaltyPhone?: string
   } | null>(null)
 
   const copy = storeCopy(current?.storeKind)
+  const loyalty = normalizeLoyaltySettings(current?.loyalty)
+  const loyaltyPhoneKey = normalizePhoneKey(loyaltyPhone)
+  const loyaltyPhoneReady = loyaltyPhoneKey.length >= 10
 
   const catalog = useMemo(() => {
     if (!db || !current) return [] as CatalogEntry[]
@@ -220,6 +234,11 @@ export function PosPage() {
     return calculateOrderPricing(subtotal, current.ordering, 'pickup', tipCents)
   }, [current, subtotal, tipCents])
 
+  const estimatedLoyaltyPoints =
+    loyalty.enabled && loyaltyPhoneReady && !loyaltySkipped
+      ? pointsEarnedForSubtotal(loyalty, pricing?.subtotalCents ?? subtotal)
+      : 0
+
   if (!current || !user) {
     return (
       <p className="text-sm text-stone-500">
@@ -278,6 +297,8 @@ export function PosPage() {
     setCustomTip('')
     setError('')
     setCustomizing(null)
+    setLoyaltyPhone('')
+    setLoyaltySkipped(false)
     setCompletedOrder(null)
     setPhase('staff')
   }
@@ -305,17 +326,26 @@ export function PosPage() {
 
   async function chargeCard() {
     if (!current || busy || !pricing) return
+    const accrueLoyalty =
+      loyalty.enabled && !loyaltySkipped && loyaltyPhoneReady
+    if (loyalty.enabled && !loyaltySkipped && loyaltyPhone.trim() && !loyaltyPhoneReady) {
+      setError('Enter a valid 10-digit phone number, or skip loyalty.')
+      return
+    }
     setBusy(true)
     setError('')
     setPhase('processing')
     try {
       // Brief pause so the “processing” state is visible.
       await new Promise((r) => window.setTimeout(r, 900))
+      const guestPhone = accrueLoyalty
+        ? loyaltyPhoneKey
+        : current.phone || '5550000000'
       const order = await placeOrder({
         restaurantId: current.id,
         customer: {
           name: guestName.trim() || 'Walk-in guest',
-          phone: current.phone || '5550000000',
+          phone: guestPhone,
           email: undefined,
         },
         fulfillment: {
@@ -324,6 +354,7 @@ export function PosPage() {
         },
         tipCents,
         simulatedCardLast4: '4242',
+        loyaltyByPhone: accrueLoyalty,
         lines: lines.map((l) => ({
           itemId: l.itemId,
           quantity: l.quantity,
@@ -336,6 +367,8 @@ export function PosPage() {
         orderNumber: order.orderNumber,
         totalCents: order.pricing.totalCents,
         reference: order.reference,
+        loyaltyPointsEarned: order.pricing.loyaltyPointsEarned,
+        loyaltyPhone: accrueLoyalty ? formatPhone(loyaltyPhoneKey) : undefined,
       })
       setPhase('complete')
     } catch (err) {
@@ -401,6 +434,19 @@ export function PosPage() {
               error={error}
               busy={busy}
               completedOrder={completedOrder}
+              loyaltyEnabled={loyalty.enabled}
+              loyaltyPhone={loyaltyPhone}
+              loyaltySkipped={loyaltySkipped}
+              estimatedLoyaltyPoints={estimatedLoyaltyPoints}
+              pointsPerDollar={loyalty.pointsPerDollar}
+              onLoyaltyPhone={(v) => {
+                setLoyaltySkipped(false)
+                setLoyaltyPhone(v)
+              }}
+              onSkipLoyalty={() => {
+                setLoyaltyPhone('')
+                setLoyaltySkipped(true)
+              }}
               onTipPreset={setTipPreset}
               onCustomTip={setCustomTip}
               onBack={flipToStaff}
@@ -747,6 +793,13 @@ function CustomerFace({
   error,
   busy,
   completedOrder,
+  loyaltyEnabled,
+  loyaltyPhone,
+  loyaltySkipped,
+  estimatedLoyaltyPoints,
+  pointsPerDollar,
+  onLoyaltyPhone,
+  onSkipLoyalty,
   onTipPreset,
   onCustomTip,
   onBack,
@@ -765,7 +818,20 @@ function CustomerFace({
   pricing: ReturnType<typeof calculateOrderPricing> | null
   error: string
   busy: boolean
-  completedOrder: { orderNumber: string; totalCents: number; reference: string } | null
+  completedOrder: {
+    orderNumber: string
+    totalCents: number
+    reference: string
+    loyaltyPointsEarned?: number
+    loyaltyPhone?: string
+  } | null
+  loyaltyEnabled: boolean
+  loyaltyPhone: string
+  loyaltySkipped: boolean
+  estimatedLoyaltyPoints: number
+  pointsPerDollar: number
+  onLoyaltyPhone: (v: string) => void
+  onSkipLoyalty: () => void
   onTipPreset: (v: number | 'custom' | 0) => void
   onCustomTip: (v: string) => void
   onBack: () => void
@@ -790,6 +856,22 @@ function CustomerFace({
         <p className="text-stone-600">
           Order #{completedOrder.orderNumber} · {formatMoney(completedOrder.totalCents)}
         </p>
+        {completedOrder.loyaltyPointsEarned && completedOrder.loyaltyPointsEarned > 0 ? (
+          <div className="w-full max-w-sm rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            <p className="font-semibold">
+              +{completedOrder.loyaltyPointsEarned} loyalty points earned
+            </p>
+            {completedOrder.loyaltyPhone ? (
+              <p className="mt-1 text-emerald-800/80">
+                Saved to {completedOrder.loyaltyPhone}
+              </p>
+            ) : null}
+          </div>
+        ) : loyaltyEnabled ? (
+          <p className="max-w-sm text-sm text-stone-500">
+            No loyalty phone was entered — points were not added this time.
+          </p>
+        ) : null}
         <p className="max-w-sm text-sm text-stone-500">
           This sale is in your Orders queue as an in-store {copy.pickupLabel.toLowerCase()}.
         </p>
@@ -845,6 +927,63 @@ function CustomerFace({
       </ul>
 
       <div className="shrink-0 space-y-4 border-t border-stone-200 px-5 py-5">
+        {loyaltyEnabled ? (
+          <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium text-stone-800">Earn loyalty points</p>
+                <p className="text-xs text-stone-500">
+                  {pointsPerDollar} pt{pointsPerDollar === 1 ? '' : 's'} per $1 · optional
+                </p>
+              </div>
+              {!loyaltySkipped ? (
+                <button
+                  type="button"
+                  onClick={onSkipLoyalty}
+                  className="shrink-0 text-xs font-medium text-stone-500 hover:text-stone-800"
+                >
+                  Skip
+                </button>
+              ) : null}
+            </div>
+            {loyaltySkipped ? (
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="text-xs text-stone-500">Skipped — no points this visit.</p>
+                <button
+                  type="button"
+                  className="text-xs font-medium text-[var(--brand-primary)]"
+                  onClick={() => onLoyaltyPhone('')}
+                >
+                  Add phone
+                </button>
+              </div>
+            ) : (
+              <div className="mt-2 space-y-1.5">
+                <Input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="(555) 555-5555"
+                  value={loyaltyPhone}
+                  onChange={(e) => onLoyaltyPhone(e.target.value)}
+                  aria-label="Phone number for loyalty points"
+                />
+                {estimatedLoyaltyPoints > 0 ? (
+                  <p className="text-xs font-medium text-[var(--brand-primary)]">
+                    You’ll earn {estimatedLoyaltyPoints} points on this order
+                  </p>
+                ) : loyaltyPhone.trim() ? (
+                  <p className="text-xs text-stone-500">Enter a 10-digit mobile number</p>
+                ) : (
+                  <p className="text-xs text-stone-500">
+                    Enter your phone to save points, or skip
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        ) : null}
+
         <div>
           <p className="mb-2 text-sm font-medium text-stone-800">Add a tip</p>
           <div className="flex flex-wrap gap-2">

@@ -367,5 +367,18 @@ export function nextRewardProgress(
 }
 
 export function accountDisplay(account: LoyaltyAccount): string {
-  return account.email
+  if (account.email && !account.email.startsWith('phone:')) return account.email
+  if (account.phone) {
+    const digits = account.phone.replace(/\D/g, '')
+    if (digits.length >= 10) {
+      const d = digits.slice(-10)
+      return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`
+    }
+    return account.phone
+  }
+  if (account.email?.startsWith('phone:')) {
+    const d = account.email.slice('phone:'.length)
+    if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`
+  }
+  return account.email || 'Loyalty member'
 }
