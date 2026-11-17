@@ -417,13 +417,20 @@ function SlideView({
             item.soldOut && 'opacity-55',
           )}
         >
-          <MenuItemImage
-            src={item.imageUrl}
-            alt=""
-            storeKind={storeKind}
-            className="h-56 w-full object-cover sm:h-72 lg:h-full lg:min-h-[22rem]"
-            fallbackClassName="h-56 w-full sm:h-72 lg:h-full lg:min-h-[22rem]"
-          />
+          <div className="relative min-h-0 overflow-hidden">
+            <MenuItemImage
+              src={item.imageUrl}
+              alt=""
+              storeKind={storeKind}
+              className="h-56 w-full object-cover sm:h-72 lg:h-full lg:min-h-[22rem]"
+              fallbackClassName="h-56 w-full sm:h-72 lg:h-full lg:min-h-[22rem]"
+            />
+            {item.soldOut ? (
+              <FeaturedImageTag tone="soldOut" size="lg" />
+            ) : item.onSale ? (
+              <FeaturedImageTag tone="sale" size="lg" />
+            ) : null}
+          </div>
           <div className="flex flex-col justify-center gap-3 p-6 sm:p-8 lg:p-10">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <h3
@@ -433,30 +440,21 @@ function SlideView({
                 {item.name}
               </h3>
               {showPrices ? (
-                <div className="shrink-0 text-right">
-                  <p className="text-2xl font-semibold text-[var(--brand-primary)] sm:text-3xl">
+                <p className="flex shrink-0 flex-wrap items-baseline justify-end gap-x-2.5 text-right">
+                  <span className="text-2xl font-semibold tabular-nums text-[var(--brand-primary)] sm:text-3xl">
                     {formatMoney(item.priceCents)}
-                  </p>
+                  </span>
                   {item.onSale ? (
-                    <p className="text-sm opacity-50 line-through">
+                    <span className="text-lg tabular-nums opacity-45 line-through sm:text-xl">
                       {formatMoney(item.listPriceCents)}
-                    </p>
+                    </span>
                   ) : null}
-                </div>
+                </p>
               ) : null}
             </div>
             {item.description ? (
               <p className="max-w-xl text-base opacity-70 sm:text-lg lg:text-xl">
                 {item.description}
-              </p>
-            ) : null}
-            {item.soldOut ? (
-              <p className="pt-2 text-sm font-semibold uppercase tracking-wider text-red-700">
-                Sold out
-              </p>
-            ) : item.onSale ? (
-              <p className="pt-2 text-sm font-semibold uppercase tracking-wider text-[var(--brand-accent)]">
-                On sale
               </p>
             ) : null}
           </div>
@@ -524,6 +522,11 @@ function SlideView({
                 className="absolute inset-0 h-full w-full object-cover"
                 fallbackClassName="absolute inset-0 h-full w-full"
               />
+              {item.soldOut ? (
+                <FeaturedImageTag tone="soldOut" size={roomy ? 'md' : 'sm'} />
+              ) : item.onSale ? (
+                <FeaturedImageTag tone="sale" size={roomy ? 'md' : 'sm'} />
+              ) : null}
             </div>
             <div
               className={cn(
@@ -546,26 +549,31 @@ function SlideView({
                   {item.name}
                 </h3>
                 {showPrices ? (
-                  <div className="shrink-0 text-right">
-                    <p
+                  <p
+                    className={cn(
+                      'flex shrink-0 flex-wrap items-baseline justify-end gap-x-2 text-right',
+                      roomy ? 'gap-x-2.5' : 'gap-x-1.5',
+                    )}
+                  >
+                    <span
                       className={cn(
                         'font-semibold tabular-nums text-[var(--brand-primary)]',
                         roomy ? 'text-xl sm:text-2xl lg:text-3xl' : 'text-base sm:text-lg',
                       )}
                     >
                       {formatMoney(item.priceCents)}
-                    </p>
+                    </span>
                     {item.onSale ? (
-                      <p
+                      <span
                         className={cn(
-                          'opacity-50 line-through',
-                          roomy ? 'text-sm sm:text-base' : 'text-xs',
+                          'tabular-nums opacity-45 line-through',
+                          roomy ? 'text-base sm:text-lg' : 'text-sm',
                         )}
                       >
                         {formatMoney(item.listPriceCents)}
-                      </p>
+                      </span>
                     ) : null}
-                  </div>
+                  </p>
                 ) : null}
               </div>
               {item.description ? (
@@ -580,30 +588,35 @@ function SlideView({
                   {item.description}
                 </p>
               ) : null}
-              {item.soldOut ? (
-                <p
-                  className={cn(
-                    'font-semibold uppercase tracking-wider text-red-700',
-                    roomy ? 'pt-1 text-sm sm:text-base' : 'pt-1 text-xs',
-                  )}
-                >
-                  Sold out
-                </p>
-              ) : item.onSale ? (
-                <p
-                  className={cn(
-                    'font-semibold uppercase tracking-wider text-[var(--brand-accent)]',
-                    roomy ? 'pt-1 text-sm sm:text-base' : 'pt-1 text-xs',
-                  )}
-                >
-                  On sale
-                </p>
-              ) : null}
             </div>
           </article>
         ))}
       </div>
     </section>
+  )
+}
+
+function FeaturedImageTag({
+  tone,
+  size = 'md',
+}: {
+  tone: 'sale' | 'soldOut'
+  size?: 'sm' | 'md' | 'lg'
+}) {
+  return (
+    <span
+      className={cn(
+        'absolute left-3 top-3 z-10 rounded-md font-semibold uppercase tracking-[0.12em] shadow-sm',
+        size === 'lg' && 'left-4 top-4 px-3.5 py-2 text-sm sm:text-base',
+        size === 'md' && 'px-3 py-1.5 text-xs sm:text-sm',
+        size === 'sm' && 'px-2.5 py-1 text-[11px] sm:text-xs',
+        tone === 'sale'
+          ? 'bg-[var(--brand-accent)] text-[var(--brand-button-text,#fff)]'
+          : 'bg-red-700 text-white',
+      )}
+    >
+      {tone === 'sale' ? 'On sale' : 'Sold out'}
+    </span>
   )
 }
 
