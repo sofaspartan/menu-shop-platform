@@ -17,13 +17,27 @@ import {
   FileText,
   Gift,
   Percent,
+  type LucideIcon,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { storeCopy } from '@/lib/storeCopy'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
+
+type NavItem = {
+  to: string
+  label: string
+  icon: LucideIcon
+  end?: boolean
+}
+
+type NavGroup = {
+  id: string
+  label?: string
+  items: NavItem[]
+}
 
 export function DashboardLayout() {
   const user = useAuthStore((s) => s.user)
@@ -35,23 +49,53 @@ export function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [switcherOpen, setSwitcherOpen] = useState(false)
 
-  const nav = [
-    { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
-    { to: '/dashboard/orders', label: 'Orders', icon: ClipboardList },
-    { to: '/dashboard/menus', label: copy.catalogNounPlural, icon: Menu },
-    { to: '/dashboard/items', label: copy.itemLibrary, icon: UtensilsCrossed },
-    { to: '/dashboard/modifiers', label: copy.modifiersNoun, icon: Store },
-    { to: '/dashboard/combos', label: copy.comboNounPlural, icon: Layers },
-    { to: '/dashboard/scheduling', label: 'Scheduling', icon: Clock3 },
-    { to: '/dashboard/branding', label: 'Branding', icon: Palette },
-    { to: '/dashboard/pages', label: 'Pages & layout', icon: FileText },
-    { to: '/dashboard/promotions', label: 'Coupons & sales', icon: Percent },
-    { to: '/dashboard/loyalty', label: 'Loyalty', icon: Gift },
-    { to: '/dashboard/qr', label: 'QR codes', icon: QrCode },
-    { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-    { to: '/dashboard/preview', label: 'Preview', icon: Eye },
-    { to: '/dashboard/settings', label: 'Settings', icon: Settings },
-  ]
+  const navGroups: NavGroup[] = useMemo(
+    () => [
+      {
+        id: 'ops',
+        items: [
+          { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
+          { to: '/dashboard/orders', label: 'Orders', icon: ClipboardList },
+        ],
+      },
+      {
+        id: 'catalog',
+        label: copy.catalogNounTitle,
+        items: [
+          { to: '/dashboard/menus', label: copy.catalogNounPlural, icon: Menu },
+          { to: '/dashboard/items', label: copy.itemLibrary, icon: UtensilsCrossed },
+          { to: '/dashboard/modifiers', label: copy.modifiersNoun, icon: Store },
+          { to: '/dashboard/combos', label: copy.comboNounPlural, icon: Layers },
+          { to: '/dashboard/scheduling', label: 'Scheduling', icon: Clock3 },
+        ],
+      },
+      {
+        id: 'marketing',
+        label: 'Marketing',
+        items: [
+          { to: '/dashboard/promotions', label: 'Coupons & sales', icon: Percent },
+          { to: '/dashboard/loyalty', label: 'Loyalty', icon: Gift },
+          { to: '/dashboard/qr', label: 'QR codes', icon: QrCode },
+          { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
+        ],
+      },
+      {
+        id: 'storefront',
+        label: 'Storefront',
+        items: [
+          { to: '/dashboard/branding', label: 'Branding', icon: Palette },
+          { to: '/dashboard/pages', label: 'Pages & layout', icon: FileText },
+          { to: '/dashboard/preview', label: 'Preview', icon: Eye },
+        ],
+      },
+      {
+        id: 'account',
+        label: 'Account',
+        items: [{ to: '/dashboard/settings', label: 'Settings', icon: Settings }],
+      },
+    ],
+    [copy],
+  )
 
   useEffect(() => {
     if (user) void load(user.id)
@@ -130,23 +174,35 @@ export function DashboardLayout() {
           ) : null}
         </div>
 
-        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto">
-          {nav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-stone-600 hover:bg-stone-50',
-                  isActive && 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]',
-                )
-              }
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </NavLink>
+        <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto pb-2">
+          {navGroups.map((group) => (
+            <div key={group.id}>
+              {group.label ? (
+                <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-400">
+                  {group.label}
+                </p>
+              ) : null}
+              <div className="space-y-0.5">
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50',
+                        isActive &&
+                          'bg-[var(--color-brand-soft)] text-[var(--color-brand)]',
+                      )
+                    }
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 
