@@ -4,6 +4,7 @@ import type {
   Display,
   DisplayGraphicSlide,
   DisplayItemSlide,
+  BrandingLayout,
   DisplayKind,
   FeaturedCatalogScope,
   FeaturedSource,
@@ -589,12 +590,32 @@ export function DisplaysPage() {
               ) : null}
 
               {selected.kind === 'branding' ? (
-                <div className="space-y-3 rounded-xl border border-stone-200 p-4">
-                  <h3 className="text-sm font-semibold text-stone-800">Branding sign</h3>
-                  <p className="text-xs text-stone-500">
-                    Logo and title sit on your chosen background image. Leave blank to use
-                    the store cover photo.
-                  </p>
+                <div className="space-y-4 rounded-xl border border-stone-200 p-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-stone-800">Branding sign</h3>
+                    <p className="mt-1 text-xs text-stone-500">
+                      Full-bleed centered logo and title, or the framed card look with the
+                      header chrome. Leave the image blank to use the store cover photo.
+                    </p>
+                  </div>
+                  <Field label="Layout" htmlFor="disp-branding-layout">
+                    <Select
+                      id="disp-branding-layout"
+                      value={selected.brandingLayout}
+                      onChange={(e) =>
+                        void patchSelected({
+                          brandingLayout: e.target.value as BrandingLayout,
+                        })
+                      }
+                    >
+                      <option value="fullbleed">
+                        Full bleed — logo + title centered on the image
+                      </option>
+                      <option value="card">
+                        Card — framed panel with title toward the bottom
+                      </option>
+                    </Select>
+                  </Field>
                   <Field label="Background image URL" htmlFor="disp-bg">
                     <Textarea
                       id="disp-bg"

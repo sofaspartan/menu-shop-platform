@@ -59,8 +59,10 @@ export function DisplayBoardPage() {
   const isMenuBoard = display?.kind === 'menu'
   const framedGraphics =
     display?.kind === 'graphics' && display.graphicsChrome === 'framed'
+  const brandingFullBleed =
+    display?.kind === 'branding' && display.brandingLayout === 'fullbleed'
   const showChrome =
-    display?.kind === 'branding' ||
+    (display?.kind === 'branding' && !brandingFullBleed) ||
     display?.kind === 'featured' ||
     display?.kind === 'menu' ||
     framedGraphics
@@ -115,10 +117,20 @@ export function DisplayBoardPage() {
         background:
           display.kind === 'graphics' && display.graphicsChrome === 'fullscreen'
             ? '#000'
-            : restaurant.branding.backgroundColor,
+            : brandingFullBleed
+              ? '#000'
+              : restaurant.branding.backgroundColor,
         fontFamily: 'var(--brand-body)',
       }}
     >
+      {brandingFullBleed ? (
+        <div className="absolute right-5 top-5 z-20 flex items-center gap-3">
+          <LiveIndicator
+            pulseKey={`${revision}-${lastSyncedAt ?? 0}`}
+            className="!text-white"
+          />
+        </div>
+      ) : null}
       {showChrome ? (
         <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 px-8 py-4">
           <div className="flex min-w-0 items-center gap-4">
@@ -172,8 +184,11 @@ export function DisplayBoardPage() {
             showPrices={display.showPrices}
             showItemImages={display.showItemImages}
             menuLayout={display.menuLayout}
+            brandingLayout={display.brandingLayout}
+            showLogo={display.showLogo}
+            logoUrl={restaurant.logoUrl}
             surface={restaurant.branding.surfaceColor}
-            fullscreenGraphic={!showChrome}
+            fullscreenGraphic={!showChrome || brandingFullBleed}
           />
         ) : (
           <div className="flex flex-1 items-center justify-center rounded-3xl bg-[var(--brand-surface)]/80 text-lg opacity-70">
@@ -242,6 +257,9 @@ function SlideView({
   showPrices,
   showItemImages,
   menuLayout,
+  brandingLayout,
+  showLogo,
+  logoUrl,
   surface,
   fullscreenGraphic,
 }: {
@@ -249,6 +267,9 @@ function SlideView({
   showPrices: boolean
   showItemImages: boolean
   menuLayout: 'cards' | 'columns'
+  brandingLayout: 'card' | 'fullbleed'
+  showLogo: boolean
+  logoUrl?: string
   surface: string
   fullscreenGraphic: boolean
 }) {
@@ -264,15 +285,26 @@ function SlideView({
     )
   }
 
-  if (slide.kind === 'branding' || slide.kind === 'graphic') {
-    const imageUrl = slide.kind === 'branding' ? slide.imageUrl : slide.imageUrl
-    const headline = slide.kind === 'branding' ? slide.headline : slide.title
-    const tagline = slide.kind === 'branding' ? slide.tagline : slide.subtitle
+  if (slide.kind === 'branding') {
+    return (
+      <BrandingSignView
+        slide={slide}
+        layout={brandingLayout}
+        showLogo={showLogo}
+        logoUrl={logoUrl}
+      />
+    )
+  }
+
+  if (slide.kind === 'graphic') {
+    const imageUrl = slide.imageUrl
+    const headline = slide.title
+    const tagline = slide.subtitle
     return (
       <section
         className={cn(
           'relative flex flex-1 overflow-hidden animate-fade-up',
-          fullscreenGraphic ? 'min-h-screen rounded-none' : 'rounded-[2rem]',
+          fullscreenGraphic ? 'min-h-0 rounded-none' : 'rounded-[2rem]',
         )}
       >
         {imageUrl ? (
@@ -449,6 +481,96 @@ function SlideView({
             </div>
           </article>
         ))}
+      </div>
+    </section>
+  )
+}
+
+/** Branding sign — framed card or full-bleed centered logo/title. */
+function BrandingSignView({
+  slide,
+  layout,
+  showLogo,
+  logoUrl,
+}: {
+  slide: Extract<BoardSlide, { kind: 'branding' }>
+  layout: 'card' | 'fullbleed'
+  showLogo: boolean
+  logoUrl?: string
+}) {
+  const imageUrl = slide.imageUrl
+  const backdrop = imageUrl ? (
+    <img
+      src={imageUrl}
+      alt=""
+      className="absolute inset-0 h-full w-full object-cover"
+    />
+  ) : (
+    <div
+      className="absolute inset-0"
+      style={{
+        background:
+          'linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 88%, black), color-mix(in srgb, var(--brand-accent) 70%, var(--brand-primary)))',
+      }}
+    />
+  )
+
+  if (layout === 'fullbleed') {
+    return (
+      <section className="relative flex min-h-0 flex-1 overflow-hidden animate-fade-up">
+        {backdrop}
+        <div className="absolute inset-0 bg-black/45" />
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-8 text-center text-white">
+          {showLogo && logoUrl ? (
+            <img
+              src={logoUrl}
+              alt=""
+              className="mb-8 h-28 w-28 rounded-[1.75rem] object-cover shadow-2xl ring-1 ring-white/25 sm:h-36 sm:w-36"
+            />
+          ) : null}
+          {slide.headline ? (
+            <h1
+              className="max-w-5xl text-5xl font-semibold leading-tight tracking-tight sm:text-7xl lg:text-8xl"
+              style={{ fontFamily: 'var(--brand-heading)' }}
+            >
+              {slide.headline}
+            </h1>
+          ) : null}
+          {slide.tagline ? (
+            <p className="mt-5 max-w-2xl text-lg text-white/85 sm:text-2xl">
+              {slide.tagline}
+            </p>
+          ) : null}
+        </div>
+      </section>
+    )
+  }
+
+  return (
+    <section className="relative flex min-h-0 flex-1 overflow-hidden rounded-[2rem] animate-fade-up">
+      {backdrop}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
+      <div className="relative z-10 flex flex-1 flex-col justify-end p-10 text-white sm:p-14">
+        {showLogo && logoUrl ? (
+          <img
+            src={logoUrl}
+            alt=""
+            className="mb-5 h-16 w-16 rounded-2xl object-cover shadow-lg ring-1 ring-white/20"
+          />
+        ) : null}
+        {slide.headline ? (
+          <h1
+            className="max-w-4xl text-5xl font-semibold leading-tight tracking-tight sm:text-7xl"
+            style={{ fontFamily: 'var(--brand-heading)' }}
+          >
+            {slide.headline}
+          </h1>
+        ) : null}
+        {slide.tagline ? (
+          <p className="mt-4 max-w-2xl text-xl text-white/85 sm:text-2xl">
+            {slide.tagline}
+          </p>
+        ) : null}
       </div>
     </section>
   )

@@ -3,6 +3,7 @@ import type {
   DisplayGraphicSlide,
   DisplayItemSlide,
   DisplayKind,
+  BrandingLayout,
   FeaturedCatalogScope,
   FeaturedSource,
   GraphicsChrome,
@@ -70,6 +71,9 @@ export function normalizeDisplay(raw: Display): Display {
     showLogo: raw.showLogo !== false,
     showStoreName: raw.showStoreName !== false,
     backgroundImageUrl: raw.backgroundImageUrl,
+    brandingLayout: (raw.brandingLayout === 'fullbleed'
+      ? 'fullbleed'
+      : 'card') as BrandingLayout,
     graphicsChrome,
     graphicSlides,
     featuredSource,

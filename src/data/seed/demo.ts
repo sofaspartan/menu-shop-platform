@@ -923,6 +923,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       sectionIds: [],
       showPrices: true,
       showSoldOut: false,
+      brandingLayout: 'card' as const,
       menuLayout: 'cards' as const,
       showItemImages: true,
       itemsPerAutoSlide: 4,
@@ -954,6 +955,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       ],
       showPrices: true,
       showSoldOut: false,
+      brandingLayout: 'card' as const,
       menuLayout: 'columns' as const,
       showItemImages: false,
       itemsPerAutoSlide: 4,
@@ -981,6 +983,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       sectionIds: [],
       showPrices: true,
       showSoldOut: false,
+      brandingLayout: 'card' as const,
       menuLayout: 'cards' as const,
       showItemImages: true,
       itemsPerAutoSlide: 1,
@@ -1001,6 +1004,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       headline: 'The Corner Table',
       tagline: 'Welcome — we’re glad you’re here',
       backgroundImageUrl: undefined,
+      brandingLayout: 'fullbleed' as const,
       graphicsChrome: 'fullscreen' as const,
       graphicSlides: [],
       featuredSource: 'auto' as const,
@@ -1392,7 +1396,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
   return {
-    version: 16,
+    version: 17,
     users: [
       {
         id: userId,

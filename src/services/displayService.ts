@@ -2,6 +2,7 @@ import type {
   Display,
   DisplayGraphicSlide,
   DisplayItemSlide,
+  BrandingLayout,
   DisplayKind,
   FeaturedCatalogScope,
   FeaturedSource,
@@ -46,6 +47,7 @@ async function uniqueDisplaySlug(
 function defaultsForKind(kind: DisplayKind): Pick<
   Display,
   | 'kind'
+  | 'brandingLayout'
   | 'graphicsChrome'
   | 'graphicSlides'
   | 'featuredSource'
@@ -61,6 +63,7 @@ function defaultsForKind(kind: DisplayKind): Pick<
 > {
   return {
     kind,
+    brandingLayout: kind === 'branding' ? 'fullbleed' : 'card',
     graphicsChrome: 'fullscreen',
     graphicSlides: [],
     featuredSource: 'auto',
@@ -129,6 +132,7 @@ export type DisplayPatch = Partial<
     | 'headline'
     | 'tagline'
     | 'backgroundImageUrl'
+    | 'brandingLayout'
     | 'graphicsChrome'
     | 'graphicSlides'
     | 'featuredSource'
@@ -179,6 +183,9 @@ export async function updateDisplay(
     }
     if (patch.backgroundImageUrl !== undefined) {
       next.backgroundImageUrl = patch.backgroundImageUrl.trim() || undefined
+    }
+    if (patch.brandingLayout !== undefined) {
+      next.brandingLayout = patch.brandingLayout as BrandingLayout
     }
     if (patch.graphicsChrome !== undefined) {
       next.graphicsChrome = patch.graphicsChrome as GraphicsChrome

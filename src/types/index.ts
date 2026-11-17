@@ -548,6 +548,8 @@ export type FeaturedSource = 'auto' | 'manual'
 export type FeaturedCatalogScope = 'daypart' | 'menus'
 /** Ordering menu board presentation. */
 export type MenuBoardLayout = 'cards' | 'columns'
+/** Branding sign presentation. */
+export type BrandingLayout = 'card' | 'fullbleed'
 
 export interface DisplayGraphicSlide {
   id: ID
@@ -593,6 +595,12 @@ export interface Display extends Timestamps {
 
   /** Branding board background (falls back to store cover). */
   backgroundImageUrl?: string
+  /**
+   * Branding sign layout:
+   * - card: framed panel with title anchored toward the bottom (current look)
+   * - fullbleed: edge-to-edge image with logo + title centered
+   */
+  brandingLayout: BrandingLayout
 
   /** Graphics slideshow chrome. */
   graphicsChrome: GraphicsChrome
