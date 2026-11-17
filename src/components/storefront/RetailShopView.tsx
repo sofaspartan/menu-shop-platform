@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Menu, MenuItem, MenuItemAssignment, MenuSection, Restaurant } from '@/types'
 import { RetailChrome } from '@/components/storefront/RetailChrome'
@@ -48,6 +49,39 @@ export function RetailShopView({
       ]
     : []
   const showSectionNav = sectionLinks.length > 1
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(
+    sectionLinks[0]?.id ?? null,
+  )
+  const sectionIdsKey = sectionLinks.map((s) => s.id).join(',')
+
+  useEffect(() => {
+    if (!sectionLinks.length) {
+      setActiveSectionId(null)
+      return
+    }
+    setActiveSectionId((prev) =>
+      prev && sectionLinks.some((s) => s.id === prev) ? prev : sectionLinks[0].id,
+    )
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+        const nextId = visible[0]?.target.id?.replace(/^section-/, '')
+        if (nextId) {
+          setActiveSectionId((prev) => (prev === nextId ? prev : nextId))
+        }
+      },
+      { rootMargin: '-30% 0px -50% 0px', threshold: [0, 0.15, 0.4] },
+    )
+
+    for (const link of sectionLinks) {
+      const el = document.getElementById(`section-${link.id}`)
+      if (el) observer.observe(el)
+    }
+    return () => observer.disconnect()
+  }, [sectionIdsKey])
 
   return (
     <>
@@ -101,15 +135,24 @@ export function RetailShopView({
               'flex items-center gap-1 overflow-x-auto py-3.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
             )}
           >
-            {sectionLinks.map((section) => (
-              <a
-                key={section.id}
-                href={`#section-${section.id}`}
-                className="shrink-0 rounded-md px-3 py-2 text-base text-[var(--sf-text)]/75 transition-colors hover:text-[var(--sf-text)]"
-              >
-                {section.name}
-              </a>
-            ))}
+            {sectionLinks.map((section) => {
+              const active = activeSectionId === section.id
+              return (
+                <a
+                  key={section.id}
+                  href={`#section-${section.id}`}
+                  aria-current={active ? 'true' : undefined}
+                  className={cn(
+                    'shrink-0 rounded-md px-3 py-2 text-base transition-colors',
+                    active
+                      ? 'font-semibold text-[var(--sf-text)]'
+                      : 'font-normal text-[var(--sf-text)]/75 hover:text-[var(--sf-text)]',
+                  )}
+                >
+                  {section.name}
+                </a>
+              )
+            })}
           </div>
         </nav>
       ) : null}
