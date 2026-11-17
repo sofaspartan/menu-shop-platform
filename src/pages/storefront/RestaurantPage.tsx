@@ -307,7 +307,7 @@ export function RestaurantPage() {
           We couldn’t find a storefront at this link. Check the URL or explore a demo.
         </p>
         <Link to="/" className="mt-6">
-          <Button>Back to Counter</Button>
+          <Button>Back to home</Button>
         </Link>
       </div>
     )

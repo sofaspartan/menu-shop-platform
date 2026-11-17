@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
+  Boxes,
   Gift,
   MonitorPlay,
-  Percent,
   QrCode,
   ShoppingBag,
   Store,
@@ -49,59 +49,46 @@ export function LandingPage() {
         </div>
       </header>
 
-      {/* One composition: brand-first full-bleed hero */}
+      {/* Brand-first full-bleed hero — one composition */}
       <section className="relative isolate min-h-[100svh] overflow-hidden">
         <img
           src={HERO_IMAGE}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover animate-fade-in"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0f1c18] via-[#0f1c18]/70 to-[#0f1c18]/35" />
-        <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-6xl flex-col justify-end px-6 pb-16 pt-28 sm:pb-20">
-          <p className="font-display text-5xl tracking-tight text-white sm:text-6xl md:text-7xl animate-fade-up">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0f1c18] via-[#0f1c18]/72 to-[#0f1c18]/30" />
+        <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-6xl flex-col justify-end px-6 pb-16 pt-28 sm:pb-24">
+          <p className="font-display text-5xl tracking-tight text-white sm:text-6xl md:text-8xl animate-fade-up">
             {PLATFORM_NAME}
           </p>
-          <h1 className="mt-4 max-w-2xl text-xl font-medium leading-snug text-white/90 sm:text-2xl animate-fade-up [animation-delay:80ms]">
-            One platform for restaurant menus and retail shops.
+          <h1 className="mt-5 max-w-2xl text-xl font-medium leading-snug text-white/90 sm:text-2xl animate-fade-up [animation-delay:90ms]">
+            Storefronts for restaurants and retail — from the same counter.
           </h1>
-          <p className="mt-3 max-w-xl text-base text-white/70 sm:text-lg animate-fade-up [animation-delay:140ms]">
+          <p className="mt-3 max-w-lg text-base text-white/65 sm:text-lg animate-fade-up [animation-delay:160ms]">
             {PLATFORM_TAGLINE}
           </p>
-          <div className="mt-8 flex flex-wrap gap-3 animate-fade-up [animation-delay:200ms]">
+          <div className="mt-9 flex flex-wrap gap-3 animate-fade-up [animation-delay:220ms]">
             <Link to="/signup">
               <Button size="lg" className="bg-white text-stone-900 hover:bg-white/90">
                 Start free demo
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link to="/r/the-corner-table">
+            <a href="#verticals">
               <Button
                 size="lg"
                 variant="outline"
                 className="border-white/35 bg-transparent text-white hover:bg-white/10"
               >
-                Demo restaurant
+                See restaurant & retail
               </Button>
-            </Link>
-            <Link to="/r/haven-and-hide">
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-white/35 bg-transparent text-white hover:bg-white/10"
-              >
-                Demo retail shop
-              </Button>
-            </Link>
+            </a>
           </div>
-          <p className="mt-5 text-sm text-white/45 animate-fade-up [animation-delay:260ms]">
-            Demo login: {DEMO_CREDENTIALS.email} / {DEMO_CREDENTIALS.password}
-          </p>
         </div>
       </section>
 
       <main>
-        {/* Two verticals */}
-        <section className="border-t border-white/10 bg-[#12241e]">
+        <section id="verticals" className="border-t border-white/10 bg-[#12241e] scroll-mt-0">
           <div className="mx-auto grid max-w-6xl gap-0 md:grid-cols-2">
             <VerticalPanel
               href="/r/the-corner-table"
@@ -117,7 +104,6 @@ export function LandingPage() {
               icon={ShoppingBag}
               eyebrow="Retail"
               title="Catalogs that feel like a shop"
-              titleDelay
               body="Product grids, bundles, shipping or pickup, fulfillment boards, and a cart built for browsing."
               image="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=1200&q=80"
               cta="Open retail demo"
@@ -125,15 +111,14 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* Capability bands — one job each */}
         <FeatureBand
           eyebrow="Storefronts"
           title="Your brand, not a generic template"
           body="Custom colors, fonts, logos, homepage splash pages, about and contact, and a shop that matches your look."
           points={[
-            'Reorderable homepage sections',
-            'Restaurant list or retail grid layouts',
-            'Full-bleed or margined storefront width',
+            'Separate Home and Shop — marketing first, catalog second',
+            'Reorderable splash, about, featured, and footer sections',
+            'Restaurant lists or retail product grids',
           ]}
         />
 
@@ -142,9 +127,9 @@ export function LandingPage() {
           title="TV boards that stay live"
           body="Menu boards, featured product signage, branding screens, and graphic slideshows — updated from the same catalog."
           points={[
-            'Auto-rotating featured items',
+            'Auto-rotating featured items with sale callouts',
             'Logo styles for square or wide marks',
-            'Ready for counters and windows',
+            'Live clock, date, and header chrome toggles',
           ]}
           invert
         />
@@ -155,24 +140,23 @@ export function LandingPage() {
           body="Customers order on phone; staff run POS, kitchen or fulfillment displays, and live order tracking."
           points={[
             'Simulated checkout and live order status',
-            'QR codes into the right catalog',
+            'QR codes into the right catalog or page',
             'Owner dashboard with analytics',
           ]}
         />
 
         <FeatureBand
-          eyebrow="Loyalty & promos"
-          title="Bring people back"
-          body="Points, coupons, and sales that apply on the storefront — without bolting on another tool."
+          eyebrow="Loyalty, promos & stock"
+          title="Bring people back — and keep shelves honest"
+          body="Points, coupons, and sales on the storefront, plus stock levels that stay in sync with what you sell."
           points={[
-            'Loyalty accounts and rewards',
-            'Percent-off and sale pricing',
-            'Promo tracking for campaigns',
+            'Loyalty accounts and redeemable rewards',
+            'Percent-off coupons and sale pricing',
+            'Stock tracking for retail inventory',
           ]}
           invert
         />
 
-        {/* Feature strip */}
         <section className="border-t border-white/10 bg-[#0f1c18] px-6 py-20">
           <div className="mx-auto max-w-6xl">
             <p className="text-sm font-medium uppercase tracking-[0.18em] text-[color-mix(in_srgb,var(--color-brand)_55%,white)]">
@@ -205,13 +189,13 @@ export function LandingPage() {
                 },
                 {
                   icon: Gift,
-                  title: 'Loyalty',
-                  body: 'Points earned on purchases with rewards your guests actually notice.',
+                  title: 'Loyalty & coupons',
+                  body: 'Points and promo codes that apply at checkout without another tool.',
                 },
                 {
-                  icon: Percent,
-                  title: 'Promotions',
-                  body: 'Sales and coupons that update prices on the storefront automatically.',
+                  icon: Boxes,
+                  title: 'Stock & sales',
+                  body: 'Inventory awareness and sale pricing that update the shop and displays.',
                 },
               ].map((item) => (
                 <li key={item.title} className="border-t border-white/10 pt-5">
@@ -224,7 +208,6 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* Closing CTA */}
         <section className="relative overflow-hidden border-t border-white/10 px-6 py-24">
           <div
             className="absolute inset-0 opacity-40"
@@ -234,7 +217,7 @@ export function LandingPage() {
             }}
           />
           <div className="relative mx-auto max-w-3xl text-center">
-            <p className="font-display text-4xl tracking-tight text-white sm:text-5xl">
+            <p className="font-display text-4xl tracking-tight text-white sm:text-5xl animate-fade-up">
               Ready when your counter is.
             </p>
             <p className="mx-auto mt-4 max-w-xl text-base text-white/65">
@@ -258,6 +241,9 @@ export function LandingPage() {
                 </Button>
               </Link>
             </div>
+            <p className="mt-8 text-sm text-white/40">
+              Demo login: {DEMO_CREDENTIALS.email} / {DEMO_CREDENTIALS.password}
+            </p>
           </div>
         </section>
       </main>
@@ -285,7 +271,6 @@ function VerticalPanel({
   body: string
   image: string
   cta: string
-  titleDelay?: boolean
 }) {
   return (
     <Link

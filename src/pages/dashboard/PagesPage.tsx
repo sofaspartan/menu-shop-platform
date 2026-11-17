@@ -28,6 +28,7 @@ import {
   normalizeStoreFooter,
   normalizeStoreHome,
 } from '@/types'
+import { PLATFORM_NAME } from '@/lib/platformBrand'
 import { cn } from '@/lib/utils'
 
 const HOME_KIND_LABEL: Record<HomeSection['kind'], string> = {
@@ -1211,7 +1212,7 @@ export function PagesPage() {
                 }))
               }
             />
-            Powered by Counter
+            Powered by {PLATFORM_NAME}
           </label>
         </div>
       </section>
