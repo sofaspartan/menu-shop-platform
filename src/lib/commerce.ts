@@ -1,13 +1,14 @@
 import type {
   Coupon,
   CurrencyCents,
+  DayOfWeek,
   LoyaltyAccount,
   LoyaltyReward,
   LoyaltySettings,
   MenuItem,
   Sale,
 } from '@/types'
-import { formatMoney } from '@/lib/utils'
+import { formatMoney, parseTimeToMinutes } from '@/lib/utils'
 
 export interface ListedPrice {
   /** Pre-sale list / assignment price */
@@ -19,11 +20,108 @@ export interface ListedPrice {
   onSale: boolean
 }
 
+export type SaleLifecycleStatus =
+  | 'live'
+  | 'scheduled'
+  | 'between_cycles'
+  | 'expired'
+  | 'off'
+
+/** True when endsAt has passed — eligible for auto-deactivate. */
+export function salePastCampaignEnd(sale: Sale, at: Date = new Date()): boolean {
+  return Boolean(sale.endsAt && new Date(sale.endsAt) < at)
+}
+
+/** Mutates sales in place: ended campaigns → active false (kept for history). */
+export function applySaleExpirations(
+  sales: Sale[],
+  at: Date = new Date(),
+  nowIso: () => string = () => new Date().toISOString(),
+): number {
+  const ts = nowIso()
+  let count = 0
+  for (const sale of sales) {
+    if (!sale.active) continue
+    if (!salePastCampaignEnd(sale, at)) continue
+    sale.active = false
+    sale.expiredAt = ts
+    sale.updatedAt = ts
+    count += 1
+  }
+  return count
+}
+
+function withinWeeklyWindow(sale: Sale, at: Date): boolean {
+  const days = sale.daysOfWeek ?? []
+  if (!days.length) return false
+  const day = at.getDay() as DayOfWeek
+  if (!days.includes(day)) return false
+
+  const startM = parseTimeToMinutes(sale.startTime || '00:00')
+  const endM = parseTimeToMinutes(sale.endTime || '23:59')
+  const minutes = at.getHours() * 60 + at.getMinutes()
+
+  if (endM < startM) {
+    // Overnight window (e.g. 20:00–02:00)
+    return minutes >= startM || minutes <= endM
+  }
+  return minutes >= startM && minutes <= endM
+}
+
+/** Whether the sale currently discounts the storefront (owner on + inside schedule). */
 export function isSaleActive(sale: Sale, at: Date = new Date()): boolean {
   if (!sale.active || sale.percentOff <= 0) return false
   if (sale.startsAt && new Date(sale.startsAt) > at) return false
-  if (sale.endsAt && new Date(sale.endsAt) < at) return false
+  if (salePastCampaignEnd(sale, at)) return false
+
+  const mode = sale.scheduleMode ?? 'fixed'
+  if (mode === 'weekly') {
+    return withinWeeklyWindow(sale, at)
+  }
+  // Fixed: any time between startsAt and endsAt (bounds already checked).
   return true
+}
+
+export function getSaleLifecycleStatus(
+  sale: Sale,
+  at: Date = new Date(),
+): SaleLifecycleStatus {
+  if (sale.expiredAt || salePastCampaignEnd(sale, at)) return 'expired'
+  if (!sale.active) return 'off'
+  if (sale.startsAt && new Date(sale.startsAt) > at) return 'scheduled'
+  if (isSaleActive(sale, at)) return 'live'
+  if ((sale.scheduleMode ?? 'fixed') === 'weekly') return 'between_cycles'
+  return 'off'
+}
+
+export function describeSaleSchedule(sale: Sale): string {
+  const mode = sale.scheduleMode ?? 'fixed'
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const fmt = (iso?: string) =>
+    iso
+      ? new Date(iso).toLocaleString([], {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : null
+
+  if (mode === 'weekly') {
+    const days = (sale.daysOfWeek ?? [])
+      .slice()
+      .sort((a, b) => a - b)
+      .map((d) => dayNames[d])
+      .join(', ')
+    const window = `${sale.startTime || '00:00'}–${sale.endTime || '23:59'}`
+    const bounds = [fmt(sale.startsAt), fmt(sale.endsAt)].filter(Boolean).join(' → ')
+    return `Weekly ${days || '(no days)'} ${window}${bounds ? ` · ${bounds}` : ''}`
+  }
+
+  if (sale.startsAt || sale.endsAt) {
+    return `One-time ${fmt(sale.startsAt) || 'now'} → ${fmt(sale.endsAt) || 'open'}`
+  }
+  return 'Always on while enabled'
 }
 
 export function isCouponActive(coupon: Coupon, at: Date = new Date()): boolean {

@@ -287,6 +287,12 @@ export interface Coupon extends Timestamps {
   usedCount: number
 }
 
+/**
+ * fixed = runs once between startsAt/endsAt (then auto-expires off, not deleted).
+ * weekly = repeats on selected days/times until endsAt campaign bound (then auto-expires).
+ */
+export type SaleScheduleMode = 'fixed' | 'weekly'
+
 /** Percent-off promotion on specific items or the whole store. */
 export interface Sale extends Timestamps {
   id: ID
@@ -295,9 +301,24 @@ export interface Sale extends Timestamps {
   percentOff: number
   /** Empty = storewide. */
   itemIds: ID[]
-  startsAt?: ISODateTime
-  endsAt?: ISODateTime
+  /**
+   * Owner enable switch. Past `endsAt` auto-sets this to false (record kept).
+   * Weekly sales stay true between cycles so they come back next week.
+   */
   active: boolean
+  /** Campaign / window window start (optional for open-ended weekly). */
+  startsAt?: ISODateTime
+  /** After this instant the sale auto-expires (active → false). */
+  endsAt?: ISODateTime
+  /** Defaults to fixed when omitted. */
+  scheduleMode?: SaleScheduleMode
+  /** For weekly: which days the sale is live (0=Sun … 6=Sat). */
+  daysOfWeek?: DayOfWeek[]
+  /** For weekly: local time window on those days (HH:mm). Defaults 00:00–23:59. */
+  startTime?: string
+  endTime?: string
+  /** Set when auto-expired; cleared if the owner reactivates. */
+  expiredAt?: ISODateTime
 }
 
 export interface Restaurant extends Timestamps {

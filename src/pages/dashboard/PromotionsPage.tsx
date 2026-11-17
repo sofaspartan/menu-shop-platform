@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Percent, Tag, Trash2 } from 'lucide-react'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -7,9 +7,54 @@ import * as promotionService from '@/services/promotionService'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
+import {
+  describeSaleSchedule,
+  getSaleLifecycleStatus,
+  type SaleLifecycleStatus,
+} from '@/lib/commerce'
 import { storeCopy } from '@/lib/storeCopy'
-import { formatMoney } from '@/lib/utils'
-import type { Coupon, Sale } from '@/types'
+import { formatMoney, cn } from '@/lib/utils'
+import type { Coupon, DayOfWeek, Sale, SaleScheduleMode } from '@/types'
+
+const DAY_OPTIONS: Array<{ value: DayOfWeek; label: string }> = [
+  { value: 0, label: 'Sun' },
+  { value: 1, label: 'Mon' },
+  { value: 2, label: 'Tue' },
+  { value: 3, label: 'Wed' },
+  { value: 4, label: 'Thu' },
+  { value: 5, label: 'Fri' },
+  { value: 6, label: 'Sat' },
+]
+
+function toDatetimeLocalValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function fromDatetimeLocalValue(value: string): string | undefined {
+  if (!value.trim()) return undefined
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return undefined
+  return date.toISOString()
+}
+
+function lifecycleBadge(status: SaleLifecycleStatus): {
+  tone: 'success' | 'neutral' | 'warning' | 'accent'
+  label: string
+} {
+  switch (status) {
+    case 'live':
+      return { tone: 'success', label: 'Live' }
+    case 'scheduled':
+      return { tone: 'accent', label: 'Scheduled' }
+    case 'between_cycles':
+      return { tone: 'accent', label: 'Between cycles' }
+    case 'expired':
+      return { tone: 'warning', label: 'Expired' }
+    default:
+      return { tone: 'neutral', label: 'Off' }
+  }
+}
 
 export function PromotionsPage() {
   const current = useRestaurantStore((s) => s.current())
@@ -17,6 +62,7 @@ export function PromotionsPage() {
   const { db } = useDb()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [tick, setTick] = useState(0)
 
   const [couponCode, setCouponCode] = useState('')
   const [couponType, setCouponType] = useState<'percent_off' | 'amount_off'>('percent_off')
@@ -27,8 +73,24 @@ export function PromotionsPage() {
   const [salePercent, setSalePercent] = useState('20')
   const [saleItemIds, setSaleItemIds] = useState('')
   const [saleStorewide, setSaleStorewide] = useState(false)
+  const [saleMode, setSaleMode] = useState<SaleScheduleMode>('fixed')
+  const [saleStartsAt, setSaleStartsAt] = useState('')
+  const [saleEndsAt, setSaleEndsAt] = useState('')
+  const [saleDays, setSaleDays] = useState<DayOfWeek[]>([5, 6])
+  const [saleStartTime, setSaleStartTime] = useState('00:00')
+  const [saleEndTime, setSaleEndTime] = useState('23:59')
 
   const copy = storeCopy(current?.storeKind)
+
+  useEffect(() => {
+    if (!current) return
+    void promotionService.expireEndedSales(current.id)
+  }, [current?.id])
+
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 60_000)
+    return () => window.clearInterval(id)
+  }, [])
 
   const coupons = useMemo(() => {
     if (!db || !current) return []
@@ -119,11 +181,23 @@ export function PromotionsPage() {
         percentOff: percent,
         itemIds,
         active: true,
+        scheduleMode: saleMode,
+        startsAt: fromDatetimeLocalValue(saleStartsAt),
+        endsAt: fromDatetimeLocalValue(saleEndsAt),
+        daysOfWeek: saleMode === 'weekly' ? saleDays : undefined,
+        startTime: saleMode === 'weekly' ? saleStartTime : undefined,
+        endTime: saleMode === 'weekly' ? saleEndTime : undefined,
       })
       setSaleName('')
       setSalePercent('20')
       setSaleItemIds('')
       setSaleStorewide(false)
+      setSaleMode('fixed')
+      setSaleStartsAt('')
+      setSaleEndsAt('')
+      setSaleDays([5, 6])
+      setSaleStartTime('00:00')
+      setSaleEndTime('23:59')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create sale.')
     } finally {
@@ -133,9 +207,18 @@ export function PromotionsPage() {
 
   async function toggleSale(sale: Sale) {
     if (!user || !current) return
+    const turningOn = !sale.active
     await promotionService.updateSale(user.id, current.id, sale.id, {
-      active: !sale.active,
+      active: turningOn,
+      // Re-arm expired campaigns by clearing marker; owner should extend endsAt if needed.
+      ...(turningOn ? { expiredAt: undefined } : {}),
     })
+  }
+
+  function toggleDay(day: DayOfWeek) {
+    setSaleDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort(),
+    )
   }
 
   async function removeSale(id: string) {
@@ -259,6 +342,10 @@ export function PromotionsPage() {
           <Percent className="h-5 w-5 text-stone-500" />
           <h2 className="text-lg font-semibold">Sales</h2>
         </div>
+        <p className="text-sm text-stone-500">
+          Set a start and end so sales auto-expire (turned off, not deleted). Use weekly for
+          recurring promotions like every weekend.
+        </p>
         <div className="grid gap-3 rounded-2xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
           <Field label="Sale name" htmlFor="sale-name">
             <Input
@@ -278,6 +365,89 @@ export function PromotionsPage() {
               onChange={(e) => setSalePercent(e.target.value)}
             />
           </Field>
+          <Field label="Schedule" htmlFor="sale-mode">
+            <Select
+              id="sale-mode"
+              value={saleMode}
+              onChange={(e) => setSaleMode(e.target.value as SaleScheduleMode)}
+            >
+              <option value="fixed">One-time window</option>
+              <option value="weekly">Weekly (cyclical)</option>
+            </Select>
+          </Field>
+          <div className="hidden sm:block" />
+          <Field
+            label={saleMode === 'weekly' ? 'Campaign start (optional)' : 'Starts'}
+            htmlFor="sale-start"
+            hint={
+              saleMode === 'fixed'
+                ? 'Leave blank to start immediately.'
+                : 'Weekly cycles begin after this time.'
+            }
+          >
+            <Input
+              id="sale-start"
+              type="datetime-local"
+              value={saleStartsAt}
+              onChange={(e) => setSaleStartsAt(e.target.value)}
+            />
+          </Field>
+          <Field
+            label={saleMode === 'weekly' ? 'Campaign end (auto-expires)' : 'Ends (auto-expires)'}
+            htmlFor="sale-end"
+            hint="When this passes, the sale turns off but stays in your list."
+          >
+            <Input
+              id="sale-end"
+              type="datetime-local"
+              value={saleEndsAt}
+              onChange={(e) => setSaleEndsAt(e.target.value)}
+              min={saleStartsAt || undefined}
+            />
+          </Field>
+          {saleMode === 'weekly' ? (
+            <>
+              <div className="sm:col-span-2">
+                <p className="mb-2 text-sm font-medium text-stone-700">Days of week</p>
+                <div className="flex flex-wrap gap-2">
+                  {DAY_OPTIONS.map((day) => {
+                    const on = saleDays.includes(day.value)
+                    return (
+                      <button
+                        key={day.value}
+                        type="button"
+                        onClick={() => toggleDay(day.value)}
+                        className={cn(
+                          'rounded-lg border px-3 py-1.5 text-sm font-medium',
+                          on
+                            ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+                            : 'border-stone-200 text-stone-600 hover:bg-stone-50',
+                        )}
+                      >
+                        {day.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <Field label="Daily start time" htmlFor="sale-time-start">
+                <Input
+                  id="sale-time-start"
+                  type="time"
+                  value={saleStartTime}
+                  onChange={(e) => setSaleStartTime(e.target.value)}
+                />
+              </Field>
+              <Field label="Daily end time" htmlFor="sale-time-end">
+                <Input
+                  id="sale-time-end"
+                  type="time"
+                  value={saleEndTime}
+                  onChange={(e) => setSaleEndTime(e.target.value)}
+                />
+              </Field>
+            </>
+          ) : null}
           <div className="sm:col-span-2">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -306,9 +476,28 @@ export function PromotionsPage() {
               </Field>
             </div>
           ) : null}
-          <div className="sm:col-span-2">
+          <div className="sm:col-span-2 flex flex-wrap gap-2">
             <Button type="button" disabled={busy} onClick={() => void createSale()}>
               Create sale
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const start = new Date()
+                start.setMinutes(0, 0, 0)
+                const end = new Date(start)
+                end.setMonth(end.getMonth() + 3)
+                setSaleMode('weekly')
+                setSaleDays([5, 6])
+                setSaleStartTime('00:00')
+                setSaleEndTime('23:59')
+                setSaleStartsAt(toDatetimeLocalValue(start))
+                setSaleEndsAt(toDatetimeLocalValue(end))
+                setSaleName((n) => n || 'Weekend sale')
+              }}
+            >
+              Prefill weekend cycle
             </Button>
           </div>
         </div>
@@ -316,39 +505,48 @@ export function PromotionsPage() {
           {sales.length === 0 ? (
             <li className="px-4 py-6 text-sm text-stone-500">No sales yet.</li>
           ) : (
-            sales.map((sale) => (
-              <li
-                key={sale.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
-              >
-                <div>
-                  <div className="text-sm font-semibold">
-                    {sale.name} · {sale.percentOff}% off
+            sales.map((sale) => {
+              const status = getSaleLifecycleStatus(sale, new Date())
+              // tick forces re-eval of live/between_cycles without remounting
+              void tick
+              const badge = lifecycleBadge(status)
+              return (
+                <li
+                  key={sale.id}
+                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold">
+                      {sale.name} · {sale.percentOff}% off
+                    </div>
+                    <div className="text-xs text-stone-500">
+                      {sale.itemIds.length === 0
+                        ? 'Storewide'
+                        : `${sale.itemIds.length} item${sale.itemIds.length === 1 ? '' : 's'}`}
+                      {' · '}
+                      {describeSaleSchedule(sale)}
+                    </div>
                   </div>
-                  <div className="text-xs text-stone-500">
-                    {sale.itemIds.length === 0
-                      ? 'Storewide'
-                      : `${sale.itemIds.length} item${sale.itemIds.length === 1 ? '' : 's'}`}
+                  <div className="flex items-center gap-2">
+                    <Badge tone={badge.tone}>{badge.label}</Badge>
+                    <button type="button" onClick={() => void toggleSale(sale)}>
+                      <Badge tone={sale.active ? 'success' : 'neutral'}>
+                        {sale.active ? 'Enabled' : 'Disabled'}
+                      </Badge>
+                    </button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Delete sale"
+                      onClick={() => void removeSale(sale.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => void toggleSale(sale)}>
-                    <Badge tone={sale.active ? 'success' : 'neutral'}>
-                      {sale.active ? 'Active' : 'Off'}
-                    </Badge>
-                  </button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Delete sale"
-                    onClick={() => void removeSale(sale.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </li>
-            ))
+                </li>
+              )
+            })
           )}
         </ul>
       </section>

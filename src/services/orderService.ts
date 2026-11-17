@@ -27,6 +27,7 @@ import {
 import { createId, nowIso } from '@/lib/utils'
 import { assertRestaurantAccess } from '@/services/restaurantService'
 import { trackEvent } from '@/services/analyticsService'
+import { expireEndedSales } from '@/services/promotionService'
 import { normalizeLoyaltySettings } from '@/types'
 
 export interface PlaceOrderInput {
@@ -81,6 +82,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
   if (!input.lines.length) throw new Error('Your bag is empty.')
 
   const loyalty = normalizeLoyaltySettings(restaurant.loyalty)
+  await expireEndedSales(restaurant.id)
   const sales = db.sales.filter((s) => s.restaurantId === restaurant.id)
   const now = new Date()
 

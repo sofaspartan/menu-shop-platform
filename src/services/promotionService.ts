@@ -1,8 +1,23 @@
 import type { Coupon, Sale } from '@/types'
 import { getDb, saveDb } from '@/data/db'
-import { normalizeCouponCode } from '@/lib/commerce'
+import { applySaleExpirations, normalizeCouponCode } from '@/lib/commerce'
 import { createId, nowIso } from '@/lib/utils'
 import { assertRestaurantAccess } from '@/services/restaurantService'
+
+/**
+ * Flip ended campaigns to inactive without deleting them.
+ * Weekly sales stay active until their campaign `endsAt` passes.
+ */
+export async function expireEndedSales(restaurantId?: string): Promise<number> {
+  let count = 0
+  await saveDb((d) => {
+    const scoped = restaurantId
+      ? d.sales.filter((s) => s.restaurantId === restaurantId)
+      : d.sales
+    count = applySaleExpirations(scoped, new Date(), nowIso)
+  })
+  return count
+}
 
 export async function listCoupons(userId: string, restaurantId: string): Promise<Coupon[]> {
   await assertRestaurantAccess(userId, restaurantId)
@@ -14,6 +29,7 @@ export async function listCoupons(userId: string, restaurantId: string): Promise
 
 export async function listSales(userId: string, restaurantId: string): Promise<Sale[]> {
   await assertRestaurantAccess(userId, restaurantId)
+  await expireEndedSales(restaurantId)
   const db = await getDb()
   return db.sales
     .filter((s) => s.restaurantId === restaurantId)
@@ -21,6 +37,7 @@ export async function listSales(userId: string, restaurantId: string): Promise<S
 }
 
 export async function getActiveSalesForStore(restaurantId: string): Promise<Sale[]> {
+  await expireEndedSales(restaurantId)
   const db = await getDb()
   return db.sales.filter((s) => s.restaurantId === restaurantId)
 }
@@ -132,6 +149,13 @@ export async function createSale(
   if (input.percentOff <= 0 || input.percentOff > 90) {
     throw new Error('Sale percent must be between 1 and 90.')
   }
+  const mode = input.scheduleMode ?? 'fixed'
+  if (mode === 'weekly' && !(input.daysOfWeek && input.daysOfWeek.length)) {
+    throw new Error('Pick at least one weekday for a weekly sale.')
+  }
+  if (input.startsAt && input.endsAt && new Date(input.endsAt) <= new Date(input.startsAt)) {
+    throw new Error('Sale end must be after the start.')
+  }
   const ts = nowIso()
   const sale: Sale = {
     id: createId('sale'),
@@ -141,6 +165,10 @@ export async function createSale(
     itemIds: input.itemIds ?? [],
     startsAt: input.startsAt,
     endsAt: input.endsAt,
+    scheduleMode: mode,
+    daysOfWeek: mode === 'weekly' ? input.daysOfWeek : undefined,
+    startTime: mode === 'weekly' ? input.startTime || '00:00' : undefined,
+    endTime: mode === 'weekly' ? input.endTime || '23:59' : undefined,
     active: input.active ?? true,
     createdAt: ts,
     updatedAt: ts,
@@ -160,8 +188,12 @@ export async function updateSale(
   await saveDb((d) => {
     const sale = d.sales.find((s) => s.id === saleId && s.restaurantId === restaurantId)
     if (!sale) throw new Error('Sale not found.')
-    const { id: _id, restaurantId: _r, createdAt: _c, ...rest } = patch
+    const { id: _id, restaurantId: _r, createdAt: _c, expiredAt: _e, ...rest } = patch
     Object.assign(sale, rest, { updatedAt: nowIso() })
+    // Reactivating or extending clears auto-expire marker.
+    if (patch.active === true || (patch.endsAt && new Date(patch.endsAt) > new Date())) {
+      sale.expiredAt = undefined
+    }
     updated = sale
   })
   return updated!
