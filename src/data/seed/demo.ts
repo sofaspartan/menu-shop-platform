@@ -12,7 +12,8 @@ import type {
   QrCode,
   Restaurant,
 } from '@/types'
-import { DEFAULT_BRANDING, DEFAULT_ORDERING } from '@/types'
+import { DEFAULT_BRANDING, DEFAULT_ORDERING, DEFAULT_RESERVATION_SETTINGS } from '@/types'
+import type { DiningTable, Reservation } from '@/types'
 import { createId, nowIso } from '@/lib/utils'
 import { hashPassword } from '@/lib/crypto'
 import { buildHavenHideSeed } from '@/data/seed/retailHaven'
@@ -188,6 +189,15 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
           itemId: 'item_side_salad',
         },
       ],
+    },
+    reservations: {
+      ...DEFAULT_RESERVATION_SETTINGS,
+      enabled: true,
+      slotMinutes: 30,
+      maxPartySize: 8,
+      durationMinutes: 90,
+      minLeadMinutes: 30,
+      maxDaysAhead: 21,
     },
     overlapBehavior: 'show_both',
     isDemo: true,
@@ -978,6 +988,44 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       updatedAt: ts,
     },
     {
+      id: 'disp_ct_queue',
+      restaurantId,
+      name: 'Pickup status board',
+      slug: 'order-status',
+      active: true,
+      kind: 'orderStatus' as const,
+      slideDurationSec: 8,
+      showLogo: true,
+      showStoreName: true,
+      showDate: true,
+      showLive: true,
+      showTime: true,
+      showHeader: true,
+      logoStyle: 'roundedSquare' as const,
+      headline: 'Preparing',
+      tagline: 'Hang tight — we’re on it',
+      graphicsChrome: 'fullscreen' as const,
+      graphicSlides: [],
+      featuredSource: 'auto' as const,
+      featuredCatalogScope: 'daypart' as const,
+      menuIds: [],
+      sectionIds: [],
+      menuCatalogScope: 'daypart' as const,
+      showPrices: true,
+      showSoldOut: false,
+      brandingLayout: 'card' as const,
+      menuLayout: 'cards' as const,
+      showItemImages: true,
+      itemsPerAutoSlide: 4,
+      showFeaturedTitle: true,
+      itemSlides: [],
+      orderStatusShowPreparing: true,
+      orderStatusShowReady: true,
+      orderStatusShowGuestName: true,
+      createdAt: ts,
+      updatedAt: ts,
+    },
+    {
       id: 'disp_ct_main',
       restaurantId,
       name: 'Dining room featured board',
@@ -1423,8 +1471,85 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
 
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
+  const diningTables: DiningTable[] = [
+    {
+      id: 'tbl_ct_1',
+      restaurantId,
+      name: 'Window 1',
+      seats: 2,
+      active: true,
+      sortOrder: 0,
+      createdAt: ts,
+      updatedAt: ts,
+    },
+    {
+      id: 'tbl_ct_2',
+      restaurantId,
+      name: 'Window 2',
+      seats: 2,
+      active: true,
+      sortOrder: 1,
+      createdAt: ts,
+      updatedAt: ts,
+    },
+    {
+      id: 'tbl_ct_4',
+      restaurantId,
+      name: 'Booth A',
+      seats: 4,
+      active: true,
+      sortOrder: 2,
+      createdAt: ts,
+      updatedAt: ts,
+    },
+    {
+      id: 'tbl_ct_6',
+      restaurantId,
+      name: 'Garden 6',
+      seats: 6,
+      active: true,
+      sortOrder: 3,
+      createdAt: ts,
+      updatedAt: ts,
+    },
+    {
+      id: 'tbl_ct_8',
+      restaurantId,
+      name: 'Private 8',
+      seats: 8,
+      active: true,
+      sortOrder: 4,
+      createdAt: ts,
+      updatedAt: ts,
+    },
+  ]
+
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  tomorrow.setHours(18, 30, 0, 0)
+  const tomorrowEnd = new Date(tomorrow.getTime() + 90 * 60_000)
+  const reservations: Reservation[] = [
+    {
+      id: 'rsv_ct_demo',
+      restaurantId,
+      tableId: 'tbl_ct_4',
+      guestName: 'Jordan Lee',
+      guestEmail: 'jordan@example.com',
+      guestPhone: '5550109999',
+      partySize: 4,
+      startAt: tomorrow.toISOString(),
+      endAt: tomorrowEnd.toISOString(),
+      notes: 'Anniversary — quiet corner if possible',
+      status: 'booked',
+      source: 'online',
+      confirmationCode: 'CT4DEMO',
+      createdAt: ts,
+      updatedAt: ts,
+    },
+  ]
+
   return {
-    version: 19,
+    version: 20,
     users: [
       {
         id: userId,
@@ -1469,6 +1594,8 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     displays: [...displays, ...haven.displays],
     brandThemes: [],
     orders: [...orders, ...haven.orders],
+    diningTables,
+    reservations,
     coupons: [
       {
         id: 'cpn_ct_lunch',

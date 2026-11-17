@@ -162,6 +162,9 @@ export type DisplayPatch = Partial<
     | 'itemsPerAutoSlide'
     | 'showFeaturedTitle'
     | 'itemSlides'
+    | 'orderStatusShowPreparing'
+    | 'orderStatusShowReady'
+    | 'orderStatusShowGuestName'
   >
 > & { slug?: string }
 
@@ -237,6 +240,15 @@ export async function updateDisplay(
       next.showFeaturedTitle = patch.showFeaturedTitle
     }
     if (patch.itemSlides !== undefined) next.itemSlides = patch.itemSlides
+    if (patch.orderStatusShowPreparing !== undefined) {
+      next.orderStatusShowPreparing = patch.orderStatusShowPreparing
+    }
+    if (patch.orderStatusShowReady !== undefined) {
+      next.orderStatusShowReady = patch.orderStatusShowReady
+    }
+    if (patch.orderStatusShowGuestName !== undefined) {
+      next.orderStatusShowGuestName = patch.orderStatusShowGuestName
+    }
     if (patch.slug !== undefined) {
       next.slug = slugify(patch.slug) || next.slug
     }

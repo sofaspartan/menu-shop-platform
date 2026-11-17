@@ -92,15 +92,17 @@ export function HeroCtaFields({
             ? 'Opens the About page.'
             : target.kind === 'contact'
               ? 'Opens the Contact page.'
-              : target.kind === 'home'
-                ? 'Goes to the storefront home.'
-                : target.kind === 'featured'
-                  ? 'Jumps to the Featured section on the homepage.'
-                  : target.kind === 'aboutSection'
-                    ? 'Jumps to the About teaser on the homepage.'
-                    : target.kind === 'path'
-                      ? 'Relative to this store (e.g. about, shop, or a hash).'
-                      : 'Opens an external link in a new tab.'}
+              : target.kind === 'reserve'
+                ? 'Opens the table reservation page.'
+                : target.kind === 'home'
+                  ? 'Goes to the storefront home.'
+                  : target.kind === 'featured'
+                    ? 'Jumps to the Featured section on the homepage.'
+                    : target.kind === 'aboutSection'
+                      ? 'Jumps to the About teaser on the homepage.'
+                      : target.kind === 'path'
+                        ? 'Relative to this store (e.g. about, shop, or a hash).'
+                        : 'Opens an external link in a new tab.'}
       </p>
     </div>
   )

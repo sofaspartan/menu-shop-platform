@@ -20,6 +20,7 @@ import {
   TabletSmartphone,
   Monitor,
   MonitorPlay,
+  Armchair,
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -120,6 +121,9 @@ export function DashboardLayout() {
           { to: '/dashboard/displays', label: copy.displayNounPlural, icon: MonitorPlay },
           { to: '/dashboard/pos', label: 'Point of sale', icon: TabletSmartphone },
           { to: '/dashboard/kitchen', label: copy.bohNoun, icon: Monitor },
+          ...(copy.isRetail
+            ? []
+            : [{ to: '/dashboard/dining', label: 'Dining', icon: Armchair }]),
           { to: '/dashboard/preview', label: 'Preview', icon: Eye },
         ],
       },

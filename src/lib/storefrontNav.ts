@@ -1,5 +1,5 @@
 import type { Restaurant } from '@/types'
-import { normalizeStoreHome } from '@/types'
+import { normalizeReservationSettings, normalizeStoreHome } from '@/types'
 import { storeCopy } from '@/lib/storeCopy'
 
 function homeEnabled(restaurant: Restaurant): boolean {
@@ -44,6 +44,17 @@ export function storefrontNavLinks(restaurant: Restaurant): StorefrontNavLink[] 
         { to: shop, label: shopLabel, end: false, kind: 'shop' },
       ]
     : [{ to: base, label: shopLabel, end: true, kind: 'shop' }]
+
+  const reservationsOn =
+    !copy.isRetail && normalizeReservationSettings(restaurant.reservations).enabled
+  if (reservationsOn) {
+    links.push({
+      to: `${base}/reserve`,
+      label: 'Reserve',
+      end: false,
+      kind: 'page',
+    })
+  }
 
   if (pages?.about?.enabled) {
     links.push({

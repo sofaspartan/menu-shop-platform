@@ -26,10 +26,12 @@ import { PromotionsPage } from '@/pages/dashboard/PromotionsPage'
 import { PosPage } from '@/pages/dashboard/PosPage'
 import { KitchenDisplayPage } from '@/pages/dashboard/KitchenDisplayPage'
 import { DisplaysPage } from '@/pages/dashboard/DisplaysPage'
+import { DiningPage } from '@/pages/dashboard/DiningPage'
 import { DisplayBoardPage } from '@/pages/storefront/DisplayBoardPage'
 import { RestaurantPage } from '@/pages/storefront/RestaurantPage'
 import { AboutPage } from '@/pages/storefront/AboutPage'
 import { ContactPage } from '@/pages/storefront/ContactPage'
+import { ReservePage } from '@/pages/storefront/ReservePage'
 import { CheckoutPage } from '@/pages/storefront/CheckoutPage'
 import { OrderTrackerPage } from '@/pages/storefront/OrderTrackerPage'
 import { useAuthStore } from '@/stores/authStore'
@@ -62,6 +64,7 @@ export default function App() {
           <Route path="orders/:orderId" element={<OrderDetailPage />} />
           <Route path="pos" element={<PosPage />} />
           <Route path="kitchen" element={<KitchenDisplayPage />} />
+          <Route path="dining" element={<DiningPage />} />
           <Route path="menus" element={<MenusPage />} />
           <Route path="items" element={<ItemsPage />} />
           <Route path="modifiers" element={<ModifiersPage />} />
@@ -84,6 +87,7 @@ export default function App() {
         <Route path="/r/:slug/menu/:menuSlug" element={<RestaurantPage />} />
         <Route path="/r/:slug/about" element={<AboutPage />} />
         <Route path="/r/:slug/contact" element={<ContactPage />} />
+        <Route path="/r/:slug/reserve" element={<ReservePage />} />
         <Route path="/r/:slug/checkout" element={<CheckoutPage />} />
         <Route path="/r/:slug/display/:displaySlug" element={<DisplayBoardPage />} />
         <Route path="/order/:reference" element={<OrderTrackerPage />} />

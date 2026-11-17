@@ -95,7 +95,7 @@ export function LandingPage() {
               icon={UtensilsCrossed}
               eyebrow="Restaurants"
               title="Menus that order themselves"
-              body="Daypart menus, modifiers, combos, kitchen display, and pickup or delivery — branded to your dining room."
+              body="Daypart menus, table reservations, modifiers, combos, kitchen display, and pickup or delivery — branded to your dining room."
               image="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&q=80"
               cta="Open restaurant demo"
             />
@@ -137,11 +137,11 @@ export function LandingPage() {
         <FeatureBand
           eyebrow="Orders & operations"
           title="From tap to ticket"
-          body="Customers order on phone; staff run POS, kitchen or fulfillment displays, and live order tracking."
+          body="Customers order on phone or reserve a table; staff run POS, dining floor, kitchen displays, and live order tracking."
           points={[
             'Simulated checkout and live order status',
-            'QR codes into the right catalog or page',
-            'Owner dashboard with analytics',
+            'Table management, walk-ins, and online reservations',
+            'Customer-facing pickup status boards',
           ]}
         />
 

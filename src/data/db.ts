@@ -1,9 +1,11 @@
 import type { AppDatabase } from '@/types'
 import {
+  DEFAULT_RESERVATION_SETTINGS,
   defaultStorePagesFor,
   normalizeAboutPage,
   normalizeContactPage,
   normalizeCoverIntro,
+  normalizeReservationSettings,
   normalizeStoreFooter,
 } from '@/types'
 import {
@@ -119,7 +121,8 @@ export async function getDb(): Promise<AppDatabase> {
         existing.version === 16 ||
         existing.version === 17 ||
         existing.version === 18 ||
-        existing.version === 19)
+        existing.version === 19 ||
+        existing.version === 20)
     ) {
       if (!existing.brandThemes) existing.brandThemes = []
       if (!existing.coupons) existing.coupons = []
@@ -127,13 +130,16 @@ export async function getDb(): Promise<AppDatabase> {
       if (!existing.loyaltyAccounts) existing.loyaltyAccounts = []
       if (!existing.loyaltyLedger) existing.loyaltyLedger = []
       if (!existing.displays) existing.displays = []
+      if (!existing.diningTables) existing.diningTables = []
+      if (!existing.reservations) existing.reservations = []
       // Soft-migrate older display drafts in place.
       existing.displays = existing.displays.map((d) => {
         const kind =
           d.kind === 'branding' ||
           d.kind === 'graphics' ||
           d.kind === 'featured' ||
-          d.kind === 'menu'
+          d.kind === 'menu' ||
+          d.kind === 'orderStatus'
             ? d.kind
             : d.mode === 'branding' ||
                 d.mode === 'graphics' ||
@@ -208,6 +214,14 @@ export async function getDb(): Promise<AppDatabase> {
             pointsPerDollar: 1,
             rewards: [],
           }
+        }
+        if (!r.reservations) {
+          r.reservations = {
+            ...DEFAULT_RESERVATION_SETTINGS,
+            enabled: (r.storeKind ?? 'restaurant') === 'restaurant',
+          }
+        } else {
+          r.reservations = normalizeReservationSettings(r.reservations)
         }
         if (!r.pages) {
           r.pages = defaultStorePagesFor(r.storeKind ?? 'restaurant')

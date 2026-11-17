@@ -18,7 +18,8 @@ function asKind(display: Display): DisplayKind {
     display.kind === 'branding' ||
     display.kind === 'graphics' ||
     display.kind === 'featured' ||
-    display.kind === 'menu'
+    display.kind === 'menu' ||
+    display.kind === 'orderStatus'
   ) {
     return display.kind
   }
@@ -100,6 +101,9 @@ export function normalizeDisplay(raw: Display): Display {
     itemsPerAutoSlide: Math.max(1, Math.min(8, raw.itemsPerAutoSlide || 4)),
     showFeaturedTitle: raw.showFeaturedTitle !== false,
     itemSlides,
+    orderStatusShowPreparing: raw.orderStatusShowPreparing !== false,
+    orderStatusShowReady: raw.orderStatusShowReady !== false,
+    orderStatusShowGuestName: raw.orderStatusShowGuestName !== false,
   }
 }
 
@@ -113,5 +117,7 @@ export function displayKindLabel(kind: DisplayKind): string {
       return 'Featured items'
     case 'menu':
       return 'Ordering menu'
+    case 'orderStatus':
+      return 'Order status board'
   }
 }

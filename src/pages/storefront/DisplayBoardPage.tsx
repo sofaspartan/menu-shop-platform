@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { CalendarDays, Clock } from 'lucide-react'
+import type { Display, LogoStyle, Order, Restaurant } from '@/types'
 import { useDb } from '@/hooks/useDb'
 import { LiveIndicator } from '@/components/ui/LiveIndicator'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
@@ -9,7 +10,6 @@ import { buildDisplaySlides, type BoardSlide } from '@/lib/displayBoard'
 import { normalizeDisplay } from '@/lib/normalizeDisplay'
 import { storeCopy } from '@/lib/storeCopy'
 import { logoImageClass } from '@/lib/logoStyle'
-import type { LogoStyle } from '@/types'
 import { cn, formatMoney } from '@/lib/utils'
 
 export function DisplayBoardPage() {
@@ -60,6 +60,7 @@ export function DisplayBoardPage() {
 
   const durationMs = Math.max(3, display?.slideDurationSec ?? 8) * 1000
   const isMenuBoard = display?.kind === 'menu'
+  const isOrderStatusBoard = display?.kind === 'orderStatus'
   const framedGraphics =
     display?.kind === 'graphics' && display.graphicsChrome === 'framed'
   const brandingFullBleed =
@@ -68,23 +69,38 @@ export function DisplayBoardPage() {
     (display?.kind === 'branding' && !brandingFullBleed) ||
     display?.kind === 'featured' ||
     display?.kind === 'menu' ||
+    display?.kind === 'orderStatus' ||
     framedGraphics
   const showChrome = Boolean(chromeCapable && display?.showHeader !== false)
+
+  const queueOrders = useMemo(() => {
+    if (!db || !restaurant || !isOrderStatusBoard) return [] as Order[]
+    return db.orders
+      .filter(
+        (o) =>
+          o.restaurantId === restaurant.id &&
+          (o.status === 'confirmed' ||
+            o.status === 'preparing' ||
+            o.status === 'ready' ||
+            o.status === 'out_for_delivery'),
+      )
+      .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
+  }, [db, restaurant, isOrderStatusBoard, revision])
 
   useEffect(() => {
     setSlideIndex(0)
   }, [display?.id, slides.length])
 
   useEffect(() => {
-    // Ordering menu boards are static — no slideshow rotation.
+    // Ordering menu boards and order-status boards are static — no slideshow rotation.
     // Do not depend on `revision`: DB polls every few seconds and would
     // constantly restart the timer before the slide duration elapses.
-    if (isMenuBoard || slides.length <= 1) return
+    if (isMenuBoard || isOrderStatusBoard || slides.length <= 1) return
     const id = window.setInterval(() => {
       setSlideIndex((i) => (i + 1) % slides.length)
     }, durationMs)
     return () => window.clearInterval(id)
-  }, [slides.length, durationMs, isMenuBoard])
+  }, [slides.length, durationMs, isMenuBoard, isOrderStatusBoard])
 
   if (loading) {
     return (
@@ -114,6 +130,21 @@ export function DisplayBoardPage() {
     month: 'long',
     day: 'numeric',
   })
+
+  if (isOrderStatusBoard) {
+    return (
+      <OrderStatusBoardView
+        restaurant={restaurant}
+        display={display}
+        orders={queueOrders}
+        now={now}
+        dateLabel={dateLabel}
+        revision={revision}
+        lastSyncedAt={lastSyncedAt}
+        showChrome={showChrome}
+      />
+    )
+  }
 
   return (
     <div
@@ -937,5 +968,204 @@ function MenuBoardView({
         ))}
       </div>
     </section>
+  )
+}
+
+function OrderStatusBoardView({
+  restaurant,
+  display,
+  orders,
+  now,
+  dateLabel,
+  revision,
+  lastSyncedAt,
+  showChrome,
+}: {
+  restaurant: Restaurant
+  display: Display
+  orders: Order[]
+  now: Date
+  dateLabel: string
+  revision: number
+  lastSyncedAt?: number | null
+  showChrome: boolean
+}) {
+  const style = brandingStyleVars(restaurant.branding)
+  const preparing = orders.filter(
+    (o) => o.status === 'confirmed' || o.status === 'preparing',
+  )
+  const ready = orders.filter(
+    (o) => o.status === 'ready' || o.status === 'out_for_delivery',
+  )
+  const showPreparing = display.orderStatusShowPreparing !== false
+  const showReady = display.orderStatusShowReady !== false
+  const preferName = display.orderStatusShowGuestName !== false
+
+  function labelFor(order: Order): string {
+    const name = order.customer?.name?.trim()
+    if (preferName && name) return name
+    return order.reference
+  }
+
+  const columns = [
+    showPreparing
+      ? {
+          id: 'preparing',
+          title: display.headline?.trim() || 'Preparing',
+          subtitle: display.tagline?.trim() || 'Almost ready',
+          orders: preparing,
+          tone: 'prep' as const,
+        }
+      : null,
+    showReady
+      ? {
+          id: 'ready',
+          title: 'Ready',
+          subtitle: 'Please come to the counter',
+          orders: ready,
+          tone: 'ready' as const,
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    id: string
+    title: string
+    subtitle: string
+    orders: Order[]
+    tone: 'prep' | 'ready'
+  }>
+
+  return (
+    <div
+      className="relative flex h-screen max-h-screen flex-col overflow-hidden text-[var(--brand-text)]"
+      style={{
+        ...style,
+        background: restaurant.branding.backgroundColor,
+        fontFamily: 'var(--brand-body)',
+      }}
+    >
+      {showChrome ? (
+        <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 px-8 py-4">
+          <div className="flex min-w-0 items-center gap-4">
+            {display.showLogo && restaurant.logoUrl ? (
+              <img
+                src={restaurant.logoUrl}
+                alt=""
+                className={logoImageClass(display.logoStyle, 'header')}
+              />
+            ) : null}
+            {display.showStoreName ? (
+              <p
+                className="truncate text-xl font-semibold tracking-tight"
+                style={{ fontFamily: 'var(--brand-heading)' }}
+              >
+                {restaurant.name}
+              </p>
+            ) : null}
+          </div>
+          {(display.showLive || display.showDate || display.showTime) ? (
+            <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+              {display.showLive ? (
+                <LiveIndicator
+                  pulseKey={`${revision}-${lastSyncedAt ?? 0}-${orders.length}`}
+                  className="!text-[var(--brand-primary)]"
+                />
+              ) : null}
+              {display.showDate ? (
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium opacity-70">
+                  <CalendarDays className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                  <span>{dateLabel}</span>
+                </span>
+              ) : null}
+              {display.showTime ? (
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium tabular-nums opacity-70">
+                  <Clock className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                  <span>
+                    {now.toLocaleTimeString([], {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </header>
+      ) : null}
+
+      <main className="relative z-10 grid min-h-0 flex-1 gap-6 overflow-hidden px-8 pb-8 pt-2 md:grid-cols-2">
+        {columns.map((col) => (
+          <section
+            key={col.id}
+            className={cn(
+              'flex min-h-0 flex-col overflow-hidden rounded-[2rem] border p-5 sm:p-6',
+              col.tone === 'ready'
+                ? 'border-[var(--brand-primary)]/30 bg-[var(--brand-primary)] text-[var(--brand-button-text)]'
+                : 'border-[var(--brand-text)]/10 bg-[var(--brand-surface)]',
+            )}
+          >
+            <div className="mb-4 shrink-0">
+              <h2
+                className="font-display text-3xl tracking-tight sm:text-4xl"
+                style={{ fontFamily: 'var(--brand-heading)' }}
+              >
+                {col.title}
+              </h2>
+              <p
+                className={cn(
+                  'mt-1 text-sm',
+                  col.tone === 'ready' ? 'opacity-80' : 'opacity-60',
+                )}
+              >
+                {col.subtitle}
+              </p>
+            </div>
+            <ul className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+              {col.orders.length === 0 ? (
+                <li
+                  className={cn(
+                    'rounded-2xl border border-dashed px-4 py-8 text-center text-sm',
+                    col.tone === 'ready'
+                      ? 'border-white/30 opacity-80'
+                      : 'border-[var(--brand-text)]/15 opacity-50',
+                  )}
+                >
+                  No orders here right now
+                </li>
+              ) : (
+                col.orders.map((order) => (
+                  <li
+                    key={order.id}
+                    className={cn(
+                      'rounded-2xl px-4 py-4 shadow-sm',
+                      col.tone === 'ready'
+                        ? 'bg-white/15 backdrop-blur'
+                        : 'bg-[var(--brand-bg)]',
+                    )}
+                  >
+                    <p
+                      className="font-display text-2xl tracking-tight sm:text-3xl"
+                      style={{ fontFamily: 'var(--brand-heading)' }}
+                    >
+                      {labelFor(order)}
+                    </p>
+                    <p
+                      className={cn(
+                        'mt-1 text-sm tabular-nums',
+                        col.tone === 'ready' ? 'opacity-75' : 'opacity-55',
+                      )}
+                    >
+                      #{order.reference}
+                      {order.fulfillment?.type
+                        ? ` · ${order.fulfillment.type.replace('_', ' ')}`
+                        : ''}
+                    </p>
+                  </li>
+                ))
+              )}
+            </ul>
+          </section>
+        ))}
+      </main>
+    </div>
   )
 }

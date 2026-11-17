@@ -11,6 +11,7 @@ import {
   DEFAULT_BRANDING,
   DEFAULT_LOYALTY,
   DEFAULT_ORDERING,
+  DEFAULT_RESERVATION_SETTINGS,
   DEFAULT_RETAIL_ORDERING,
   defaultStorePagesFor,
 } from '@/types'
@@ -100,6 +101,10 @@ export async function createRestaurant(
       ...(storeKind === 'retail' ? DEFAULT_RETAIL_ORDERING : DEFAULT_ORDERING),
     },
     loyalty: { ...DEFAULT_LOYALTY, rewards: [] },
+    reservations: {
+      ...DEFAULT_RESERVATION_SETTINGS,
+      enabled: storeKind === 'restaurant',
+    },
     storefrontLayout: storeKind === 'retail' ? 'retail' : 'restaurant',
     storefrontWidth: 'margined',
     pages: defaultStorePagesFor(storeKind),

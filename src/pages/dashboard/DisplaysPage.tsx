@@ -33,6 +33,11 @@ const KIND_OPTIONS: Array<{ id: DisplayKind; blurb: string }> = [
       'Above-counter ordering board — sections with offerings, prices, and imagery. Not a slideshow.',
   },
   {
+    id: 'orderStatus',
+    blurb:
+      'Customer-facing queue board — preparing and ready tickets, no staff controls (think counter pickup screens).',
+  },
+  {
     id: 'branding',
     blurb: 'Logo + title on a background image — a simple brand sign.',
   },
@@ -1082,6 +1087,57 @@ export function DisplaysPage() {
                       )}
                     </div>
                   )}
+                </div>
+              ) : null}
+
+              {selected.kind === 'orderStatus' ? (
+                <div className="space-y-3 rounded-xl border border-stone-200 bg-stone-50/70 p-4">
+                  <p className="text-sm font-medium text-stone-800">
+                    Customer order status board
+                  </p>
+                  <p className="text-xs text-stone-500">
+                    Read-only pickup screen for guests — shows preparing and ready tickets
+                    from live orders. Branding follows this store’s colors, logo, and chrome
+                    toggles above.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <label className="flex items-center gap-2 text-sm text-stone-700">
+                      <input
+                        type="checkbox"
+                        checked={selected.orderStatusShowPreparing !== false}
+                        onChange={(e) =>
+                          void patchSelected({
+                            orderStatusShowPreparing: e.target.checked,
+                          })
+                        }
+                      />
+                      Show preparing
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-stone-700">
+                      <input
+                        type="checkbox"
+                        checked={selected.orderStatusShowReady !== false}
+                        onChange={(e) =>
+                          void patchSelected({
+                            orderStatusShowReady: e.target.checked,
+                          })
+                        }
+                      />
+                      Show ready
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-stone-700">
+                      <input
+                        type="checkbox"
+                        checked={selected.orderStatusShowGuestName !== false}
+                        onChange={(e) =>
+                          void patchSelected({
+                            orderStatusShowGuestName: e.target.checked,
+                          })
+                        }
+                      />
+                      Prefer guest name
+                    </label>
+                  </div>
                 </div>
               ) : null}
             </div>

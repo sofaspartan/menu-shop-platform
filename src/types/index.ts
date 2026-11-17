@@ -381,6 +381,93 @@ export interface Sale extends Timestamps {
   expiredAt?: ISODateTime
 }
 
+/** Sit-down dining: online + walk-in reservations. */
+export interface ReservationSettings {
+  enabled: boolean
+  /** Length of each bookable slot. */
+  slotMinutes: number
+  maxPartySize: number
+  /** How long a booking holds a table. */
+  durationMinutes: number
+  /** Minimum notice before a slot (minutes). */
+  minLeadMinutes: number
+  /** How far ahead guests can book (days). */
+  maxDaysAhead: number
+}
+
+export const DEFAULT_RESERVATION_SETTINGS: ReservationSettings = {
+  enabled: false,
+  slotMinutes: 30,
+  maxPartySize: 8,
+  durationMinutes: 90,
+  minLeadMinutes: 60,
+  maxDaysAhead: 30,
+}
+
+export function normalizeReservationSettings(
+  raw?: Partial<ReservationSettings> | null,
+): ReservationSettings {
+  return {
+    enabled: Boolean(raw?.enabled),
+    slotMinutes: Math.max(
+      15,
+      Math.min(180, raw?.slotMinutes ?? DEFAULT_RESERVATION_SETTINGS.slotMinutes),
+    ),
+    maxPartySize: Math.max(
+      1,
+      Math.min(24, raw?.maxPartySize ?? DEFAULT_RESERVATION_SETTINGS.maxPartySize),
+    ),
+    durationMinutes: Math.max(
+      30,
+      Math.min(240, raw?.durationMinutes ?? DEFAULT_RESERVATION_SETTINGS.durationMinutes),
+    ),
+    minLeadMinutes: Math.max(
+      0,
+      Math.min(24 * 60, raw?.minLeadMinutes ?? DEFAULT_RESERVATION_SETTINGS.minLeadMinutes),
+    ),
+    maxDaysAhead: Math.max(
+      1,
+      Math.min(180, raw?.maxDaysAhead ?? DEFAULT_RESERVATION_SETTINGS.maxDaysAhead),
+    ),
+  }
+}
+
+export interface DiningTable extends Timestamps {
+  id: ID
+  restaurantId: ID
+  name: string
+  seats: number
+  active: boolean
+  sortOrder: number
+}
+
+export type ReservationStatus =
+  | 'booked'
+  | 'seated'
+  | 'completed'
+  | 'cancelled'
+  | 'no_show'
+
+export type ReservationSource = 'online' | 'walk_in' | 'phone'
+
+export interface Reservation extends Timestamps {
+  id: ID
+  restaurantId: ID
+  /** Assigned table when confirmed / seated; may be empty for unassigned bookings. */
+  tableId?: ID
+  guestName: string
+  guestEmail?: string
+  guestPhone?: string
+  partySize: number
+  startAt: ISODateTime
+  endAt: ISODateTime
+  notes?: string
+  status: ReservationStatus
+  source: ReservationSource
+  /** Public confirmation code shown to the guest. */
+  confirmationCode: string
+}
+
 export interface Restaurant extends Timestamps {
   id: ID
   organizationId: ID
@@ -413,6 +500,8 @@ export interface Restaurant extends Timestamps {
   branding: RestaurantBranding
   ordering: OrderingSettings
   loyalty: LoyaltySettings
+  /** Table reservations — primarily for restaurant storeKind. */
+  reservations: ReservationSettings
   overlapBehavior: OverlapBehavior
   isDemo?: boolean
 }
@@ -591,8 +680,14 @@ export interface QrCode extends Timestamps {
  * - graphics: repeating image slideshow (fullscreen or framed with header/footer)
  * - featured: catalog/product slides (auto from featured items, or manual pages)
  * - menu: static above-counter ordering board (sections + prices + imagery)
+ * - orderStatus: customer-facing queue board (preparing / ready) — read-only
  */
-export type DisplayKind = 'branding' | 'graphics' | 'featured' | 'menu'
+export type DisplayKind =
+  | 'branding'
+  | 'graphics'
+  | 'featured'
+  | 'menu'
+  | 'orderStatus'
 
 /** @deprecated Prefer DisplayKind */
 export type DisplayMode = 'featured' | 'catalog' | 'mixed' | DisplayKind
@@ -668,6 +763,13 @@ export interface Display extends Timestamps {
   logoStyle: LogoStyle
   headline?: string
   tagline?: string
+
+  /** Customer order-status board: show preparing column. */
+  orderStatusShowPreparing?: boolean
+  /** Customer order-status board: show ready column. */
+  orderStatusShowReady?: boolean
+  /** Prefer guest name on tickets when available. */
+  orderStatusShowGuestName?: boolean
 
   /** Branding board background (falls back to store cover). */
   backgroundImageUrl?: string
@@ -869,6 +971,8 @@ export interface AppDatabase {
   displays: Display[]
   brandThemes: BrandTheme[]
   orders: Order[]
+  diningTables: DiningTable[]
+  reservations: Reservation[]
   coupons: Coupon[]
   sales: Sale[]
   loyaltyAccounts: LoyaltyAccount[]
@@ -1073,8 +1177,8 @@ export function defaultHomeSectionsFor(kind: StoreKind): HomeSection[] {
         : 'Seasonal plates, craft drinks, and a warm welcome.',
       primaryButtonLabel: retail ? 'Shop catalog' : 'View menu',
       primaryButtonHref: 'shop',
-      secondaryButtonLabel: 'About us',
-      secondaryButtonHref: 'about',
+      secondaryButtonLabel: retail ? 'About us' : 'Reserve a table',
+      secondaryButtonHref: retail ? 'about' : 'reserve',
     },
     {
       id: 'home_about',

@@ -5,6 +5,7 @@ export type StoreLinkKind =
   | 'shop'
   | 'about'
   | 'contact'
+  | 'reserve'
   | 'home'
   | 'featured'
   | 'aboutSection'
@@ -23,6 +24,7 @@ export const STORE_LINK_KIND_OPTIONS: Array<{ value: StoreLinkKind; label: strin
   { value: 'shop', label: 'Shop / Menu' },
   { value: 'about', label: 'About page' },
   { value: 'contact', label: 'Contact page' },
+  { value: 'reserve', label: 'Reservations' },
   { value: 'home', label: 'Home (top)' },
   { value: 'featured', label: 'Featured section' },
   { value: 'aboutSection', label: 'About teaser (home)' },
@@ -42,6 +44,9 @@ export function parseStoreLinkHref(href?: string | null): StoreLinkTarget {
   if (raw === 'shop' || raw === 'menu' || raw === 'catalog') return { kind: 'shop' }
   if (raw === 'about') return { kind: 'about' }
   if (raw === 'contact') return { kind: 'contact' }
+  if (raw === 'reserve' || raw === 'reservations' || raw === 'book') {
+    return { kind: 'reserve' }
+  }
   if (raw === 'home' || raw === '/') return { kind: 'home' }
 
   if (raw.startsWith('/r/')) {
@@ -51,6 +56,7 @@ export function parseStoreLinkHref(href?: string | null): StoreLinkTarget {
     if (rest === 'shop' || rest === 'menu') return { kind: 'shop' }
     if (rest === 'about') return { kind: 'about' }
     if (rest === 'contact') return { kind: 'contact' }
+    if (rest === 'reserve') return { kind: 'reserve' }
     return { kind: 'path', path: rest }
   }
 
@@ -76,6 +82,8 @@ export function serializeStoreLinkTarget(target: StoreLinkTarget): string {
       return 'about'
     case 'contact':
       return 'contact'
+    case 'reserve':
+      return 'reserve'
     case 'home':
       return 'home'
     case 'featured':
@@ -115,6 +123,8 @@ export function resolveStoreLink(
       return { mode: 'internal', to: `${base}/about` }
     case 'contact':
       return { mode: 'internal', to: `${base}/contact` }
+    case 'reserve':
+      return { mode: 'internal', to: `${base}/reserve` }
     case 'home':
       return { mode: 'internal', to: base }
     case 'featured':
