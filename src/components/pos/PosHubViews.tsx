@@ -120,14 +120,14 @@ export function PosHomeHubFixed({
         <Badge tone="accent">POS</Badge>
       </div>
 
-      <div className="relative flex min-h-0 flex-1 flex-col px-4 py-5 sm:px-6">
+      <div className="relative flex min-h-0 flex-1 flex-col px-4 py-4 sm:px-6">
         {drawerFlash ? (
-          <div className="absolute inset-x-4 top-4 z-20 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-sm sm:inset-x-6">
+          <div className="absolute inset-x-4 top-3 z-20 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-sm sm:inset-x-6">
             Cash drawer opened (simulated).
           </div>
         ) : null}
 
-        <div className="mx-auto grid w-full max-w-xl flex-1 grid-cols-2 content-center gap-3 sm:gap-4">
+        <div className="mx-auto grid w-full max-w-xl flex-1 grid-cols-2 grid-rows-3 gap-2.5 sm:gap-3">
           {tiles
             .filter((t) => !t.hide)
             .map((tile) => {
@@ -137,9 +137,9 @@ export function PosHomeHubFixed({
                   key={tile.id}
                   type="button"
                   onClick={tile.onClick}
-                  className="flex aspect-square flex-col items-center justify-center gap-3 rounded-2xl border border-stone-200 bg-stone-100/90 px-3 text-center transition hover:border-[var(--brand-primary)]/40 hover:bg-white hover:shadow-sm active:scale-[0.98]"
+                  className="flex min-h-0 flex-col items-center justify-center gap-1.5 rounded-2xl border border-stone-200 bg-stone-100/90 px-2 py-2 text-center transition hover:border-[var(--brand-primary)]/40 hover:bg-white hover:shadow-sm active:scale-[0.98] sm:gap-2 sm:px-3"
                 >
-                  <Icon className="h-8 w-8 text-[var(--brand-primary)] sm:h-9 sm:w-9" />
+                  <Icon className="h-7 w-7 shrink-0 text-[var(--brand-primary)] sm:h-8 sm:w-8" />
                   <span className="text-sm font-semibold text-stone-900 sm:text-base">
                     {tile.label}
                   </span>
@@ -151,7 +151,7 @@ export function PosHomeHubFixed({
             })}
         </div>
 
-        <p className="mt-4 text-center text-xs text-stone-400">{restaurant.name}</p>
+        <p className="mt-3 shrink-0 text-center text-xs text-stone-400">{restaurant.name}</p>
       </div>
     </div>
   )
