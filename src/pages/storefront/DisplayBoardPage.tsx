@@ -1004,7 +1004,7 @@ function OrderStatusBoardView({
   function labelFor(order: Order): string {
     const name = order.customer?.name?.trim()
     if (preferName && name) return name
-    return order.reference
+    return order.orderNumber || order.reference
   }
 
   const columns = [
@@ -1154,7 +1154,7 @@ function OrderStatusBoardView({
                         col.tone === 'ready' ? 'opacity-75' : 'opacity-55',
                       )}
                     >
-                      #{order.reference}
+                      #{order.orderNumber || order.reference}
                       {order.fulfillment?.type
                         ? ` · ${order.fulfillment.type.replace('_', ' ')}`
                         : ''}
