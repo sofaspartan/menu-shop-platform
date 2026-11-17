@@ -54,15 +54,15 @@ export function RetailChrome({
               <MenuItemImage
                 src={restaurant.logoUrl}
                 alt=""
-                className="h-9 w-9 shrink-0 rounded-full object-cover sm:h-10 sm:w-10"
-                fallbackClassName="h-9 w-9 shrink-0 rounded-full sm:h-10 sm:w-10"
+                className="h-11 w-11 shrink-0 rounded-full object-cover sm:h-12 sm:w-12"
+                fallbackClassName="h-11 w-11 shrink-0 rounded-full sm:h-12 sm:w-12"
               />
             ) : (
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--sf-primary)] text-sm font-semibold text-white sm:h-10 sm:w-10">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--sf-primary)] text-base font-semibold text-white sm:h-12 sm:w-12">
                 {restaurant.name.slice(0, 1)}
               </span>
             )}
-            <span className="truncate font-display text-xl tracking-tight text-[var(--sf-text)] sm:text-2xl">
+            <span className="truncate font-display text-2xl font-semibold tracking-tight text-[var(--sf-text)] sm:text-[1.75rem]">
               {restaurant.name}
             </span>
           </Link>
