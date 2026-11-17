@@ -88,6 +88,9 @@
     --sf-heading: var(--brand-heading, "Fraunces", Georgia, serif);
     --sf-body: var(--brand-body, "DM Sans", system-ui, sans-serif);
     --sf-radius: var(--brand-radius, 12px);
+    /* Remap Tailwind font tokens so font-display / font-sans honor branding. */
+    --font-display: var(--sf-heading);
+    --font-sans: var(--sf-body);
   }
 
   .storefront-shell {
@@ -98,8 +101,18 @@
 
   .storefront-shell h1,
   .storefront-shell h2,
-  .storefront-shell h3 {
+  .storefront-shell h3,
+  .storefront-shell .font-display,
+  .storefront-vars .font-display {
     font-family: var(--sf-heading);
+  }
+
+  .storefront-shell,
+  .storefront-shell button,
+  .storefront-shell input,
+  .storefront-shell textarea,
+  .storefront-shell select {
+    font-family: inherit;
   }
 
   .animate-fade-up {
