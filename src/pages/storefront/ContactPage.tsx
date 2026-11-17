@@ -146,59 +146,69 @@ export function ContactPage() {
         />
 
         <div className={cn(contentClass, 'flex-1 py-10 pb-28')}>
-          <div className="max-w-3xl">
-            <ul className="divide-y divide-stone-200/80 border-y border-stone-200/80">
+          {rows.length ? (
+            <ul className="grid grid-cols-1 gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
               {rows.map((row) => (
-                <li key={row.key} className="flex gap-4 py-5">
-                  <row.icon className="mt-0.5 h-5 w-5 shrink-0 text-[var(--sf-primary)]" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-wider text-[var(--sf-text)]/45">
-                      {row.label}
-                    </p>
-                    {row.href ? (
-                      <a
-                        href={row.href}
-                        className="mt-1 block whitespace-pre-line text-[17px] text-[var(--sf-text)] hover:text-[var(--sf-primary)]"
-                        target={row.href.startsWith('http') ? '_blank' : undefined}
-                        rel={row.href.startsWith('http') ? 'noreferrer' : undefined}
-                      >
-                        {row.value}
-                      </a>
-                    ) : (
-                      <p className="mt-1 whitespace-pre-line text-[17px] text-[var(--sf-text)]">
-                        {row.value}
+                <li
+                  key={row.key}
+                  className="border-t border-[color-mix(in_srgb,var(--sf-text)_12%,transparent)] pt-5"
+                >
+                  <div className="flex gap-3">
+                    <row.icon className="mt-0.5 h-5 w-5 shrink-0 text-[var(--sf-primary)]" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium uppercase tracking-wider text-[var(--sf-text)]/45">
+                        {row.label}
                       </p>
-                    )}
+                      {row.href ? (
+                        <a
+                          href={row.href}
+                          className="mt-2 block whitespace-pre-line text-[17px] leading-relaxed text-[var(--sf-text)] hover:text-[var(--sf-primary)]"
+                          target={row.href.startsWith('http') ? '_blank' : undefined}
+                          rel={row.href.startsWith('http') ? 'noreferrer' : undefined}
+                        >
+                          {row.value}
+                        </a>
+                      ) : (
+                        <p className="mt-2 whitespace-pre-line text-[17px] leading-relaxed text-[var(--sf-text)]">
+                          {row.value}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </li>
               ))}
             </ul>
+          ) : null}
 
-            {socialLinks.length ? (
-              <div className="mt-8">
-                <p className="text-xs font-medium uppercase tracking-wider text-[var(--sf-text)]/45">
-                  Social
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {socialLinks.map((s) => (
-                    <a
-                      key={s.key}
-                      href={s.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-full bg-[var(--sf-surface)] px-4 py-2 text-sm font-medium text-[var(--sf-text)] ring-1 ring-stone-200/80 hover:bg-white"
-                    >
-                      {s.label}
-                    </a>
-                  ))}
-                </div>
+          {socialLinks.length ? (
+            <div
+              className={cn(
+                'border-t border-[color-mix(in_srgb,var(--sf-text)_12%,transparent)] pt-8',
+                rows.length ? 'mt-12' : '',
+              )}
+            >
+              <p className="text-xs font-medium uppercase tracking-wider text-[var(--sf-text)]/45">
+                Social
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                {socialLinks.map((s) => (
+                  <a
+                    key={s.key}
+                    href={s.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-2xl bg-[var(--sf-surface)] px-5 py-2.5 text-base font-medium text-[var(--sf-text)] ring-1 ring-[color-mix(in_srgb,var(--sf-text)_12%,transparent)] transition-colors hover:bg-white"
+                  >
+                    {s.label}
+                  </a>
+                ))}
               </div>
-            ) : null}
+            </div>
+          ) : null}
 
-            {!rows.length && !socialLinks.length ? (
-              <p className="mt-8 text-[var(--sf-text)]/55">No contact details are published yet.</p>
-            ) : null}
-          </div>
+          {!rows.length && !socialLinks.length ? (
+            <p className="text-[var(--sf-text)]/55">No contact details are published yet.</p>
+          ) : null}
         </div>
 
         <StorefrontFooter restaurant={restaurant} />
