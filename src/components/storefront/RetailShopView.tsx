@@ -280,7 +280,7 @@ function CoverIntroCopy({
             target="_blank"
             rel="noreferrer"
             className={cn(
-              'mt-5 inline-flex items-center rounded-full px-5 py-2.5 text-base font-medium transition-transform hover:-translate-y-0.5',
+              'mt-5 inline-flex items-center rounded-2xl px-5 py-2.5 text-base font-medium transition-transform hover:-translate-y-0.5',
               onLight
                 ? 'bg-[var(--sf-button)] text-[var(--sf-button-text)]'
                 : 'bg-white text-stone-900',
@@ -292,7 +292,7 @@ function CoverIntroCopy({
           <a
             href={href}
             className={cn(
-              'mt-5 inline-flex items-center rounded-full px-5 py-2.5 text-base font-medium transition-transform hover:-translate-y-0.5',
+              'mt-5 inline-flex items-center rounded-2xl px-5 py-2.5 text-base font-medium transition-transform hover:-translate-y-0.5',
               onLight
                 ? 'bg-[var(--sf-button)] text-[var(--sf-button-text)]'
                 : 'bg-white text-stone-900',
@@ -359,7 +359,7 @@ function FeaturedHero({
             </p>
           ) : null}
           <p className="mt-5 text-xl text-[var(--sf-text)]">{formatMoney(price)}</p>
-          <span className="mt-6 inline-flex w-fit items-center rounded-full bg-[var(--sf-button)] px-5 py-2.5 text-base font-medium text-[var(--sf-button-text)] transition-transform group-hover:-translate-y-0.5">
+          <span className="mt-6 inline-flex w-fit items-center rounded-2xl bg-[var(--sf-button)] px-5 py-2.5 text-base font-medium text-[var(--sf-button-text)] transition-transform group-hover:-translate-y-0.5">
             {available ? 'View product' : unavailableLabel(item)}
           </span>
         </div>
