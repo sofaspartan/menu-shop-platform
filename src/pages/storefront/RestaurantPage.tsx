@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import {
   Clock3,
   MapPin,
@@ -43,12 +43,14 @@ import {
 } from '@/lib/scheduling'
 import { resolveListedPrice } from '@/lib/commerce'
 import { storeCopy } from '@/lib/storeCopy'
+import { isStorefrontShopPath } from '@/lib/storefrontNav'
 import { formatPhone, cn } from '@/lib/utils'
 import { trackEvent } from '@/services/analyticsService'
 import { PriceDisplay } from '@/components/storefront/PriceDisplay'
 
 export function RestaurantPage() {
   const { slug, menuSlug } = useParams<{ slug: string; menuSlug?: string }>()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const { db, loading } = useDb()
   const previewEnabled = usePreviewStore((s) => s.enabled)
@@ -230,6 +232,10 @@ export function RestaurantPage() {
 
   const homeEnabled = isStoreHomeEnabled(restaurant)
   const homeSections = useHomeSections(restaurant)
+  const onShopRoute =
+    Boolean(menuSlug) ||
+    (slug ? isStorefrontShopPath(location.pathname, slug) : false)
+  const showHomePage = Boolean(homeEnabled && restaurant && !onShopRoute)
 
   const restaurantLines = restaurant
     ? bagLines.filter((l) => l.restaurantId === restaurant.id)
@@ -331,6 +337,7 @@ export function RestaurantPage() {
           onOpenItem={(item, override) => openItem(item, override)}
           isItemOrderable={(item) => isItemOrderable(item, now)}
           unavailableLabel={unavailableLabel}
+          pageMode={showHomePage ? 'home' : 'shop'}
         />
         <RetailBagFab
           storeKind={restaurant.storeKind}
@@ -366,20 +373,6 @@ export function RestaurantPage() {
     )
   }
 
-  const catalogSectionIndex = homeEnabled
-    ? homeSections.findIndex((s) => s.kind === 'catalog')
-    : -1
-  const homeBeforeCatalog =
-    homeEnabled && catalogSectionIndex >= 0
-      ? homeSections.slice(0, catalogSectionIndex)
-      : homeEnabled
-        ? homeSections
-        : []
-  const homeAfterCatalog =
-    homeEnabled && catalogSectionIndex >= 0
-      ? homeSections.slice(catalogSectionIndex + 1)
-      : []
-
   function renderHomeSection(section: (typeof homeSections)[number]) {
     if (section.kind === 'splash') {
       return (
@@ -409,6 +402,112 @@ export function RestaurantPage() {
     return null
   }
 
+  const bagAndModals = (
+    <>
+      {bagCatchExpanded && bagCount > 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 p-4 sm:hidden">
+          <button
+            type="button"
+            data-bag-target
+            onClick={() => setBagOpen(true)}
+            className={cn(
+              'flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--sf-button)] px-5 py-4 text-[var(--sf-button-text)] shadow-lg',
+              bagPulseKey > 0 && 'bag-catch-pulse',
+            )}
+            key={`mobile-bag-full-${bagPulseKey}`}
+          >
+            <ShoppingBag className="h-5 w-5" />
+            <span className="font-medium">{copy.viewBag}</span>
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
+              {bagCount}
+            </span>
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          data-bag-target
+          onClick={() => setBagOpen(true)}
+          className={cn(
+            'fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-4 py-3 text-[var(--sf-button-text)] shadow-lg sm:hidden',
+            bagPulseKey > 0 && 'bag-catch-pulse',
+          )}
+          key={`mobile-bag-fab-${bagPulseKey}`}
+          aria-label={`Open ${copy.bagNoun}`}
+        >
+          <ShoppingBag className="h-5 w-5" />
+          <span className="font-medium">{copy.viewBag}</span>
+          {bagCount > 0 ? (
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
+              {bagCount}
+            </span>
+          ) : null}
+        </button>
+      )}
+
+      <button
+        type="button"
+        data-bag-target
+        onClick={() => setBagOpen(true)}
+        className={cn(
+          'fixed bottom-6 right-6 z-30 hidden items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-4 py-3 text-[var(--sf-button-text)] shadow-lg transition-transform hover:-translate-y-0.5 sm:inline-flex',
+          bagPulseKey > 0 && 'bag-catch-pulse',
+        )}
+        key={`desktop-bag-${bagPulseKey}`}
+        aria-label={`Open ${copy.bagNoun}`}
+      >
+        <ShoppingBag className="h-5 w-5" />
+        <span className="font-medium">{copy.viewBag}</span>
+        {bagCount > 0 ? (
+          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
+            {bagCount}
+          </span>
+        ) : null}
+      </button>
+
+      <FlyToBagOverlay />
+
+      <BagDrawer
+        open={bagOpen}
+        onClose={() => setBagOpen(false)}
+        restaurant={store}
+        onEditLine={(line) => {
+          const item = itemsById.get(line.itemId)
+          if (!item) return
+          setBagOpen(false)
+          openItem(item, undefined, line)
+        }}
+      />
+
+      <ItemCustomizer
+        open={Boolean(customizerItem)}
+        onClose={() => {
+          setCustomizerItem(null)
+          setEditingLine(null)
+        }}
+        restaurant={store}
+        item={customizerItem}
+        priceOverrideCents={priceOverride}
+        editingLine={editingLine}
+      />
+    </>
+  )
+
+  if (showHomePage) {
+    return (
+      <StorefrontShell branding={store.branding}>
+        <div className="sticky top-0 z-30 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 backdrop-blur">
+          <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
+            <StorefrontNav restaurant={store} />
+          </div>
+        </div>
+        {homeSections.map(renderHomeSection)}
+        <StorefrontFooter restaurant={store} />
+        {bagAndModals}
+      </StorefrontShell>
+    )
+  }
+
   return (
     <StorefrontShell branding={store.branding}>
       {homeEnabled ? (
@@ -418,8 +517,6 @@ export function RestaurantPage() {
           </div>
         </div>
       ) : null}
-
-      {homeBeforeCatalog.map(renderHomeSection)}
 
       {!homeEnabled ? (
       <header className="relative">
@@ -527,14 +624,14 @@ export function RestaurantPage() {
       ) : null}
 
       <div
-        id={homeEnabled ? 'section-catalog' : undefined}
+        id="section-catalog"
         className={cn(
           'sticky z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur',
           homeEnabled ? 'top-[3.25rem]' : 'top-0',
         )}
       >
         <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
-          {!homeEnabled ? <StorefrontNav restaurant={restaurant} /> : null}
+          {!homeEnabled ? <StorefrontNav restaurant={store} /> : null}
           {menus.length > 1 ? (
             <div className="mb-3 flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {menus.map((menu) => {
@@ -911,96 +1008,8 @@ export function RestaurantPage() {
         )}
       </main>
 
-      {homeAfterCatalog.map(renderHomeSection)}
-
-      <StorefrontFooter restaurant={restaurant} />
-
-      {bagCatchExpanded && bagCount > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 z-30 p-4 sm:hidden">
-          <button
-            type="button"
-            data-bag-target
-            onClick={() => setBagOpen(true)}
-            className={cn(
-              'flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--sf-button)] px-5 py-4 text-[var(--sf-button-text)] shadow-lg',
-              bagPulseKey > 0 && 'bag-catch-pulse',
-            )}
-            key={`mobile-bag-full-${bagPulseKey}`}
-          >
-            <ShoppingBag className="h-5 w-5" />
-            <span className="font-medium">{copy.viewBag}</span>
-            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
-              {bagCount}
-            </span>
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          data-bag-target
-          onClick={() => setBagOpen(true)}
-          className={cn(
-            'fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-4 py-3 text-[var(--sf-button-text)] shadow-lg sm:hidden',
-            bagPulseKey > 0 && 'bag-catch-pulse',
-          )}
-          key={`mobile-bag-fab-${bagPulseKey}`}
-          aria-label={`Open ${copy.bagNoun}`}
-        >
-          <ShoppingBag className="h-5 w-5" />
-          <span className="font-medium">{copy.viewBag}</span>
-          {bagCount > 0 ? (
-            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
-              {bagCount}
-            </span>
-          ) : null}
-        </button>
-      )}
-
-      <button
-        type="button"
-        data-bag-target
-        onClick={() => setBagOpen(true)}
-        className={cn(
-          'fixed bottom-6 right-6 z-30 hidden items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-4 py-3 text-[var(--sf-button-text)] shadow-lg transition-transform hover:-translate-y-0.5 sm:inline-flex',
-          bagPulseKey > 0 && 'bag-catch-pulse',
-        )}
-        key={`desktop-bag-${bagPulseKey}`}
-        aria-label={`Open ${copy.bagNoun}`}
-      >
-        <ShoppingBag className="h-5 w-5" />
-        <span className="font-medium">{copy.viewBag}</span>
-        {bagCount > 0 ? (
-          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
-            {bagCount}
-          </span>
-        ) : null}
-      </button>
-
-      <FlyToBagOverlay />
-
-      <BagDrawer
-        open={bagOpen}
-        onClose={() => setBagOpen(false)}
-        restaurant={restaurant}
-        onEditLine={(line) => {
-          const item = itemsById.get(line.itemId)
-          if (!item) return
-          setBagOpen(false)
-          openItem(item, undefined, line)
-        }}
-      />
-
-      <ItemCustomizer
-        open={Boolean(customizerItem)}
-        onClose={() => {
-          setCustomizerItem(null)
-          setEditingLine(null)
-        }}
-        restaurant={restaurant}
-        item={customizerItem}
-        priceOverrideCents={priceOverride}
-        editingLine={editingLine}
-      />
+      <StorefrontFooter restaurant={store} />
+      {bagAndModals}
     </StorefrontShell>
   )
 }

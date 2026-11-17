@@ -1,33 +1,21 @@
 import { Link, useLocation } from 'react-router-dom'
 import type { Restaurant } from '@/types'
-import { storeCopy } from '@/lib/storeCopy'
+import {
+  isStorefrontNavActive,
+  storefrontNavLinks,
+} from '@/lib/storefrontNav'
 import { cn } from '@/lib/utils'
 
 export function StorefrontNav({ restaurant }: { restaurant: Restaurant }) {
   const location = useLocation()
-  const copy = storeCopy(restaurant.storeKind)
-  const pages = restaurant.pages
-  const base = `/r/${restaurant.slug}`
-
-  const links = [
-    { to: base, label: copy.isRetail ? 'Shop' : 'Menu', end: true },
-    pages?.about?.enabled
-      ? { to: `${base}/about`, label: pages.about.title || 'About', end: false }
-      : null,
-    pages?.contact?.enabled
-      ? { to: `${base}/contact`, label: pages.contact.title || 'Contact', end: false }
-      : null,
-  ].filter(Boolean) as Array<{ to: string; label: string; end: boolean }>
+  const links = storefrontNavLinks(restaurant)
 
   if (links.length <= 1) return null
 
   return (
     <nav className="mb-3 flex gap-1 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {links.map((link) => {
-        const active = link.end
-          ? location.pathname === link.to ||
-            location.pathname.startsWith(`${base}/menu/`)
-          : location.pathname === link.to
+        const active = isStorefrontNavActive(link, location.pathname, restaurant.slug)
         return (
           <Link
             key={link.to}

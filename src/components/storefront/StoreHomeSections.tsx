@@ -28,6 +28,9 @@ function resolveHref(restaurant: Restaurant, href?: string): string {
   if (raw.startsWith('http') || raw.startsWith('#') || raw.startsWith('/')) return raw
   if (raw === 'about') return `/r/${restaurant.slug}/about`
   if (raw === 'contact') return `/r/${restaurant.slug}/contact`
+  if (raw === 'shop' || raw === 'menu' || raw === 'catalog') {
+    return `/r/${restaurant.slug}/shop`
+  }
   return `/r/${restaurant.slug}/${raw.replace(/^\//, '')}`
 }
 

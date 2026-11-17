@@ -80,6 +80,7 @@ export default function App() {
         </Route>
 
         <Route path="/r/:slug" element={<RestaurantPage />} />
+        <Route path="/r/:slug/shop" element={<RestaurantPage />} />
         <Route path="/r/:slug/menu/:menuSlug" element={<RestaurantPage />} />
         <Route path="/r/:slug/about" element={<AboutPage />} />
         <Route path="/r/:slug/contact" element={<ContactPage />} />

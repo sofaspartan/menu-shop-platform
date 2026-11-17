@@ -34,7 +34,7 @@ const HOME_KIND_LABEL: Record<HomeSection['kind'], string> = {
   splash: 'Splash hero',
   aboutTeaser: 'About teaser',
   featured: 'Featured items',
-  catalog: 'Catalog / menu',
+  catalog: 'Shop link (legacy)',
 }
 
 function HeroLayoutControls({
@@ -336,8 +336,9 @@ export function PagesPage() {
           <div>
             <h2 className="font-display text-xl">Homepage</h2>
             <p className="mt-1 text-sm text-stone-500">
-              Full-bleed splash, about teaser, featured carousel or grid, then catalog —
-              reorder sections and pick layouts. Uses your brand fonts and colors.
+              Separate from Shop: splash, about teaser, and featured items on{' '}
+              <code className="text-xs">/r/…</code>. Shop/Menu lives at{' '}
+              <code className="text-xs">/r/…/shop</code>. Reorder sections and pick layouts.
             </p>
           </div>
           <label className="flex items-center gap-2 text-sm">
@@ -499,7 +500,7 @@ export function PagesPage() {
                             primaryButtonHref: e.target.value,
                           })
                         }
-                        placeholder="#section-catalog or about"
+                        placeholder="shop, about, or https://…"
                       />
                     </Field>
                     <Field label="Secondary button" htmlFor={`splash-sbtn-${section.id}`}>
@@ -626,7 +627,8 @@ export function PagesPage() {
 
                 {section.kind === 'catalog' ? (
                   <p className="text-sm text-stone-500">
-                    Your menu / product catalog renders here in the home page order.
+                    Catalog sections are no longer part of the homepage — use the Shop /
+                    Menu nav link instead. This block will be ignored.
                   </p>
                 ) : null}
               </div>

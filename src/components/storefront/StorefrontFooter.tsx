@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import type { Restaurant } from '@/types'
 import { normalizeStoreFooter } from '@/types'
 import { logoImageClass } from '@/lib/logoStyle'
+import { storefrontNavLinks } from '@/lib/storefrontNav'
 import { storefrontContentClass } from '@/lib/storefrontWidth'
 import { cn } from '@/lib/utils'
 
@@ -9,22 +10,15 @@ export function StorefrontFooter({ restaurant }: { restaurant: Restaurant }) {
   const footer = normalizeStoreFooter(restaurant.pages?.footer)
   if (!footer.enabled) return null
 
-  const base = `/r/${restaurant.slug}`
   const company = (footer.companyName?.trim() || restaurant.name).trim()
   const year = new Date().getFullYear()
   const copyright =
     footer.copyright?.trim() || `© ${year} ${company}. All rights reserved.`
 
-  const links: Array<{ to: string; label: string }> = [{ to: base, label: 'Home' }]
-  if (restaurant.pages?.about?.enabled) {
-    links.push({ to: `${base}/about`, label: restaurant.pages.about.title || 'About' })
-  }
-  if (restaurant.pages?.contact?.enabled) {
-    links.push({
-      to: `${base}/contact`,
-      label: restaurant.pages.contact.title || 'Contact',
-    })
-  }
+  const links = storefrontNavLinks(restaurant).map((l) => ({
+    to: l.to,
+    label: l.label,
+  }))
 
   return (
     <footer className="mt-auto border-t border-[color-mix(in_srgb,var(--sf-text)_12%,transparent)] bg-[var(--sf-bg)]">

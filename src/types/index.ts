@@ -1072,7 +1072,7 @@ export function defaultHomeSectionsFor(kind: StoreKind): HomeSection[] {
         ? 'New arrivals and everyday essentials, curated for you.'
         : 'Seasonal plates, craft drinks, and a warm welcome.',
       primaryButtonLabel: retail ? 'Shop catalog' : 'View menu',
-      primaryButtonHref: '#section-catalog',
+      primaryButtonHref: 'shop',
       secondaryButtonLabel: 'About us',
       secondaryButtonHref: 'about',
     },
@@ -1095,12 +1095,6 @@ export function defaultHomeSectionsFor(kind: StoreKind): HomeSection[] {
       sortOrder: 2,
       featuredLayout: retail ? 'grid' : 'carousel',
       featuredCount: retail ? 4 : 1,
-    },
-    {
-      id: 'home_catalog',
-      kind: 'catalog',
-      enabled: true,
-      sortOrder: 3,
     },
   ]
 }
@@ -1154,17 +1148,10 @@ export function normalizeStoreHome(
   }
   const sections = home.sections
     .filter((s) => s && s.id && s.kind)
+    // Catalog lives on /shop now — drop legacy home catalog blocks.
+    .filter((s) => s.kind !== 'catalog')
     .map((s, i) => normalizeHomeSection(s as HomeSection, i))
     .sort((a, b) => a.sortOrder - b.sortOrder)
-  // Ensure catalog exists so shop never disappears.
-  if (!sections.some((s) => s.kind === 'catalog')) {
-    sections.push({
-      id: 'home_catalog',
-      kind: 'catalog',
-      enabled: true,
-      sortOrder: sections.length,
-    })
-  }
   return {
     enabled: home.enabled === true,
     sections,

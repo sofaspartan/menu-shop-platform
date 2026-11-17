@@ -37,6 +37,8 @@ export function RetailShopView({
   onOpenItem,
   isItemOrderable,
   unavailableLabel,
+  /** Home = marketing page; shop = catalog. */
+  pageMode = 'shop',
 }: {
   restaurant: Restaurant
   menus: Menu[]
@@ -48,6 +50,7 @@ export function RetailShopView({
   onOpenItem: (item: MenuItem, priceOverride?: number) => void
   isItemOrderable: (item: MenuItem) => boolean
   unavailableLabel: (item: MenuItem) => string
+  pageMode?: 'home' | 'shop'
 }) {
   const { db } = useDb()
   const sales = useMemo(
@@ -58,22 +61,23 @@ export function RetailShopView({
   const contentClass = storefrontContentClass(restaurant.storefrontWidth)
   const homeEnabled = isStoreHomeEnabled(restaurant)
   const homeSections = useHomeSections(restaurant)
+  const showHomePage = pageMode === 'home' && homeEnabled
   const coverIntro = normalizeCoverIntro(restaurant.pages?.coverIntro)
   const featuredEnabled = restaurant.pages?.featuredEnabled !== false
   const showCover =
-    !homeEnabled &&
+    !showHomePage &&
     coverIntro.enabled &&
     restaurant.branding.coverDisplay !== 'none' &&
     Boolean(restaurant.coverImageUrl)
   const featuredHero =
-    !homeEnabled && !search && featuredEnabled ? (featured[0] ?? null) : null
-  const sectionLinks = !search
+    !showHomePage && !search && featuredEnabled ? (featured[0] ?? null) : null
+  const sectionLinks = !search && !showHomePage
     ? [
         ...(featuredHero ? [{ id: 'featured', name: 'Featured' }] : []),
         ...sectionItems.map(({ section }) => ({ id: section.id, name: section.name })),
       ]
     : []
-  const showSectionNav = !homeEnabled && sectionLinks.length > 1
+  const showSectionNav = sectionLinks.length > 1
   const [activeSectionId, setActiveSectionId] = useState<string | null>(
     sectionLinks[0]?.id ?? null,
   )
@@ -180,41 +184,36 @@ export function RetailShopView({
     </div>
   )
 
-  let homeBody: ReactNode = null
-  if (homeEnabled) {
-    const nodes: ReactNode[] = []
-    for (const section of homeSections) {
-      if (section.kind === 'splash') {
-        nodes.push(
-          <HomeSplashSection key={section.id} restaurant={restaurant} section={section} />,
-        )
-      } else if (section.kind === 'aboutTeaser') {
-        nodes.push(
-          <HomeAboutTeaserSection
-            key={section.id}
-            restaurant={restaurant}
-            section={section}
-          />,
-        )
-      } else if (section.kind === 'featured') {
-        nodes.push(
-          <HomeFeaturedSection
-            key={section.id}
-            restaurant={restaurant}
-            section={section}
-            featured={featured}
-            onOpenItem={onOpenItem}
-          />,
-        )
-      } else if (section.kind === 'catalog') {
-        nodes.push(<div key={section.id}>{catalogBlock}</div>)
-      }
-    }
-    if (!homeSections.some((s) => s.kind === 'catalog')) {
-      nodes.push(<div key="catalog-fallback">{catalogBlock}</div>)
-    }
-    homeBody = nodes
-  }
+  const homeBody: ReactNode = showHomePage
+    ? homeSections.map((section) => {
+        if (section.kind === 'splash') {
+          return (
+            <HomeSplashSection key={section.id} restaurant={restaurant} section={section} />
+          )
+        }
+        if (section.kind === 'aboutTeaser') {
+          return (
+            <HomeAboutTeaserSection
+              key={section.id}
+              restaurant={restaurant}
+              section={section}
+            />
+          )
+        }
+        if (section.kind === 'featured') {
+          return (
+            <HomeFeaturedSection
+              key={section.id}
+              restaurant={restaurant}
+              section={section}
+              featured={featured}
+              onOpenItem={onOpenItem}
+            />
+          )
+        }
+        return null
+      })
+    : null
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -222,9 +221,10 @@ export function RetailShopView({
         restaurant={restaurant}
         search={search}
         onSearchChange={onSearchChange}
+        showSearch={!showHomePage}
       />
 
-      {homeEnabled ? (
+      {showHomePage ? (
         <div className="flex-1">{homeBody}</div>
       ) : (
         <>
