@@ -208,14 +208,19 @@ export function collectMenuBoardSections(
   now: Date,
 ): BoardMenuSection[] {
   const sales = db.sales.filter((s) => s.restaurantId === restaurant.id)
-  const menus = getAvailableMenus(
-    db.menus.filter((m) => m.restaurantId === restaurant.id),
-    restaurant,
-    now,
-  ).filter((m) =>
-    display.menuIds.length ? display.menuIds.includes(m.id) : true,
-  )
+  const allMenus = db.menus
+    .filter((m) => m.restaurantId === restaurant.id && m.active)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+
+  const menus =
+    display.menuCatalogScope === 'custom'
+      ? display.menuIds.length
+        ? allMenus.filter((m) => display.menuIds.includes(m.id))
+        : allMenus
+      : getAvailableMenus(allMenus, restaurant, now)
+
   const menuIdSet = new Set(menus.map((m) => m.id))
+  const customSections = display.menuCatalogScope === 'custom'
 
   const sections = db.sections
     .filter(
@@ -223,7 +228,7 @@ export function collectMenuBoardSections(
         s.restaurantId === restaurant.id &&
         !s.hidden &&
         menuIdSet.has(s.menuId) &&
-        (display.sectionIds.length
+        (customSections && display.sectionIds.length
           ? display.sectionIds.includes(s.id)
           : true),
     )

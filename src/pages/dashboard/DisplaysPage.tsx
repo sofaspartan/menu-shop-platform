@@ -10,6 +10,7 @@ import type {
   FeaturedSource,
   GraphicsChrome,
   MenuBoardLayout,
+  MenuCatalogScope,
 } from '@/types'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -514,88 +515,121 @@ export function DisplaysPage() {
                     </label>
                   </div>
 
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-400">
-                      {copy.catalogNounPlural}
-                    </h4>
-                    <p className="mt-1 text-xs text-stone-500">
-                      Leave none selected to include every currently available{' '}
-                      {copy.catalogNoun.toLowerCase()}.
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {menus.map((menu) => {
-                        const forced = selected.menuIds.includes(menu.id)
-                        return (
-                          <button
-                            key={menu.id}
-                            type="button"
-                            onClick={() => toggleMenu(menu.id)}
-                            className={cn(
-                              'rounded-lg border px-3 py-1.5 text-sm',
-                              forced
-                                ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
-                                : selected.menuIds.length === 0
-                                  ? 'border-stone-200 bg-stone-50 text-stone-600'
-                                  : 'border-stone-200 text-stone-400',
-                            )}
-                          >
-                            {menu.name}
-                            {selected.menuIds.length === 0 ? ' · all' : ''}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
+                  <Field label="What to show" htmlFor="disp-menu-scope">
+                    <Select
+                      id="disp-menu-scope"
+                      value={selected.menuCatalogScope}
+                      onChange={(e) =>
+                        void patchSelected({
+                          menuCatalogScope: e.target.value as MenuCatalogScope,
+                          ...(e.target.value === 'daypart'
+                            ? { menuIds: [], sectionIds: [] }
+                            : {}),
+                        })
+                      }
+                    >
+                      <option value="daypart">
+                        Time of day — sections from {copy.catalogNounPlural.toLowerCase()}{' '}
+                        currently serving
+                      </option>
+                      <option value="custom">
+                        Custom — pick {copy.catalogNounPlural.toLowerCase()} and sections
+                      </option>
+                    </Select>
+                  </Field>
 
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-400">
-                      Sections
-                    </h4>
-                    <p className="mt-1 text-xs text-stone-500">
-                      Leave none selected to show every section on the{' '}
-                      {copy.catalogNounPlural.toLowerCase()} above. Pick one or more
-                      (e.g. mains + drinks) to narrow the board.
+                  {selected.menuCatalogScope === 'daypart' ? (
+                    <p className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600">
+                      This board updates with whatever {copy.catalogNounPlural.toLowerCase()}{' '}
+                      are live right now based on their schedules (breakfast, lunch,
+                      dinner…).
                     </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {sections
-                        .filter(
-                          (s) =>
-                            selected.menuIds.length === 0 ||
-                            selected.menuIds.includes(s.menuId),
-                        )
-                        .map((section) => {
-                          const forced = selected.sectionIds.includes(section.id)
-                          const menuName =
-                            menus.find((m) => m.id === section.menuId)?.name ?? ''
-                          return (
-                            <button
-                              key={section.id}
-                              type="button"
-                              onClick={() => toggleSection(section.id)}
-                              className={cn(
-                                'rounded-lg border px-3 py-1.5 text-sm',
-                                forced
-                                  ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
-                                  : selected.sectionIds.length === 0
-                                    ? 'border-stone-200 bg-stone-50 text-stone-600'
-                                    : 'border-stone-200 text-stone-400',
-                              )}
-                            >
-                              {section.name}
-                              {menuName ? (
-                                <span className="opacity-60"> · {menuName}</span>
-                              ) : null}
-                              {selected.sectionIds.length === 0 ? ' · all' : ''}
-                            </button>
-                          )
-                        })}
-                      {sections.length === 0 ? (
-                        <p className="text-sm text-stone-400">
-                          No sections yet — add them under {copy.catalogNounPlural}.
+                  ) : (
+                    <>
+                      <div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+                          {copy.catalogNounPlural}
+                        </h4>
+                        <p className="mt-1 text-xs text-stone-500">
+                          Optional filter. Leave none selected to include every active{' '}
+                          {copy.catalogNoun.toLowerCase()}.
                         </p>
-                      ) : null}
-                    </div>
-                  </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {menus.map((menu) => {
+                            const forced = selected.menuIds.includes(menu.id)
+                            return (
+                              <button
+                                key={menu.id}
+                                type="button"
+                                onClick={() => toggleMenu(menu.id)}
+                                className={cn(
+                                  'rounded-lg border px-3 py-1.5 text-sm',
+                                  forced
+                                    ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+                                    : selected.menuIds.length === 0
+                                      ? 'border-stone-200 bg-stone-50 text-stone-600'
+                                      : 'border-stone-200 text-stone-400',
+                                )}
+                              >
+                                {menu.name}
+                                {selected.menuIds.length === 0 ? ' · all' : ''}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+                          Sections
+                        </h4>
+                        <p className="mt-1 text-xs text-stone-500">
+                          Leave none selected to show every section on the{' '}
+                          {copy.catalogNounPlural.toLowerCase()} above. Pick one or more
+                          (e.g. mains + drinks) to pin exactly what’s on the board.
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {sections
+                            .filter(
+                              (s) =>
+                                selected.menuIds.length === 0 ||
+                                selected.menuIds.includes(s.menuId),
+                            )
+                            .map((section) => {
+                              const forced = selected.sectionIds.includes(section.id)
+                              const menuName =
+                                menus.find((m) => m.id === section.menuId)?.name ?? ''
+                              return (
+                                <button
+                                  key={section.id}
+                                  type="button"
+                                  onClick={() => toggleSection(section.id)}
+                                  className={cn(
+                                    'rounded-lg border px-3 py-1.5 text-sm',
+                                    forced
+                                      ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+                                      : selected.sectionIds.length === 0
+                                        ? 'border-stone-200 bg-stone-50 text-stone-600'
+                                        : 'border-stone-200 text-stone-400',
+                                  )}
+                                >
+                                  {section.name}
+                                  {menuName ? (
+                                    <span className="opacity-60"> · {menuName}</span>
+                                  ) : null}
+                                  {selected.sectionIds.length === 0 ? ' · all' : ''}
+                                </button>
+                              )
+                            })}
+                          {sections.length === 0 ? (
+                            <p className="text-sm text-stone-400">
+                              No sections yet — add them under {copy.catalogNounPlural}.
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : null}
 

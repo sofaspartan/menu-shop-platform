@@ -922,6 +922,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       featuredCatalogScope: 'daypart' as const,
       menuIds: [],
       sectionIds: [],
+      menuCatalogScope: 'daypart' as const,
       showPrices: true,
       showSoldOut: false,
       brandingLayout: 'card' as const,
@@ -955,6 +956,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
         'sec_drinks_cold',
         'sec_drinks_cocktails',
       ],
+      menuCatalogScope: 'custom' as const,
       showPrices: true,
       showSoldOut: false,
       brandingLayout: 'card' as const,
@@ -984,6 +986,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       featuredCatalogScope: 'daypart' as const,
       menuIds: [],
       sectionIds: [],
+      menuCatalogScope: 'daypart' as const,
       showPrices: true,
       showSoldOut: false,
       brandingLayout: 'card' as const,
@@ -1015,6 +1018,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       featuredCatalogScope: 'daypart' as const,
       menuIds: [],
       sectionIds: [],
+      menuCatalogScope: 'daypart' as const,
       showPrices: true,
       showSoldOut: false,
       menuLayout: 'cards' as const,
@@ -1400,7 +1404,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
   return {
-    version: 18,
+    version: 19,
     users: [
       {
         id: userId,

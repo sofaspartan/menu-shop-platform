@@ -118,7 +118,8 @@ export async function getDb(): Promise<AppDatabase> {
         existing.version === 15 ||
         existing.version === 16 ||
         existing.version === 17 ||
-        existing.version === 18)
+        existing.version === 18 ||
+        existing.version === 19)
     ) {
       if (!existing.brandThemes) existing.brandThemes = []
       if (!existing.coupons) existing.coupons = []
@@ -164,6 +165,12 @@ export async function getDb(): Promise<AppDatabase> {
               : 'daypart',
           menuIds: d.menuIds ?? [],
           sectionIds: d.sectionIds ?? [],
+          menuCatalogScope:
+            d.menuCatalogScope === 'custom' ||
+            (d.menuCatalogScope !== 'daypart' &&
+              ((d.menuIds?.length ?? 0) > 0 || (d.sectionIds?.length ?? 0) > 0))
+              ? 'custom'
+              : 'daypart',
           showPrices: d.showPrices !== false,
           showSoldOut: Boolean(d.showSoldOut),
           menuLayout: d.menuLayout === 'columns' ? 'columns' : 'cards',

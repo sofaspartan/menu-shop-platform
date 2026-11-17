@@ -8,6 +8,7 @@ import type {
   FeaturedSource,
   GraphicsChrome,
   MenuBoardLayout,
+  MenuCatalogScope,
 } from '@/types'
 
 function asKind(display: Display): DisplayKind {
@@ -81,6 +82,11 @@ export function normalizeDisplay(raw: Display): Display {
     featuredCatalogScope,
     menuIds: raw.menuIds ?? [],
     sectionIds: raw.sectionIds ?? [],
+    menuCatalogScope: (raw.menuCatalogScope === 'custom' ||
+    (raw.menuCatalogScope !== 'daypart' &&
+      ((raw.menuIds?.length ?? 0) > 0 || (raw.sectionIds?.length ?? 0) > 0))
+      ? 'custom'
+      : 'daypart') as MenuCatalogScope,
     showPrices: raw.showPrices !== false,
     showSoldOut: Boolean(raw.showSoldOut),
     menuLayout: (raw.menuLayout === 'columns' ? 'columns' : 'cards') as MenuBoardLayout,

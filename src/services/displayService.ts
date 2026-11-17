@@ -8,6 +8,7 @@ import type {
   FeaturedSource,
   GraphicsChrome,
   MenuBoardLayout,
+  MenuCatalogScope,
 } from '@/types'
 import { getDb, saveDb } from '@/data/db'
 import { normalizeDisplay } from '@/lib/normalizeDisplay'
@@ -54,6 +55,7 @@ function defaultsForKind(kind: DisplayKind): Pick<
   | 'featuredCatalogScope'
   | 'menuIds'
   | 'sectionIds'
+  | 'menuCatalogScope'
   | 'showPrices'
   | 'showSoldOut'
   | 'menuLayout'
@@ -70,6 +72,7 @@ function defaultsForKind(kind: DisplayKind): Pick<
     featuredCatalogScope: 'daypart',
     menuIds: [],
     sectionIds: [],
+    menuCatalogScope: 'daypart',
     showPrices: true,
     showSoldOut: false,
     menuLayout: 'cards',
@@ -141,6 +144,7 @@ export type DisplayPatch = Partial<
     | 'featuredCatalogScope'
     | 'menuIds'
     | 'sectionIds'
+    | 'menuCatalogScope'
     | 'showPrices'
     | 'showSoldOut'
     | 'menuLayout'
@@ -202,6 +206,9 @@ export async function updateDisplay(
     }
     if (patch.menuIds !== undefined) next.menuIds = patch.menuIds
     if (patch.sectionIds !== undefined) next.sectionIds = patch.sectionIds
+    if (patch.menuCatalogScope !== undefined) {
+      next.menuCatalogScope = patch.menuCatalogScope as MenuCatalogScope
+    }
     if (patch.showPrices !== undefined) next.showPrices = patch.showPrices
     if (patch.showSoldOut !== undefined) next.showSoldOut = patch.showSoldOut
     if (patch.menuLayout !== undefined) {

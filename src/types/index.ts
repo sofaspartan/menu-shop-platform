@@ -548,6 +548,12 @@ export type FeaturedSource = 'auto' | 'manual'
 export type FeaturedCatalogScope = 'daypart' | 'menus'
 /** Ordering menu board presentation. */
 export type MenuBoardLayout = 'cards' | 'columns'
+/**
+ * Ordering menu content scope:
+ * - daypart: sections from menus currently serving by schedule
+ * - custom: operator-picked menus and/or sections
+ */
+export type MenuCatalogScope = 'daypart' | 'custom'
 /** Branding sign presentation. */
 export type BrandingLayout = 'card' | 'fullbleed'
 
@@ -617,15 +623,18 @@ export interface Display extends Timestamps {
   featuredCatalogScope: FeaturedCatalogScope
   /**
    * Limit menu / featured boards to these menus.
-   * Featured + daypart: ignored (live schedule wins).
-   * Featured + menus / ordering menu: empty = all active menus.
+   * Featured + daypart / menu + daypart: ignored (live schedule wins).
+   * Featured + menus / menu + custom: empty = all active menus.
    */
   menuIds: ID[]
   /**
-   * Menu board: limit to these sections; empty = every section on the
-   * selected menus (or all available menus when menuIds is also empty).
+   * Ordering menu + custom: limit to these sections; empty = every section
+   * on the selected menus (or all active menus when menuIds is also empty).
+   * Ignored when menuCatalogScope is daypart.
    */
   sectionIds: ID[]
+  /** Ordering menu: follow live daypart or pick menus/sections manually. */
+  menuCatalogScope: MenuCatalogScope
   showPrices: boolean
   showSoldOut: boolean
   /**
