@@ -225,11 +225,20 @@ export function PagesPage() {
 
         <div>
           <p className="text-sm font-medium text-stone-700">Overlay alignment</p>
-          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          <div className="mt-2 grid gap-3 sm:grid-cols-3">
             {(
               [
-                ['left', 'Left', 'Left-aligned title, description, and button.'],
-                ['center', 'Centered', 'Horizontally centered overlay content.'],
+                ['left', 'Left', 'Left-aligned along the bottom of the cover.'],
+                [
+                  'centerBottom',
+                  'Centered bottom',
+                  'Horizontally centered, still anchored to the bottom.',
+                ],
+                [
+                  'centerMiddle',
+                  'Centered middle',
+                  'Centered horizontally and vertically in the hero.',
+                ],
               ] as Array<[CoverHeroAlign, string, string]>
             ).map(([value, label, hint]) => (
               <button

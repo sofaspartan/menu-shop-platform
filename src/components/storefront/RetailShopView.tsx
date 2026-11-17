@@ -112,12 +112,20 @@ export function RetailShopView({
               alt=""
               className="absolute inset-0 h-full w-full object-cover"
             />
-            <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+            {coverIntro.align === 'centerMiddle' ? (
+              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/35 to-black/20" />
+            ) : (
+              <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+            )}
             <div
               className={cn(
                 contentClass,
-                'absolute inset-x-0 bottom-0 pb-8 pt-16 sm:pb-10',
-                coverIntro.align === 'center' && 'flex justify-center text-center',
+                coverIntro.align === 'centerMiddle'
+                  ? 'absolute inset-0 flex items-center justify-center py-10 text-center'
+                  : cn(
+                      'absolute inset-x-0 bottom-0 pb-8 pt-16 sm:pb-10',
+                      coverIntro.align === 'centerBottom' && 'flex justify-center text-center',
+                    ),
               )}
             >
               <CoverIntroCopy
@@ -136,7 +144,8 @@ export function RetailShopView({
           className={cn(
             contentClass,
             'pb-2 pt-8',
-            coverIntro.align === 'center' && 'flex justify-center text-center',
+            (coverIntro.align === 'centerBottom' || coverIntro.align === 'centerMiddle') &&
+              'flex justify-center text-center',
           )}
         >
           <CoverIntroCopy
@@ -269,7 +278,7 @@ function CoverIntroCopy({
   description?: string
   buttonLabel?: string
   buttonHref?: string
-  align?: 'left' | 'center'
+  align?: 'left' | 'centerBottom' | 'centerMiddle'
   onLight?: boolean
 }) {
   const heading = title?.trim()
@@ -286,7 +295,12 @@ function CoverIntroCopy({
   )
 
   return (
-    <div className={cn('max-w-2xl', align === 'center' && 'mx-auto')}>
+    <div
+      className={cn(
+        'max-w-2xl',
+        (align === 'centerBottom' || align === 'centerMiddle') && 'mx-auto',
+      )}
+    >
       {heading ? (
         <h1
           className={cn(

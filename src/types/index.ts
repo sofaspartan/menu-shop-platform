@@ -66,7 +66,8 @@ export interface StoreFooter {
 }
 
 export type CoverHeroHeight = 'short' | 'tall'
-export type CoverHeroAlign = 'left' | 'center'
+/** left = bottom-left; centerBottom = centered on bottom; centerMiddle = true center of hero */
+export type CoverHeroAlign = 'left' | 'centerBottom' | 'centerMiddle'
 
 /** Cover / hero band for retail (and optional restaurant) storefronts. */
 export interface StoreCoverIntro {
@@ -598,7 +599,12 @@ export function normalizeCoverIntro(
     ...intro,
     enabled: intro?.enabled ?? DEFAULT_COVER_INTRO.enabled,
     height: intro?.height === 'tall' ? 'tall' : 'short',
-    align: intro?.align === 'center' ? 'center' : 'left',
+    align: (() => {
+      const raw = intro?.align as string | undefined
+      if (raw === 'centerMiddle') return 'centerMiddle'
+      if (raw === 'centerBottom' || raw === 'center') return 'centerBottom'
+      return 'left'
+    })(),
     showTitle: intro?.showTitle ?? true,
     showDescription: intro?.showDescription ?? true,
     showButton: intro?.showButton ?? true,
