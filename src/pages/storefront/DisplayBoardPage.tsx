@@ -1011,8 +1011,8 @@ function OrderStatusBoardView({
     showPreparing
       ? {
           id: 'preparing',
-          title: display.headline?.trim() || 'Preparing',
-          subtitle: display.tagline?.trim() || 'Almost ready',
+          title: 'In progress',
+          subtitle: display.tagline?.trim() || 'Coming up soon',
           orders: preparing,
           tone: 'prep' as const,
         }
