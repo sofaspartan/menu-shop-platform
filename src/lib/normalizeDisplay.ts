@@ -70,6 +70,7 @@ export function normalizeDisplay(raw: Display): Display {
     slideDurationSec: raw.slideDurationSec || 8,
     showLogo: raw.showLogo !== false,
     showStoreName: raw.showStoreName !== false,
+    showDate: raw.showDate !== false,
     backgroundImageUrl: raw.backgroundImageUrl,
     brandingLayout: (raw.brandingLayout === 'fullbleed'
       ? 'fullbleed'

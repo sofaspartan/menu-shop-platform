@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { CalendarDays, Clock } from 'lucide-react'
 import { useDb } from '@/hooks/useDb'
 import { LiveIndicator } from '@/components/ui/LiveIndicator'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
@@ -124,11 +125,23 @@ export function DisplayBoardPage() {
       }}
     >
       {brandingFullBleed ? (
-        <div className="absolute right-5 top-5 z-20 flex items-center gap-3">
+        <div className="absolute right-5 top-5 z-20 flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-white">
           <LiveIndicator
             pulseKey={`${revision}-${lastSyncedAt ?? 0}`}
             className="!text-white"
           />
+          {display.showDate ? (
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-white/80">
+              <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
+              <span>{dateLabel}</span>
+            </span>
+          ) : null}
+          <span className="inline-flex items-center gap-1.5 text-sm font-medium tabular-nums text-white/80">
+            <Clock className="h-4 w-4 shrink-0" aria-hidden />
+            <span>
+              {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+            </span>
+          </span>
         </div>
       ) : null}
       {showChrome ? (
@@ -142,27 +155,31 @@ export function DisplayBoardPage() {
               />
             ) : null}
             {display.showStoreName ? (
-              <div className="min-w-0">
-                <p
-                  className="truncate text-xl font-semibold tracking-tight"
-                  style={{ fontFamily: 'var(--brand-heading)' }}
-                >
-                  {restaurant.name}
-                </p>
-                <p className="text-sm opacity-60">{dateLabel}</p>
-              </div>
-            ) : (
-              <p className="text-sm opacity-60">{dateLabel}</p>
-            )}
+              <p
+                className="truncate text-xl font-semibold tracking-tight"
+                style={{ fontFamily: 'var(--brand-heading)' }}
+              >
+                {restaurant.name}
+              </p>
+            ) : null}
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
             <LiveIndicator
               pulseKey={`${revision}-${lastSyncedAt ?? 0}-${slideIndex}`}
               className="!text-[var(--brand-primary)]"
             />
-            <p className="text-sm font-medium tabular-nums opacity-60">
-              {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-            </p>
+            {display.showDate ? (
+              <span className="inline-flex items-center gap-1.5 text-sm font-medium opacity-70">
+                <CalendarDays className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                <span>{dateLabel}</span>
+              </span>
+            ) : null}
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium tabular-nums opacity-70">
+              <Clock className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+              <span>
+                {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+              </span>
+            </span>
           </div>
         </header>
       ) : null}

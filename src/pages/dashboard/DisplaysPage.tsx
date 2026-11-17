@@ -434,6 +434,16 @@ export function DisplaysPage() {
                     />
                     Show store name
                   </label>
+                  <label className="flex items-center gap-2 text-sm text-stone-700">
+                    <input
+                      type="checkbox"
+                      checked={selected.showDate}
+                      onChange={(e) =>
+                        void patchSelected({ showDate: e.target.checked })
+                      }
+                    />
+                    Show date
+                  </label>
                 </div>
               </div>
 

@@ -117,7 +117,8 @@ export async function getDb(): Promise<AppDatabase> {
         existing.version === 14 ||
         existing.version === 15 ||
         existing.version === 16 ||
-        existing.version === 17)
+        existing.version === 17 ||
+        existing.version === 18)
     ) {
       if (!existing.brandThemes) existing.brandThemes = []
       if (!existing.coupons) existing.coupons = []
@@ -172,6 +173,7 @@ export async function getDb(): Promise<AppDatabase> {
           itemSlides: d.itemSlides ?? [],
           showLogo: d.showLogo !== false,
           showStoreName: d.showStoreName !== false,
+          showDate: d.showDate !== false,
           slideDurationSec: d.slideDurationSec || 8,
         }
       })

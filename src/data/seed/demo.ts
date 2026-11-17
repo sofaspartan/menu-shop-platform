@@ -913,6 +913,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       slideDurationSec: 8,
       showLogo: true,
       showStoreName: true,
+      showDate: true,
       headline: 'Menu',
       tagline: 'Ask about today’s specials',
       graphicsChrome: 'fullscreen' as const,
@@ -941,6 +942,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       slideDurationSec: 8,
       showLogo: true,
       showStoreName: true,
+      showDate: true,
       headline: 'Drinks',
       tagline: undefined,
       graphicsChrome: 'fullscreen' as const,
@@ -973,6 +975,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       slideDurationSec: 8,
       showLogo: true,
       showStoreName: true,
+      showDate: true,
       headline: 'The Corner Table',
       tagline: 'Seasonal plates, ready when you are',
       graphicsChrome: 'fullscreen' as const,
@@ -1001,6 +1004,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       slideDurationSec: 8,
       showLogo: true,
       showStoreName: true,
+      showDate: true,
       headline: 'The Corner Table',
       tagline: 'Welcome — we’re glad you’re here',
       backgroundImageUrl: undefined,
@@ -1396,7 +1400,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
   return {
-    version: 17,
+    version: 18,
     users: [
       {
         id: userId,

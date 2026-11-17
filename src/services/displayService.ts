@@ -106,6 +106,7 @@ export async function createDisplay(
     slideDurationSec: 8,
     showLogo: true,
     showStoreName: true,
+    showDate: true,
     headline: input.headline?.trim() || undefined,
     tagline: input.tagline?.trim() || undefined,
     backgroundImageUrl: input.backgroundImageUrl?.trim() || undefined,
@@ -129,6 +130,7 @@ export type DisplayPatch = Partial<
     | 'slideDurationSec'
     | 'showLogo'
     | 'showStoreName'
+    | 'showDate'
     | 'headline'
     | 'tagline'
     | 'backgroundImageUrl'
@@ -175,6 +177,7 @@ export async function updateDisplay(
     }
     if (patch.showLogo !== undefined) next.showLogo = patch.showLogo
     if (patch.showStoreName !== undefined) next.showStoreName = patch.showStoreName
+    if (patch.showDate !== undefined) next.showDate = patch.showDate
     if (patch.headline !== undefined) {
       next.headline = patch.headline.trim() || undefined
     }

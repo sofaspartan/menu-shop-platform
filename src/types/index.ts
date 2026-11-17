@@ -590,6 +590,8 @@ export interface Display extends Timestamps {
   slideDurationSec: number
   showLogo: boolean
   showStoreName: boolean
+  /** Header chrome: show the calendar date beside live + time. */
+  showDate: boolean
   headline?: string
   tagline?: string
 
