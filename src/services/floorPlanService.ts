@@ -211,7 +211,7 @@ const SHAPE_DEFAULTS: Record<DiningTableShape, { width: number; height: number }
   round: { width: 88, height: 88 },
   square: { width: 96, height: 96 },
   rectangle: { width: 150, height: 90 },
-  booth: { width: 160, height: 78 },
+  booth: { width: 168, height: 72 },
   bar: { width: 64, height: 64 },
 }
 

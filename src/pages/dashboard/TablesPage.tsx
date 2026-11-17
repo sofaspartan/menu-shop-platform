@@ -40,7 +40,7 @@ const SHAPES: Array<{ id: DiningTableShape; label: string }> = [
   { id: 'round', label: 'Round' },
   { id: 'square', label: 'Square' },
   { id: 'rectangle', label: 'Rectangle' },
-  { id: 'booth', label: 'Booth' },
+  { id: 'booth', label: 'Booth (benches)' },
   { id: 'bar', label: 'Bar' },
 ]
 

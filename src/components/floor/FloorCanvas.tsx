@@ -60,14 +60,17 @@ export function shapeRadius(shape: DiningTableShape): string {
   return '14px'
 }
 
-const SEAT_PAD = 18
+const SEAT_PAD = 20
 const SEAT_W = 16
 const SEAT_H = 11
+const BENCH_H = 14
 
 type SeatSpot = { left: number; top: number; rotate: number }
 
-/** Place chair markers around a table so capacity is visible on the floor. */
+/** Chair markers for non-booth tables (capacity around the perimeter). */
 export function seatSpotsForTable(table: DiningTable): SeatSpot[] {
+  if (table.shape === 'booth') return []
+
   const seats = Math.max(1, Math.min(16, Math.round(table.seats) || 1))
   const w = table.width
   const h = table.height
@@ -84,30 +87,6 @@ export function seatSpotsForTable(table: DiningTable): SeatSpot[] {
         left: cx - SEAT_W / 2,
         top: cy - SEAT_H / 2,
         rotate: (angle * 180) / Math.PI + 90,
-      })
-    }
-    return spots
-  }
-
-  if (table.shape === 'booth') {
-    // Seats only on the long edges (top + bottom), never the short sides.
-    const topCount = Math.ceil(seats / 2)
-    const bottomCount = Math.floor(seats / 2)
-
-    for (let i = 0; i < topCount; i++) {
-      const t = topCount === 1 ? 0.5 : i / (topCount - 1)
-      spots.push({
-        left: 10 + t * (w - 20) - SEAT_W / 2,
-        top: -SEAT_H - 2,
-        rotate: 180,
-      })
-    }
-    for (let i = 0; i < bottomCount; i++) {
-      const t = bottomCount === 1 ? 0.5 : i / (bottomCount - 1)
-      spots.push({
-        left: 10 + t * (w - 20) - SEAT_W / 2,
-        top: h + 4,
-        rotate: 0,
       })
     }
     return spots
@@ -146,9 +125,75 @@ export function seatSpotsForTable(table: DiningTable): SeatSpot[] {
   return spots
 }
 
+/** Booth = two long banquettes (top + bottom), typically 2+2. */
+function boothBenchMeta(table: DiningTable) {
+  const seats = Math.max(2, Math.min(12, Math.round(table.seats) || 4))
+  const topCap = Math.ceil(seats / 2)
+  const bottomCap = Math.floor(seats / 2)
+  return { seats, topCap, bottomCap }
+}
+
 function seatedMinutes(check: TableCheck | undefined): number | null {
   if (!check) return null
   return Math.max(0, Math.round((Date.now() - new Date(check.seatedAt).getTime()) / 60_000))
+}
+
+function BoothBenches({
+  table,
+  occupied,
+}: {
+  table: DiningTable
+  occupied: number
+}) {
+  const { topCap, bottomCap } = boothBenchMeta(table)
+  const topFilled = Math.min(topCap, occupied)
+  const bottomFilled = Math.min(bottomCap, Math.max(0, occupied - topCap))
+  const benchWidth = Math.max(48, table.width - 8)
+
+  function Bench({
+    side,
+    capacity,
+    filled,
+  }: {
+    side: 'top' | 'bottom'
+    capacity: number
+    filled: number
+  }) {
+    const active = filled > 0
+    return (
+      <span
+        aria-hidden
+        title={`${side} bench · ${filled}/${capacity}`}
+        className={cn(
+          'pointer-events-none absolute z-10 flex items-center justify-center border shadow-sm',
+          active
+            ? 'border-stone-500 bg-stone-500 text-white'
+            : 'border-stone-400 bg-[#cfcbc7] text-stone-600',
+        )}
+        style={{
+          left: SEAT_PAD + (table.width - benchWidth) / 2,
+          top:
+            side === 'top'
+              ? SEAT_PAD - BENCH_H - 3
+              : SEAT_PAD + table.height + 3,
+          width: benchWidth,
+          height: BENCH_H,
+          borderRadius: side === 'top' ? '10px 10px 4px 4px' : '4px 4px 10px 10px',
+        }}
+      >
+        <span className="text-[9px] font-semibold tabular-nums leading-none">
+          {capacity}
+        </span>
+      </span>
+    )
+  }
+
+  return (
+    <>
+      <Bench side="top" capacity={topCap} filled={topFilled} />
+      <Bench side="bottom" capacity={bottomCap} filled={bottomFilled} />
+    </>
+  )
 }
 
 function TableSeatMarkers({
@@ -158,6 +203,10 @@ function TableSeatMarkers({
   table: DiningTable
   occupied: number
 }) {
+  if (table.shape === 'booth') {
+    return <BoothBenches table={table} occupied={occupied} />
+  }
+
   const spots = seatSpotsForTable(table)
   return (
     <>
