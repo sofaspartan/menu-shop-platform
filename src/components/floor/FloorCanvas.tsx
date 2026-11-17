@@ -90,34 +90,24 @@ export function seatSpotsForTable(table: DiningTable): SeatSpot[] {
   }
 
   if (table.shape === 'booth') {
-    // Banquette along the back (top); guest seats along front + sides.
-    const front = Math.max(1, Math.ceil(seats * 0.5))
-    const sides = seats - front
-    const leftCount = Math.floor(sides / 2)
-    const rightCount = sides - leftCount
+    // Seats only on the long edges (top + bottom), never the short sides.
+    const topCount = Math.ceil(seats / 2)
+    const bottomCount = Math.floor(seats / 2)
 
-    for (let i = 0; i < front; i++) {
-      const t = front === 1 ? 0.5 : i / (front - 1)
+    for (let i = 0; i < topCount; i++) {
+      const t = topCount === 1 ? 0.5 : i / (topCount - 1)
       spots.push({
-        left: 8 + t * (w - 16) - SEAT_W / 2,
+        left: 10 + t * (w - 20) - SEAT_W / 2,
+        top: -SEAT_H - 2,
+        rotate: 180,
+      })
+    }
+    for (let i = 0; i < bottomCount; i++) {
+      const t = bottomCount === 1 ? 0.5 : i / (bottomCount - 1)
+      spots.push({
+        left: 10 + t * (w - 20) - SEAT_W / 2,
         top: h + 4,
         rotate: 0,
-      })
-    }
-    for (let i = 0; i < leftCount; i++) {
-      const t = leftCount === 1 ? 0.5 : (i + 1) / (leftCount + 1)
-      spots.push({
-        left: -SEAT_H - 2,
-        top: 10 + t * (h - 20) - SEAT_W / 2,
-        rotate: 90,
-      })
-    }
-    for (let i = 0; i < rightCount; i++) {
-      const t = rightCount === 1 ? 0.5 : (i + 1) / (rightCount + 1)
-      spots.push({
-        left: w + 2,
-        top: 10 + t * (h - 20) - SEAT_W / 2,
-        rotate: -90,
       })
     }
     return spots
