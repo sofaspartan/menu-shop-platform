@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Restaurant } from '@/types'
+import type { Restaurant, StoreKind } from '@/types'
 import * as restaurantService from '@/services/restaurantService'
 
 interface RestaurantState {
@@ -9,7 +9,12 @@ interface RestaurantState {
   load: (userId: string) => Promise<void>
   setCurrent: (id: string) => void
   current: () => Restaurant | null
-  create: (userId: string, name: string, description?: string) => Promise<Restaurant>
+  create: (
+    userId: string,
+    name: string,
+    description?: string,
+    storeKind?: StoreKind,
+  ) => Promise<Restaurant>
 }
 
 const CURRENT_KEY = 'menushop:current-restaurant'
@@ -36,8 +41,12 @@ export const useRestaurantStore = create<RestaurantState>((set, get) => ({
     const { restaurants, currentId } = get()
     return restaurants.find((r) => r.id === currentId) ?? null
   },
-  create: async (userId, name, description) => {
-    const restaurant = await restaurantService.createRestaurant(userId, { name, description })
+  create: async (userId, name, description, storeKind) => {
+    const restaurant = await restaurantService.createRestaurant(userId, {
+      name,
+      description,
+      storeKind,
+    })
     await get().load(userId)
     get().setCurrent(restaurant.id)
     return restaurant

@@ -148,7 +148,7 @@ export function SettingsPage() {
       <div>
         <h1 className="font-display text-3xl">Settings</h1>
         <p className="mt-1 text-stone-500">
-          Restaurant profile, your account, and demo data tools.
+          Store profile, your account, and demo data tools.
         </p>
       </div>
 
@@ -156,7 +156,10 @@ export function SettingsPage() {
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       <section className="rounded-2xl border border-stone-200 bg-white p-5">
-        <h2 className="font-display text-xl">Restaurant profile</h2>
+        <h2 className="font-display text-xl">Store profile</h2>
+        <p className="mt-1 text-sm capitalize text-stone-500">
+          Type: {current?.storeKind ?? 'restaurant'}
+        </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Name" htmlFor="rest-name">
             <Input

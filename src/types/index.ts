@@ -14,6 +14,103 @@ export type ItemAvailability =
 
 export type OrderType = 'pickup' | 'delivery'
 
+/** Vertical for a storefront: food service vs general retail. */
+export type StoreKind = 'restaurant' | 'retail'
+
+/** Visual catalog layout: list menu vs merch product grid. */
+export type StorefrontLayout = 'restaurant' | 'retail'
+/** Content column: centered with max width, or edge-to-edge. */
+export type StorefrontWidth = 'margined' | 'full'
+
+/** Page top: cover image band, or simple title + subtitle (no image). */
+export type PageHeaderStyle = 'cover' | 'simple'
+
+export type CoverHeroHeight = 'short' | 'tall'
+/** left = bottom-left; centerBottom = centered on bottom; centerMiddle = true center of hero */
+export type CoverHeroAlign = 'left' | 'centerBottom' | 'centerMiddle'
+
+/** Shared hero overlay controls for About / Contact (mirrors shop cover). */
+export interface PageHeroOptions {
+  height: CoverHeroHeight
+  align: CoverHeroAlign
+  showTitle: boolean
+  showSubtitle: boolean
+  showButton: boolean
+  buttonLabel?: string
+  buttonHref?: string
+}
+
+export interface StoreAboutPage {
+  enabled: boolean
+  headerStyle: PageHeaderStyle
+  title: string
+  /** Supporting line under the title (simple header) or under cover title. */
+  subtitle?: string
+  heroImageUrl?: string
+  hero: PageHeroOptions
+  /** Plain text; blank lines become paragraphs. */
+  body: string
+}
+
+export interface StoreContactPage {
+  enabled: boolean
+  headerStyle: PageHeaderStyle
+  title: string
+  intro?: string
+  heroImageUrl?: string
+  hero: PageHeroOptions
+  showPhone: boolean
+  phoneOverride?: string
+  showEmail: boolean
+  emailOverride?: string
+  showAddress: boolean
+  showHours: boolean
+  showWebsite: boolean
+  showInstagram: boolean
+  showFacebook: boolean
+  showTwitter: boolean
+  showTiktok: boolean
+}
+
+export interface StoreFooter {
+  enabled: boolean
+  /** Defaults to the store name when blank. */
+  companyName?: string
+  /** Defaults to “© {year} {company}. All rights reserved.” when blank. */
+  copyright?: string
+  /** Shop / About / Contact links when those pages are enabled. */
+  showPageLinks: boolean
+}
+
+/** Cover / hero band for retail (and optional restaurant) storefronts. */
+export interface StoreCoverIntro {
+  /** Show the cover image section at all. */
+  enabled: boolean
+  height: CoverHeroHeight
+  /** Overlay copy alignment inside the cover. */
+  align: CoverHeroAlign
+  showTitle: boolean
+  showDescription: boolean
+  showButton: boolean
+  title?: string
+  /** Shown when showButton is on and label is non-empty. */
+  buttonLabel?: string
+  /**
+   * Button target: absolute URL, in-app path (`/r/slug/about`), or hash (`#section-featured`).
+   * Defaults to the featured section when label is set and this is blank.
+   */
+  buttonHref?: string
+}
+
+export interface StorePages {
+  about: StoreAboutPage
+  contact: StoreContactPage
+  coverIntro?: StoreCoverIntro
+  /** Show the featured product hero on retail catalogs. */
+  featuredEnabled?: boolean
+  footer?: StoreFooter
+}
+
 export type OrderStatus =
   | 'received'
   | 'confirmed'
@@ -130,6 +227,13 @@ export interface Restaurant extends Timestamps {
   slug: string
   name: string
   description: string
+  /** restaurant = food menus; retail = product catalogs (bags, furniture, etc.) */
+  storeKind: StoreKind
+  /** Catalog presentation — independent of storeKind so owners can choose. */
+  storefrontLayout: StorefrontLayout
+  /** Full-bleed vs centered content column (applies mainly to retail chrome). */
+  storefrontWidth: StorefrontWidth
+  pages: StorePages
   logoUrl?: string
   coverImageUrl?: string
   phone: string
@@ -200,11 +304,14 @@ export interface MenuItem extends Timestamps {
   id: ID
   restaurantId: ID
   name: string
+  /** Primary / cover image (also used in grids and bag lines). */
   imageUrl?: string
+  /** Additional gallery images shown in the product modal. */
+  imageUrls?: string[]
   shortDescription: string
   fullDescription?: string
   basePriceCents: CurrencyCents
-  itemType: 'food' | 'drink' | 'combo' | 'other'
+  itemType: 'food' | 'drink' | 'combo' | 'product' | 'other'
   sku?: string
   dietaryLabelIds: ID[]
   allergens: string[]
@@ -470,6 +577,191 @@ export const DEFAULT_ORDERING: OrderingSettings = {
   orderCutoffMinutesBeforeClose: 15,
   tipPresetsPercent: [15, 18, 20, 25],
   itemNotesEnabled: true,
+}
+
+/** Sensible fulfillment defaults when creating a retail store. */
+export const DEFAULT_RETAIL_ORDERING: OrderingSettings = {
+  ...DEFAULT_ORDERING,
+  minimumDeliveryCents: 5000,
+  deliveryFeeCents: 999,
+  estimatedPrepMinutes: 90,
+  tipPresetsPercent: [10, 15, 20],
+}
+
+export const DEFAULT_COVER_INTRO: StoreCoverIntro = {
+  enabled: true,
+  height: 'short',
+  align: 'left',
+  showTitle: true,
+  showDescription: true,
+  showButton: true,
+  title: '',
+  buttonLabel: '',
+  buttonHref: '',
+}
+
+export const DEFAULT_STORE_FOOTER: StoreFooter = {
+  enabled: true,
+  companyName: '',
+  copyright: '',
+  showPageLinks: true,
+}
+
+export const DEFAULT_PAGE_HERO: PageHeroOptions = {
+  height: 'short',
+  align: 'left',
+  showTitle: true,
+  showSubtitle: true,
+  showButton: false,
+  buttonLabel: '',
+  buttonHref: '',
+}
+
+export function normalizePageHero(hero?: Partial<PageHeroOptions> | null): PageHeroOptions {
+  const rawAlign = hero?.align as string | undefined
+  return {
+    ...DEFAULT_PAGE_HERO,
+    ...hero,
+    height: hero?.height === 'tall' ? 'tall' : 'short',
+    align:
+      rawAlign === 'centerMiddle'
+        ? 'centerMiddle'
+        : rawAlign === 'centerBottom' || rawAlign === 'center'
+          ? 'centerBottom'
+          : 'left',
+    showTitle: hero?.showTitle ?? true,
+    showSubtitle: hero?.showSubtitle ?? true,
+    showButton: hero?.showButton ?? false,
+  }
+}
+
+export function normalizeCoverIntro(
+  intro?: Partial<StoreCoverIntro> | null,
+): StoreCoverIntro {
+  return {
+    ...DEFAULT_COVER_INTRO,
+    ...intro,
+    enabled: intro?.enabled ?? DEFAULT_COVER_INTRO.enabled,
+    height: intro?.height === 'tall' ? 'tall' : 'short',
+    align: (() => {
+      const raw = intro?.align as string | undefined
+      if (raw === 'centerMiddle') return 'centerMiddle'
+      if (raw === 'centerBottom' || raw === 'center') return 'centerBottom'
+      return 'left'
+    })(),
+    showTitle: intro?.showTitle ?? true,
+    showDescription: intro?.showDescription ?? true,
+    showButton: intro?.showButton ?? true,
+  }
+}
+
+export const DEFAULT_STORE_PAGES: StorePages = {
+  about: {
+    enabled: false,
+    headerStyle: 'cover',
+    title: 'About',
+    subtitle: '',
+    hero: { ...DEFAULT_PAGE_HERO },
+    body: '',
+  },
+  contact: {
+    enabled: false,
+    headerStyle: 'simple',
+    title: 'Contact',
+    intro: '',
+    hero: { ...DEFAULT_PAGE_HERO },
+    showPhone: true,
+    showEmail: true,
+    showAddress: true,
+    showHours: true,
+    showWebsite: true,
+    showInstagram: true,
+    showFacebook: true,
+    showTwitter: true,
+    showTiktok: true,
+  },
+  coverIntro: { ...DEFAULT_COVER_INTRO },
+  featuredEnabled: true,
+  footer: { ...DEFAULT_STORE_FOOTER },
+}
+
+export function normalizeStoreFooter(footer?: Partial<StoreFooter> | null): StoreFooter {
+  return {
+    ...DEFAULT_STORE_FOOTER,
+    ...footer,
+    enabled: footer?.enabled ?? DEFAULT_STORE_FOOTER.enabled,
+    showPageLinks: footer?.showPageLinks ?? true,
+  }
+}
+
+export function normalizeAboutPage(
+  about?: Partial<StoreAboutPage> | null,
+): StoreAboutPage {
+  const base = DEFAULT_STORE_PAGES.about
+  return {
+    ...base,
+    ...about,
+    enabled: about?.enabled ?? false,
+    headerStyle: about?.headerStyle === 'simple' ? 'simple' : 'cover',
+    title: about?.title ?? base.title,
+    body: about?.body ?? '',
+    hero: normalizePageHero(about?.hero ?? base.hero),
+  }
+}
+
+export function normalizeContactPage(
+  contact?: Partial<StoreContactPage> | null,
+): StoreContactPage {
+  const base = DEFAULT_STORE_PAGES.contact
+  return {
+    ...base,
+    ...contact,
+    enabled: contact?.enabled ?? false,
+    headerStyle: contact?.headerStyle === 'cover' ? 'cover' : 'simple',
+    title: contact?.title ?? base.title,
+    hero: normalizePageHero(contact?.hero ?? base.hero),
+  }
+}
+
+export function defaultStorePagesFor(kind: StoreKind): StorePages {
+  if (kind !== 'retail') {
+    return {
+      about: { ...DEFAULT_STORE_PAGES.about, hero: { ...DEFAULT_PAGE_HERO } },
+      contact: { ...DEFAULT_STORE_PAGES.contact, hero: { ...DEFAULT_PAGE_HERO } },
+      coverIntro: { ...DEFAULT_COVER_INTRO },
+      featuredEnabled: true,
+      footer: { ...DEFAULT_STORE_FOOTER, enabled: false },
+    }
+  }
+  return {
+    about: {
+      enabled: true,
+      headerStyle: 'cover',
+      title: 'About',
+      subtitle: 'Our story, materials, and craft.',
+      hero: { ...DEFAULT_PAGE_HERO },
+      body: 'Tell your story — craft, materials, and what makes your shop unique.',
+    },
+    contact: {
+      ...DEFAULT_STORE_PAGES.contact,
+      enabled: true,
+      headerStyle: 'simple',
+      intro: 'Questions about an order or a custom piece? Reach out anytime.',
+      hero: { ...DEFAULT_PAGE_HERO },
+    },
+    coverIntro: {
+      ...DEFAULT_COVER_INTRO,
+      title: 'New season essentials',
+      buttonLabel: 'Shop featured',
+      buttonHref: '#section-featured',
+    },
+    featuredEnabled: true,
+    footer: {
+      ...DEFAULT_STORE_FOOTER,
+      enabled: true,
+      showPageLinks: true,
+    },
+  }
 }
 
 export const FONT_OPTIONS = [

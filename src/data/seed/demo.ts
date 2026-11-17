@@ -15,6 +15,7 @@ import type {
 import { DEFAULT_BRANDING, DEFAULT_ORDERING } from '@/types'
 import { createId, nowIso } from '@/lib/utils'
 import { hashPassword } from '@/lib/crypto'
+import { buildHavenHideSeed } from '@/data/seed/retailHaven'
 
 const DEMO_PASSWORD = 'demo1234'
 
@@ -94,6 +95,46 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     organizationId: orgId,
     slug: 'the-corner-table',
     name: 'The Corner Table',
+    storeKind: 'restaurant',
+    storefrontLayout: 'restaurant',
+    storefrontWidth: 'margined',
+    pages: {
+      about: {
+        enabled: false,
+        headerStyle: 'cover',
+        title: 'About',
+        hero: {
+          height: 'short',
+          align: 'left',
+          showTitle: true,
+          showSubtitle: true,
+          showButton: false,
+        },
+        body: '',
+      },
+      contact: {
+        enabled: false,
+        headerStyle: 'simple',
+        title: 'Contact',
+        hero: {
+          height: 'short',
+          align: 'left',
+          showTitle: true,
+          showSubtitle: true,
+          showButton: false,
+        },
+        showPhone: true,
+        showEmail: true,
+        showAddress: true,
+        showHours: true,
+        showWebsite: true,
+        showInstagram: true,
+        showFacebook: true,
+        showTwitter: false,
+        showTiktok: false,
+      },
+      footer: { enabled: false, companyName: '', copyright: '', showPageLinks: true },
+    },
     description:
       'A contemporary neighborhood restaurant serving seasonal plates, craft drinks, and weekend brunch favorites. Casual, polished, and always welcoming.',
     logoUrl: IMAGES.logo,
@@ -1206,8 +1247,10 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     })),
   ]
 
+  const haven = buildHavenHideSeed(userId, orgId, ts)
+
   return {
-    version: 2,
+    version: 10,
     users: [
       {
         id: userId,
@@ -1222,7 +1265,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     organizations: [
       {
         id: orgId,
-        name: 'Corner Table Hospitality',
+        name: 'Alex Morgan Stores',
         ownerUserId: userId,
         createdAt: ts,
         updatedAt: ts,
@@ -1237,20 +1280,21 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
         createdAt: ts,
         updatedAt: ts,
       },
+      haven.membership,
     ],
-    restaurants: [restaurant],
-    menus,
-    sections,
-    items,
-    assignments,
-    modifierGroups,
-    itemModifiers,
+    restaurants: [restaurant, haven.restaurant],
+    menus: [...menus, ...haven.menus],
+    sections: [...sections, ...haven.sections],
+    items: [...items, ...haven.items],
+    assignments: [...assignments, ...haven.assignments],
+    modifierGroups: [...modifierGroups, ...haven.modifierGroups],
+    itemModifiers: [...itemModifiers, ...haven.itemModifiers],
     combos,
-    dietaryLabels: labels,
-    qrCodes,
+    dietaryLabels: [...labels, ...haven.dietaryLabels],
+    qrCodes: [...qrCodes, ...haven.qrCodes],
     brandThemes: [],
-    orders,
-    analyticsEvents,
+    orders: [...orders, ...haven.orders],
+    analyticsEvents: [...analyticsEvents, ...haven.analyticsEvents],
     sessions: [],
     passwordResetTokens: [],
   }

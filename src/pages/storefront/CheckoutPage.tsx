@@ -10,6 +10,7 @@ import { Field, Input, Textarea } from '@/components/ui/Input'
 import { useDb } from '@/hooks/useDb'
 import { useBagStore } from '@/stores/bagStore'
 import { calculateOrderPricing } from '@/lib/pricing'
+import { storeCopy } from '@/lib/storeCopy'
 import { formatMoney, cn } from '@/lib/utils'
 import { placeOrder } from '@/services/orderService'
 import { trackEvent } from '@/services/analyticsService'
@@ -62,8 +63,14 @@ export function CheckoutPage() {
         type: 'checkout_start',
       })
     }
-    if (restaurant.ordering.pickupEnabled) setOrderType('pickup')
-    else if (restaurant.ordering.deliveryEnabled) setOrderType('delivery')
+    // Retail defaults to shipping (delivery); restaurants default to pickup.
+    if (restaurant.storeKind === 'retail' && restaurant.ordering.deliveryEnabled) {
+      setOrderType('delivery')
+    } else if (restaurant.ordering.pickupEnabled) {
+      setOrderType('pickup')
+    } else if (restaurant.ordering.deliveryEnabled) {
+      setOrderType('delivery')
+    }
   }, [restaurant])
 
   const tipCents = useMemo(() => {
@@ -88,14 +95,16 @@ export function CheckoutPage() {
 
   function validateCheckout(): string | null {
     if (!restaurant) return 'Restaurant not found.'
-    if (!lines.length) return 'Your bag is empty.'
+    if (!lines.length) return storeCopy(restaurant.storeKind).emptyBag + '.'
     if (!name.trim() || !phone.trim()) return 'Name and phone are required.'
     if (orderType === 'delivery') {
       if (!line1.trim() || !city.trim() || !state.trim() || !postalCode.trim()) {
-        return 'Please complete your delivery address.'
+        return storeCopy(restaurant.storeKind).completeAddressError
       }
       if (subtotal < restaurant.ordering.minimumDeliveryCents) {
-        return `Delivery minimum is ${formatMoney(restaurant.ordering.minimumDeliveryCents)}.`
+        return storeCopy(restaurant.storeKind).shipOrDeliveryMinimumError(
+          formatMoney(restaurant.ordering.minimumDeliveryCents),
+        )
       }
     }
     const digits = cardNumber.replace(/\D/g, '')
@@ -187,7 +196,7 @@ export function CheckoutPage() {
   if (!restaurant) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
-        <h1 className="font-display text-3xl">Restaurant not found</h1>
+        <h1 className="font-display text-3xl">Store not found</h1>
         <Link to="/" className="mt-4">
           <Button>Home</Button>
         </Link>
@@ -195,6 +204,7 @@ export function CheckoutPage() {
     )
   }
 
+  const copy = storeCopy(restaurant.storeKind)
   const presets = restaurant.ordering.tipPresetsPercent
   const pickupOk = restaurant.ordering.pickupEnabled
   const deliveryOk = restaurant.ordering.deliveryEnabled
@@ -212,7 +222,7 @@ export function CheckoutPage() {
           `${restaurant.address.city}, ${restaurant.address.state} ${restaurant.address.postalCode}`,
         ]
           .filter(Boolean)
-          .join(', ') || 'Pickup at restaurant'
+          .join(', ') || `Pickup at ${copy.storeNoun}`
 
   return (
     <StorefrontShell branding={restaurant.branding}>
@@ -229,9 +239,9 @@ export function CheckoutPage() {
 
         {!lines.length ? (
           <div className="mt-10 rounded-2xl border border-dashed border-stone-300 bg-[var(--sf-surface)] p-10 text-center">
-            <p className="font-medium">Your bag is empty</p>
+            <p className="font-medium">{copy.emptyBag}</p>
             <Link to={`/r/${restaurant.slug}`} className="mt-4 inline-block">
-              <Button>Browse menu</Button>
+              <Button>{copy.browseCta}</Button>
             </Link>
           </div>
         ) : (
@@ -255,7 +265,7 @@ export function CheckoutPage() {
                             : 'border-stone-200',
                         )}
                       >
-                        Pickup
+                        {copy.pickupLabel}
                       </button>
                     ) : null}
                     {deliveryOk ? (
@@ -269,14 +279,18 @@ export function CheckoutPage() {
                             : 'border-stone-200',
                         )}
                       >
-                        Delivery
+                        {copy.shipOrDeliveryLabel}
                       </button>
                     ) : null}
                   </div>
                   {orderType === 'delivery' ? (
                     <p className="mt-2 text-xs text-[var(--sf-text)]/55">
-                      Minimum {formatMoney(restaurant.ordering.minimumDeliveryCents)} · Fee{' '}
+                      Minimum {formatMoney(restaurant.ordering.minimumDeliveryCents)} ·{' '}
+                      {copy.shipOrDeliveryFee}{' '}
                       {formatMoney(restaurant.ordering.deliveryFeeCents)}
+                      {copy.isRetail
+                        ? ' · Simulated carrier shipping (not same-day courier)'
+                        : ''}
                     </p>
                   ) : null}
                 </section>
@@ -316,7 +330,7 @@ export function CheckoutPage() {
 
               {orderType === 'delivery' ? (
                 <section className="space-y-3">
-                  <h2 className="text-lg font-medium">Delivery address</h2>
+                  <h2 className="text-lg font-medium">{copy.shipOrDeliveryAddress}</h2>
                   <Field label="Street address" htmlFor="line1">
                     <Input
                       id="line1"
@@ -375,7 +389,9 @@ export function CheckoutPage() {
                     onChange={(e) => setInstructions(e.target.value)}
                     placeholder={
                       orderType === 'delivery'
-                        ? 'Gate code, leave at door…'
+                        ? copy.isRetail
+                          ? 'Apartment, building access, gift note…'
+                          : 'Gate code, leave at door…'
                         : 'Name for pickup…'
                     }
                   />
@@ -540,7 +556,7 @@ export function CheckoutPage() {
                   </div>
                   {pricing.deliveryFeeCents > 0 ? (
                     <div className="flex justify-between">
-                      <dt className="text-[var(--sf-text)]/60">Delivery fee</dt>
+                      <dt className="text-[var(--sf-text)]/60">{copy.shipOrDeliveryFee}</dt>
                       <dd>{formatMoney(pricing.deliveryFeeCents)}</dd>
                     </div>
                   ) : null}
@@ -571,6 +587,7 @@ export function CheckoutPage() {
           setConfirmOpen(false)
         }}
         orderType={orderType}
+        storeKind={restaurant.storeKind}
         estimatedLabel={estimatedAt}
         addressLabel={addressLabel}
         cardLast4={cardLast4}

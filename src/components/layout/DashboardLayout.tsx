@@ -14,36 +14,40 @@ import {
   Eye,
   ChevronDown,
   Layers,
+  FileText,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { useRestaurantStore } from '@/stores/restaurantStore'
+import { storeCopy } from '@/lib/storeCopy'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
-
-const nav = [
-  { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
-  { to: '/dashboard/orders', label: 'Orders', icon: ClipboardList },
-  { to: '/dashboard/menus', label: 'Menus', icon: Menu },
-  { to: '/dashboard/items', label: 'Item library', icon: UtensilsCrossed },
-  { to: '/dashboard/modifiers', label: 'Modifiers', icon: Store },
-  { to: '/dashboard/combos', label: 'Combos', icon: Layers },
-  { to: '/dashboard/scheduling', label: 'Scheduling', icon: Clock3 },
-  { to: '/dashboard/branding', label: 'Branding', icon: Palette },
-  { to: '/dashboard/qr', label: 'QR codes', icon: QrCode },
-  { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/dashboard/preview', label: 'Preview', icon: Eye },
-  { to: '/dashboard/settings', label: 'Settings', icon: Settings },
-]
 
 export function DashboardLayout() {
   const user = useAuthStore((s) => s.user)
   const signOut = useAuthStore((s) => s.signOut)
   const { restaurants, currentId, setCurrent, load, loading } = useRestaurantStore()
   const current = restaurants.find((r) => r.id === currentId) ?? null
+  const copy = storeCopy(current?.storeKind)
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [switcherOpen, setSwitcherOpen] = useState(false)
+
+  const nav = [
+    { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
+    { to: '/dashboard/orders', label: 'Orders', icon: ClipboardList },
+    { to: '/dashboard/menus', label: copy.catalogNounPlural, icon: Menu },
+    { to: '/dashboard/items', label: copy.itemLibrary, icon: UtensilsCrossed },
+    { to: '/dashboard/modifiers', label: copy.modifiersNoun, icon: Store },
+    { to: '/dashboard/combos', label: copy.comboNounPlural, icon: Layers },
+    { to: '/dashboard/scheduling', label: 'Scheduling', icon: Clock3 },
+    { to: '/dashboard/branding', label: 'Branding', icon: Palette },
+    { to: '/dashboard/pages', label: 'Pages & layout', icon: FileText },
+    { to: '/dashboard/qr', label: 'QR codes', icon: QrCode },
+    { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
+    { to: '/dashboard/preview', label: 'Preview', icon: Eye },
+    { to: '/dashboard/settings', label: 'Settings', icon: Settings },
+  ]
 
   useEffect(() => {
     if (user) void load(user.id)
@@ -55,21 +59,21 @@ export function DashboardLayout() {
     <div className="min-h-screen bg-[var(--color-canvas)] lg:flex">
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-72 border-r border-stone-200 bg-white p-4 transition-transform lg:static lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-stone-200 bg-white p-4 transition-transform lg:sticky lg:top-0 lg:h-svh lg:translate-x-0 lg:self-start',
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="mb-6 flex items-center gap-3 px-2">
+        <div className="mb-6 flex shrink-0 items-center gap-3 px-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-brand)] text-white">
             <UtensilsCrossed className="h-5 w-5" />
           </div>
           <div>
             <div className="font-display text-lg leading-none">MenuShop</div>
-            <div className="text-xs text-stone-500">Restaurant dashboard</div>
+            <div className="text-xs text-stone-500">{copy.dashboardSubtitle}</div>
           </div>
         </div>
 
-        <div className="relative mb-4">
+        <div className="relative mb-4 shrink-0">
           <button
             type="button"
             className="flex w-full items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-left"
@@ -77,10 +81,12 @@ export function DashboardLayout() {
           >
             <div className="min-w-0">
               <div className="truncate text-sm font-medium">
-                {current?.name || (loading ? 'Loading…' : 'Select restaurant')}
+                {current?.name || (loading ? 'Loading…' : 'Select a store')}
               </div>
               <div className="truncate text-xs text-stone-500">
-                {current ? `/r/${current.slug}` : 'Create or choose a restaurant'}
+                {current
+                  ? `${current.storeKind === 'retail' ? 'Retail' : 'Restaurant'} · /r/${current.slug}`
+                  : 'Create or choose a store'}
               </div>
             </div>
             <ChevronDown className="h-4 w-4 shrink-0 text-stone-400" />
@@ -100,7 +106,10 @@ export function DashboardLayout() {
                     setSwitcherOpen(false)
                   }}
                 >
-                  {r.name}
+                  <span className="block truncate font-medium">{r.name}</span>
+                  <span className="block text-xs text-stone-500 capitalize">
+                    {r.storeKind ?? 'restaurant'}
+                  </span>
                 </button>
               ))}
               <button
@@ -111,13 +120,13 @@ export function DashboardLayout() {
                   navigate('/dashboard/restaurants/new')
                 }}
               >
-                + New restaurant
+                + New store
               </button>
             </div>
           ) : null}
         </div>
 
-        <nav className="space-y-1">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto">
           {nav.map((item) => (
             <NavLink
               key={item.to}
@@ -137,7 +146,7 @@ export function DashboardLayout() {
           ))}
         </nav>
 
-        <div className="mt-6 border-t border-stone-100 pt-4">
+        <div className="mt-4 shrink-0 border-t border-stone-100 pt-4">
           <div className="px-3 text-sm font-medium">{user.name}</div>
           <div className="px-3 text-xs text-stone-500">{user.email}</div>
           <Button

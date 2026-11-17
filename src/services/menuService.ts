@@ -210,6 +210,7 @@ export async function createItem(
     restaurantId,
     name: input.name.trim(),
     imageUrl: input.imageUrl,
+    imageUrls: input.imageUrls?.length ? input.imageUrls : undefined,
     shortDescription: input.shortDescription || '',
     fullDescription: input.fullDescription,
     basePriceCents: input.basePriceCents,

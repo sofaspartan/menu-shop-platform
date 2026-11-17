@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
 import { useBagStore, type BagLine } from '@/stores/bagStore'
+import { storeCopy } from '@/lib/storeCopy'
 import { formatMoney, cn } from '@/lib/utils'
 import { trackEvent } from '@/services/analyticsService'
 
@@ -25,6 +26,7 @@ export function BagDrawer({
   const duplicateLine = useBagStore((s) => s.duplicateLine)
   const lines = allLines.filter((l) => l.restaurantId === restaurant.id)
   const subtotal = lines.reduce((sum, l) => sum + l.unitPriceCents * l.quantity, 0)
+  const copy = storeCopy(restaurant.storeKind)
 
   if (!open) return null
 
@@ -32,7 +34,7 @@ export function BagDrawer({
     <div className="fixed inset-0 z-50 flex justify-end">
       <button
         type="button"
-        aria-label="Close bag"
+        aria-label={`Close ${copy.bagNoun}`}
         className="absolute inset-0 bg-stone-900/40 animate-fade-in"
         onClick={onClose}
       />
@@ -42,13 +44,13 @@ export function BagDrawer({
         )}
         role="dialog"
         aria-modal="true"
-        aria-label="Your bag"
+        aria-label={copy.yourBag}
       >
         <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
           <div>
-            <h2 className="font-display text-xl text-[var(--sf-text)]">Your bag</h2>
+            <h2 className="font-display text-xl text-[var(--sf-text)]">{copy.yourBag}</h2>
             <p className="text-xs text-[var(--sf-text)]/60">
-              {lines.length} {lines.length === 1 ? 'item' : 'items'}
+              {lines.length} {lines.length === 1 ? copy.itemNoun : copy.itemNounPlural.toLowerCase()}
             </p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
@@ -59,8 +61,12 @@ export function BagDrawer({
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {lines.length === 0 ? (
             <EmptyState
-              title="Your bag is empty"
-              description="Browse the menu and add something delicious."
+              title={copy.emptyBag}
+              description={
+                copy.isRetail
+                  ? 'Browse the catalog and add something you love.'
+                  : 'Browse the menu and add something delicious.'
+              }
               icon={<ShoppingBag className="h-10 w-10" />}
               actionLabel="Keep browsing"
               onAction={onClose}
