@@ -535,8 +535,9 @@ export interface QrCode extends Timestamps {
  * - branding: logo + title on a chosen background image
  * - graphics: repeating image slideshow (fullscreen or framed with header/footer)
  * - featured: catalog/product slides (auto from featured items, or manual pages)
+ * - menu: static above-counter ordering board (sections + prices + imagery)
  */
-export type DisplayKind = 'branding' | 'graphics' | 'featured'
+export type DisplayKind = 'branding' | 'graphics' | 'featured' | 'menu'
 
 /** @deprecated Prefer DisplayKind */
 export type DisplayMode = 'featured' | 'catalog' | 'mixed' | DisplayKind
@@ -595,10 +596,17 @@ export interface Display extends Timestamps {
 
   /** Featured board: auto from catalog featured flags, or manual pages. */
   featuredSource: FeaturedSource
-  /** Limit auto featured to these menus; empty = all available. */
+  /** Limit menu / auto featured to these menus; empty = all available. */
   menuIds: ID[]
+  /**
+   * Menu board: limit to these sections; empty = every section on the
+   * selected menus (or all available menus when menuIds is also empty).
+   */
+  sectionIds: ID[]
   showPrices: boolean
   showSoldOut: boolean
+  /** Menu board: show item imagery beside each offering. */
+  showItemImages: boolean
   /** Auto mode: max items per rotating page. */
   itemsPerAutoSlide: number
   /** Manual mode pages. */

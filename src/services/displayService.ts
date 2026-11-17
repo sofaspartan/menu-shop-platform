@@ -48,8 +48,10 @@ function defaultsForKind(kind: DisplayKind): Pick<
   | 'graphicSlides'
   | 'featuredSource'
   | 'menuIds'
+  | 'sectionIds'
   | 'showPrices'
   | 'showSoldOut'
+  | 'showItemImages'
   | 'itemsPerAutoSlide'
   | 'itemSlides'
 > {
@@ -59,8 +61,10 @@ function defaultsForKind(kind: DisplayKind): Pick<
     graphicSlides: [],
     featuredSource: 'auto',
     menuIds: [],
+    sectionIds: [],
     showPrices: true,
     showSoldOut: false,
+    showItemImages: true,
     itemsPerAutoSlide: 4,
     itemSlides: [],
   }
@@ -123,8 +127,10 @@ export type DisplayPatch = Partial<
     | 'graphicSlides'
     | 'featuredSource'
     | 'menuIds'
+    | 'sectionIds'
     | 'showPrices'
     | 'showSoldOut'
+    | 'showItemImages'
     | 'itemsPerAutoSlide'
     | 'itemSlides'
   >
@@ -174,8 +180,10 @@ export async function updateDisplay(
       next.featuredSource = patch.featuredSource as FeaturedSource
     }
     if (patch.menuIds !== undefined) next.menuIds = patch.menuIds
+    if (patch.sectionIds !== undefined) next.sectionIds = patch.sectionIds
     if (patch.showPrices !== undefined) next.showPrices = patch.showPrices
     if (patch.showSoldOut !== undefined) next.showSoldOut = patch.showSoldOut
+    if (patch.showItemImages !== undefined) next.showItemImages = patch.showItemImages
     if (patch.itemsPerAutoSlide !== undefined) {
       next.itemsPerAutoSlide = Math.max(1, Math.min(8, patch.itemsPerAutoSlide))
     }

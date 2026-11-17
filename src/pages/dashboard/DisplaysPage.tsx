@@ -23,6 +23,11 @@ import { cn, formatMoney } from '@/lib/utils'
 
 const KIND_OPTIONS: Array<{ id: DisplayKind; blurb: string }> = [
   {
+    id: 'menu',
+    blurb:
+      'Above-counter ordering board — sections with offerings, prices, and imagery. Not a slideshow.',
+  },
+  {
     id: 'branding',
     blurb: 'Logo + title on a background image — a simple brand sign.',
   },
@@ -43,7 +48,7 @@ export function DisplaysPage() {
   const copy = storeCopy(current?.storeKind)
 
   const [createOpen, setCreateOpen] = useState(false)
-  const [createKind, setCreateKind] = useState<DisplayKind>('featured')
+  const [createKind, setCreateKind] = useState<DisplayKind>('menu')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
@@ -54,6 +59,13 @@ export function DisplaysPage() {
     if (!db || !current) return []
     return db.menus
       .filter((m) => m.restaurantId === current.id)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+  }, [db, current])
+
+  const sections = useMemo(() => {
+    if (!db || !current) return []
+    return db.sections
+      .filter((s) => s.restaurantId === current.id && !s.hidden)
       .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
   }, [db, current])
 
@@ -105,13 +117,15 @@ export function DisplaysPage() {
             ? `Welcome to ${current.name}`
             : createKind === 'featured'
               ? `Featured ${copy.itemNounPlural.toLowerCase()}`
-              : undefined,
+              : createKind === 'menu'
+                ? 'Order here'
+                : undefined,
         backgroundImageUrl: current.coverImageUrl,
       })
       setSelectedId(created.id)
       setCreateOpen(false)
       setName('')
-      setCreateKind('featured')
+      setCreateKind('menu')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create display.')
     } finally {
@@ -146,10 +160,34 @@ export function DisplaysPage() {
   function toggleMenu(menuId: string) {
     if (!selected) return
     const has = selected.menuIds.includes(menuId)
+    const nextMenuIds = has
+      ? selected.menuIds.filter((id) => id !== menuId)
+      : [...selected.menuIds, menuId]
+    // Drop section picks that no longer belong to the selected menus.
+    const allowedSectionIds = new Set(
+      sections
+        .filter(
+          (s) =>
+            nextMenuIds.length === 0 || nextMenuIds.includes(s.menuId),
+        )
+        .map((s) => s.id),
+    )
+    const nextSectionIds = selected.sectionIds.filter((id) =>
+      allowedSectionIds.has(id),
+    )
     void patchSelected({
-      menuIds: has
-        ? selected.menuIds.filter((id) => id !== menuId)
-        : [...selected.menuIds, menuId],
+      menuIds: nextMenuIds,
+      sectionIds: nextSectionIds,
+    })
+  }
+
+  function toggleSection(sectionId: string) {
+    if (!selected) return
+    const has = selected.sectionIds.includes(sectionId)
+    void patchSelected({
+      sectionIds: has
+        ? selected.sectionIds.filter((id) => id !== sectionId)
+        : [...selected.sectionIds, sectionId],
     })
   }
 
@@ -219,8 +257,9 @@ export function DisplaysPage() {
         <div>
           <h1 className="font-display text-3xl">{copy.displayNounPlural}</h1>
           <p className="mt-1 max-w-2xl text-stone-500">
-            Create branding signs, graphic slideshows, or featured-item boards. Each gets a
-            public URL for a TV — updates live with your catalog and availability.
+            Create ordering menu boards, branding signs, graphic slideshows, or featured-item
+            boards. Each gets a public URL for a TV — updates live with your catalog and
+            availability.
           </p>
         </div>
         <Button type="button" onClick={() => setCreateOpen(true)}>
@@ -342,7 +381,7 @@ export function DisplaysPage() {
                     onChange={(e) => void patchSelected({ tagline: e.target.value })}
                   />
                 </Field>
-                {selected.kind !== 'branding' ? (
+                {selected.kind !== 'branding' && selected.kind !== 'menu' ? (
                   <Field label="Seconds per slide" htmlFor="disp-duration">
                     <Input
                       id="disp-duration"
@@ -387,6 +426,137 @@ export function DisplaysPage() {
                   </label>
                 </div>
               </div>
+
+              {selected.kind === 'menu' ? (
+                <div className="space-y-4 rounded-xl border border-stone-200 p-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-stone-800">
+                      Ordering {copy.catalogNoun.toLowerCase()} board
+                    </h3>
+                    <p className="mt-1 text-xs text-stone-500">
+                      Static above-counter layout with sections, prices, and item imagery —
+                      show everything, or pick specific {copy.catalogNounPlural.toLowerCase()}{' '}
+                      and sections (mains, drinks, etc.).
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-4">
+                    <label className="flex items-center gap-2 text-sm text-stone-700">
+                      <input
+                        type="checkbox"
+                        checked={selected.showPrices}
+                        onChange={(e) =>
+                          void patchSelected({ showPrices: e.target.checked })
+                        }
+                      />
+                      Show prices
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-stone-700">
+                      <input
+                        type="checkbox"
+                        checked={selected.showItemImages}
+                        onChange={(e) =>
+                          void patchSelected({ showItemImages: e.target.checked })
+                        }
+                      />
+                      Show imagery
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-stone-700">
+                      <input
+                        type="checkbox"
+                        checked={selected.showSoldOut}
+                        onChange={(e) =>
+                          void patchSelected({ showSoldOut: e.target.checked })
+                        }
+                      />
+                      Show sold-out items
+                    </label>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+                      {copy.catalogNounPlural}
+                    </h4>
+                    <p className="mt-1 text-xs text-stone-500">
+                      Leave none selected to include every currently available{' '}
+                      {copy.catalogNoun.toLowerCase()}.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {menus.map((menu) => {
+                        const forced = selected.menuIds.includes(menu.id)
+                        return (
+                          <button
+                            key={menu.id}
+                            type="button"
+                            onClick={() => toggleMenu(menu.id)}
+                            className={cn(
+                              'rounded-lg border px-3 py-1.5 text-sm',
+                              forced
+                                ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+                                : selected.menuIds.length === 0
+                                  ? 'border-stone-200 bg-stone-50 text-stone-600'
+                                  : 'border-stone-200 text-stone-400',
+                            )}
+                          >
+                            {menu.name}
+                            {selected.menuIds.length === 0 ? ' · all' : ''}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+                      Sections
+                    </h4>
+                    <p className="mt-1 text-xs text-stone-500">
+                      Leave none selected to show every section on the{' '}
+                      {copy.catalogNounPlural.toLowerCase()} above. Pick one or more
+                      (e.g. mains + drinks) to narrow the board.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {sections
+                        .filter(
+                          (s) =>
+                            selected.menuIds.length === 0 ||
+                            selected.menuIds.includes(s.menuId),
+                        )
+                        .map((section) => {
+                          const forced = selected.sectionIds.includes(section.id)
+                          const menuName =
+                            menus.find((m) => m.id === section.menuId)?.name ?? ''
+                          return (
+                            <button
+                              key={section.id}
+                              type="button"
+                              onClick={() => toggleSection(section.id)}
+                              className={cn(
+                                'rounded-lg border px-3 py-1.5 text-sm',
+                                forced
+                                  ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+                                  : selected.sectionIds.length === 0
+                                    ? 'border-stone-200 bg-stone-50 text-stone-600'
+                                    : 'border-stone-200 text-stone-400',
+                              )}
+                            >
+                              {section.name}
+                              {menuName ? (
+                                <span className="opacity-60"> · {menuName}</span>
+                              ) : null}
+                              {selected.sectionIds.length === 0 ? ' · all' : ''}
+                            </button>
+                          )
+                        })}
+                      {sections.length === 0 ? (
+                        <p className="text-sm text-stone-400">
+                          No sections yet — add them under {copy.catalogNounPlural}.
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               {selected.kind === 'branding' ? (
                 <div className="space-y-3 rounded-xl border border-stone-200 p-4">

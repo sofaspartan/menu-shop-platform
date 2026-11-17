@@ -111,7 +111,10 @@ export async function getDb(): Promise<AppDatabase> {
     // Bump when seed assets/schema change so demos refresh cleanly.
     if (
       existing &&
-      (existing.version === 11 || existing.version === 12 || existing.version === 13)
+      (existing.version === 11 ||
+        existing.version === 12 ||
+        existing.version === 13 ||
+        existing.version === 14)
     ) {
       if (!existing.brandThemes) existing.brandThemes = []
       if (!existing.coupons) existing.coupons = []
@@ -122,11 +125,18 @@ export async function getDb(): Promise<AppDatabase> {
       // Soft-migrate older display drafts in place.
       existing.displays = existing.displays.map((d) => {
         const kind =
-          d.kind === 'branding' || d.kind === 'graphics' || d.kind === 'featured'
+          d.kind === 'branding' ||
+          d.kind === 'graphics' ||
+          d.kind === 'featured' ||
+          d.kind === 'menu'
             ? d.kind
-            : d.mode === 'branding' || d.mode === 'graphics'
+            : d.mode === 'branding' ||
+                d.mode === 'graphics' ||
+                d.mode === 'menu'
               ? d.mode
-              : 'featured'
+              : d.mode === 'catalog'
+                ? 'menu'
+                : 'featured'
         return {
           ...d,
           kind,
@@ -144,8 +154,10 @@ export async function getDb(): Promise<AppDatabase> {
               })),
           featuredSource: d.featuredSource === 'manual' ? 'manual' : 'auto',
           menuIds: d.menuIds ?? [],
+          sectionIds: d.sectionIds ?? [],
           showPrices: d.showPrices !== false,
           showSoldOut: Boolean(d.showSoldOut),
+          showItemImages: d.showItemImages !== false,
           itemsPerAutoSlide: d.itemsPerAutoSlide || 4,
           itemSlides: d.itemSlides ?? [],
           showLogo: d.showLogo !== false,

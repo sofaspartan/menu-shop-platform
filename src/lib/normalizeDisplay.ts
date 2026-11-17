@@ -8,14 +8,25 @@ import type {
 } from '@/types'
 
 function asKind(display: Display): DisplayKind {
-  if (display.kind === 'branding' || display.kind === 'graphics' || display.kind === 'featured') {
+  if (
+    display.kind === 'branding' ||
+    display.kind === 'graphics' ||
+    display.kind === 'featured' ||
+    display.kind === 'menu'
+  ) {
     return display.kind
   }
   // Legacy mode → kind
-  if (display.mode === 'branding' || display.mode === 'graphics' || display.mode === 'featured') {
+  if (
+    display.mode === 'branding' ||
+    display.mode === 'graphics' ||
+    display.mode === 'featured' ||
+    display.mode === 'menu'
+  ) {
     return display.mode
   }
-  if (display.mode === 'catalog' || display.mode === 'mixed') return 'featured'
+  if (display.mode === 'catalog') return 'menu'
+  if (display.mode === 'mixed') return 'featured'
   if ((display.customSlides?.length ?? 0) > 0 && display.mode === undefined) {
     return 'graphics'
   }
@@ -56,8 +67,10 @@ export function normalizeDisplay(raw: Display): Display {
     graphicSlides,
     featuredSource,
     menuIds: raw.menuIds ?? [],
+    sectionIds: raw.sectionIds ?? [],
     showPrices: raw.showPrices !== false,
     showSoldOut: Boolean(raw.showSoldOut),
+    showItemImages: raw.showItemImages !== false,
     itemsPerAutoSlide: Math.max(1, Math.min(8, raw.itemsPerAutoSlide || 4)),
     itemSlides,
   }
@@ -71,5 +84,7 @@ export function displayKindLabel(kind: DisplayKind): string {
       return 'Graphics slideshow'
     case 'featured':
       return 'Featured items'
+    case 'menu':
+      return 'Ordering menu'
   }
 }

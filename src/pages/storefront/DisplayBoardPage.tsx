@@ -42,11 +42,13 @@ export function DisplayBoardPage() {
   }, [db, restaurant, display, now, revision])
 
   const durationMs = Math.max(3, display?.slideDurationSec ?? 8) * 1000
+  const isMenuBoard = display?.kind === 'menu'
   const framedGraphics =
     display?.kind === 'graphics' && display.graphicsChrome === 'framed'
   const showChrome =
     display?.kind === 'branding' ||
     display?.kind === 'featured' ||
+    display?.kind === 'menu' ||
     framedGraphics
 
   useEffect(() => {
@@ -54,12 +56,13 @@ export function DisplayBoardPage() {
   }, [display?.id, slides.length])
 
   useEffect(() => {
-    if (slides.length <= 1) return
+    // Ordering menu boards are static — no slideshow rotation.
+    if (isMenuBoard || slides.length <= 1) return
     const id = window.setInterval(() => {
       setSlideIndex((i) => (i + 1) % slides.length)
     }, durationMs)
     return () => window.clearInterval(id)
-  }, [slides.length, durationMs, revision])
+  }, [slides.length, durationMs, revision, isMenuBoard])
 
   if (loading) {
     return (
@@ -153,6 +156,7 @@ export function DisplayBoardPage() {
             key={slide.id + String(slideIndex)}
             slide={slide}
             showPrices={display.showPrices}
+            showItemImages={display.showItemImages}
             surface={restaurant.branding.surfaceColor}
             fullscreenGraphic={!showChrome}
           />
@@ -162,7 +166,9 @@ export function DisplayBoardPage() {
               ? 'Add graphic slides in the dashboard to fill this board.'
               : display.kind === 'featured'
                 ? `No ${copy.itemNounPlural.toLowerCase()} available on this board right now.`
-                : 'Configure this branding board in the dashboard.'}
+                : display.kind === 'menu'
+                  ? `No ${copy.catalogNoun.toLowerCase()} sections to show right now.`
+                  : 'Configure this branding board in the dashboard.'}
           </div>
         )}
       </main>
@@ -175,7 +181,9 @@ export function DisplayBoardPage() {
                 ? s.title || `Slide ${i + 1}`
                 : s.kind === 'items'
                   ? s.title
-                  : s.headline
+                  : s.kind === 'menu'
+                    ? s.title
+                    : s.headline
             return (
               <span
                 key={s.id}
@@ -193,7 +201,7 @@ export function DisplayBoardPage() {
         </footer>
       ) : null}
 
-      {!framedGraphics && slides.length > 1 ? (
+      {!framedGraphics && !isMenuBoard && slides.length > 1 ? (
         <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
           {slides.map((s, i) => (
             <span
@@ -217,14 +225,27 @@ export function DisplayBoardPage() {
 function SlideView({
   slide,
   showPrices,
+  showItemImages,
   surface,
   fullscreenGraphic,
 }: {
   slide: BoardSlide
   showPrices: boolean
+  showItemImages: boolean
   surface: string
   fullscreenGraphic: boolean
 }) {
+  if (slide.kind === 'menu') {
+    return (
+      <MenuBoardView
+        slide={slide}
+        showPrices={showPrices}
+        showItemImages={showItemImages}
+        surface={surface}
+      />
+    )
+  }
+
   if (slide.kind === 'branding' || slide.kind === 'graphic') {
     const imageUrl = slide.kind === 'branding' ? slide.imageUrl : slide.imageUrl
     const headline = slide.kind === 'branding' ? slide.headline : slide.title
@@ -364,6 +385,121 @@ function SlideView({
               ) : null}
             </div>
           </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/** Above-counter ordering board — sections with offerings, prices, and imagery. */
+function MenuBoardView({
+  slide,
+  showPrices,
+  showItemImages,
+  surface,
+}: {
+  slide: Extract<BoardSlide, { kind: 'menu' }>
+  showPrices: boolean
+  showItemImages: boolean
+  surface: string
+}) {
+  const sectionCount = slide.sections.length
+  const cols =
+    sectionCount <= 1
+      ? 'grid-cols-1 max-w-3xl mx-auto'
+      : sectionCount === 2
+        ? 'grid-cols-1 lg:grid-cols-2'
+        : sectionCount === 3
+          ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
+          : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+
+  return (
+    <section
+      className="flex flex-1 flex-col overflow-hidden rounded-[2rem] p-5 animate-fade-up sm:p-7"
+      style={{ backgroundColor: surface }}
+    >
+      {slide.title ? (
+        <h2
+          className="mb-5 text-3xl font-semibold tracking-tight sm:text-4xl"
+          style={{ fontFamily: 'var(--brand-heading)', color: 'var(--brand-primary)' }}
+        >
+          {slide.title}
+        </h2>
+      ) : null}
+      <div className={cn('grid flex-1 gap-5 content-start', cols)}>
+        {slide.sections.map((section) => (
+          <div
+            key={section.id}
+            className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-black/5 bg-[var(--brand-bg)]"
+          >
+            <div
+              className="border-b border-black/5 px-4 py-3"
+              style={{
+                background:
+                  'color-mix(in srgb, var(--brand-primary) 10%, var(--brand-bg))',
+              }}
+            >
+              <h3
+                className="text-xl font-semibold tracking-tight sm:text-2xl"
+                style={{ fontFamily: 'var(--brand-heading)' }}
+              >
+                {section.name}
+              </h3>
+            </div>
+            <ul className="flex flex-1 flex-col divide-y divide-black/5 overflow-y-auto">
+              {section.items.map((item) => (
+                <li
+                  key={item.id}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3',
+                    item.soldOut && 'opacity-50',
+                  )}
+                >
+                  {showItemImages ? (
+                    <MenuItemImage
+                      src={item.imageUrl}
+                      alt=""
+                      className="h-14 w-14 shrink-0 rounded-xl object-cover sm:h-16 sm:w-16"
+                      fallbackClassName="h-14 w-14 shrink-0 rounded-xl sm:h-16 sm:w-16"
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="truncate text-base font-semibold sm:text-lg">
+                        {item.name}
+                      </p>
+                      {showPrices ? (
+                        <div className="shrink-0 text-right">
+                          <p className="text-base font-semibold tabular-nums text-[var(--brand-primary)] sm:text-lg">
+                            {formatMoney(item.priceCents)}
+                          </p>
+                          {item.onSale ? (
+                            <p className="text-[11px] opacity-50 line-through">
+                              {formatMoney(item.listPriceCents)}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                    {item.description ? (
+                      <p className="mt-0.5 line-clamp-1 text-sm opacity-60">
+                        {item.description}
+                      </p>
+                    ) : null}
+                    {item.soldOut ? (
+                      <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-red-700">
+                        Sold out
+                      </p>
+                    ) : item.onSale ? (
+                      <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--brand-accent)]">
+                        On sale
+                      </p>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
         ))}
       </div>
     </section>
