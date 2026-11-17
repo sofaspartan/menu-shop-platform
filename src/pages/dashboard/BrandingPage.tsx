@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { brandingStyleVars } from '@/lib/brandingCss'
+import { storeCopy } from '@/lib/storeCopy'
 import { cn } from '@/lib/utils'
 import { FONT_OPTIONS, type BrandTheme, type RestaurantBranding } from '@/types'
 
@@ -28,6 +29,7 @@ export function BrandingPage() {
   const load = useRestaurantStore((s) => s.load)
   const user = useAuthStore((s) => s.user)
   const { db } = useDb()
+  const copy = storeCopy(current?.storeKind)
   const [branding, setBranding] = useState<RestaurantBranding | null>(null)
   const [logoUrl, setLogoUrl] = useState('')
   const [coverImageUrl, setCoverImageUrl] = useState('')
@@ -59,7 +61,11 @@ export function BrandingPage() {
   }, [current])
 
   if (!current || !user || !branding) {
-    return <p className="text-sm text-stone-500">Select a restaurant to edit branding.</p>
+    return (
+      <p className="text-sm text-stone-500">
+        {copy.selectStoreToManage('branding').replace('manage ', 'edit ')}
+      </p>
+    )
   }
 
   function patch<K extends keyof RestaurantBranding>(key: K, value: RestaurantBranding[K]) {
@@ -498,9 +504,11 @@ export function BrandingPage() {
                 }}
               >
                 <div style={{ fontFamily: 'var(--brand-heading)' }} className="font-semibold">
-                  Signature dish
+                  {copy.isRetail ? 'Featured product' : 'Signature dish'}
                 </div>
-                <p className="mt-1 text-sm opacity-70">A sample menu card with your styles.</p>
+                <p className="mt-1 text-sm opacity-70">
+                  A sample {copy.catalogNoun} card with your styles.
+                </p>
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-sm font-medium" style={{ color: 'var(--brand-accent)' }}>
                     $14.00
@@ -654,7 +662,9 @@ function ThemeCard({
           <div className="text-sm font-semibold" style={{ fontFamily: 'var(--brand-heading)' }}>
             Tonight’s special
           </div>
-          <p className="mt-1 text-xs opacity-70">Sample menu text in this theme’s type and color.</p>
+          <p className="mt-1 text-xs opacity-70">
+            Sample storefront text in this theme’s type and color.
+          </p>
           <div className="mt-3 flex items-center justify-between gap-2">
             <span className="text-sm font-semibold" style={{ color: 'var(--brand-accent)' }}>
               $18.00

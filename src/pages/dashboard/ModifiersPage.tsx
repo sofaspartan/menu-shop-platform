@@ -9,6 +9,7 @@ import { Field, Input, Textarea, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Modal } from '@/components/ui/Modal'
+import { storeCopy } from '@/lib/storeCopy'
 import { createId, formatMoney } from '@/lib/utils'
 import type { ModifierGroup, ModifierOption, ModifierSelectionMode } from '@/types'
 
@@ -96,7 +97,11 @@ export function ModifiersPage() {
   }, [db, current])
 
   if (!current || !user) {
-    return <p className="text-sm text-stone-500">Select a restaurant to manage modifiers.</p>
+    return (
+      <p className="text-sm text-stone-500">
+        {storeCopy(current?.storeKind).selectStoreToManage('modifiers')}
+      </p>
+    )
   }
 
   function openCreate() {

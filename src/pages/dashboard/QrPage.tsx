@@ -10,6 +10,7 @@ import { Field, Input, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Modal } from '@/components/ui/Modal'
+import { storeCopy } from '@/lib/storeCopy'
 import { downloadBlob } from '@/lib/utils'
 import type { QrCode } from '@/types'
 
@@ -25,6 +26,7 @@ export function QrPage() {
   const current = useRestaurantStore((s) => s.current())
   const user = useAuthStore((s) => s.user)
   const { db } = useDb()
+  const copy = storeCopy(current?.storeKind)
   const previewRef = useRef<HTMLDivElement>(null)
 
   const [createOpen, setCreateOpen] = useState(false)
@@ -75,7 +77,9 @@ export function QrPage() {
       : ''
 
   if (!current || !user) {
-    return <p className="text-sm text-stone-500">Select a restaurant to manage QR codes.</p>
+    return (
+      <p className="text-sm text-stone-500">{copy.selectStoreToManage('QR codes')}</p>
+    )
   }
 
   async function createQr() {
@@ -169,7 +173,7 @@ export function QrPage() {
       {qrCodes.length === 0 ? (
         <EmptyState
           title="No QR codes yet"
-          description="Generate a code that opens your restaurant or a specific menu."
+          description={`Generate a code that opens your ${copy.storeNoun} or a specific ${copy.catalogNoun}.`}
           actionLabel="Create QR code"
           onAction={() => setCreateOpen(true)}
         />
@@ -327,14 +331,14 @@ export function QrPage() {
               value={targetType}
               onChange={(e) => setTargetType(e.target.value as 'restaurant' | 'menu')}
             >
-              <option value="restaurant">Restaurant home</option>
-              <option value="menu">Specific menu</option>
+              <option value="restaurant">{copy.storeNounTitle} home</option>
+              <option value="menu">Specific {copy.catalogNoun}</option>
             </Select>
           </Field>
           {targetType === 'menu' ? (
-            <Field label="Menu" htmlFor="qr-menu">
+            <Field label={copy.catalogNounTitle} htmlFor="qr-menu">
               <Select id="qr-menu" value={menuId} onChange={(e) => setMenuId(e.target.value)}>
-                <option value="">Select menu…</option>
+                <option value="">Select {copy.catalogNoun}…</option>
                 {menus.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name}

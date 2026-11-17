@@ -5,18 +5,20 @@ import { useDb } from '@/hooks/useDb'
 import { formatMoney } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { shortStatusLabel, storeCopy } from '@/lib/storeCopy'
 
 export function OverviewPage() {
   const current = useRestaurantStore((s) => s.current())
   const restaurants = useRestaurantStore((s) => s.restaurants)
   const { db, loading } = useDb()
+  const copy = storeCopy(current?.storeKind)
 
   if (!loading && restaurants.length === 0) {
     return (
       <EmptyState
-        title="Create your first restaurant"
-        description="Set up a branded storefront, menus, and ordering in a few minutes."
-        actionLabel="New restaurant"
+        title={`Create your first ${copy.storeNoun}`}
+        description={`Set up a branded storefront, ${copy.catalogNounPlural.toLowerCase()}, and ordering in a few minutes.`}
+        actionLabel={copy.newStoreCta.replace(/^\+\s*/, '')}
         onAction={() => {
           window.location.href = '/dashboard/restaurants/new'
         }}
@@ -37,13 +39,14 @@ export function OverviewPage() {
   )
   const menuCount = db.menus.filter((m) => m.restaurantId === current.id).length
   const itemCount = db.items.filter((i) => i.restaurantId === current.id).length
+  const kind = current.storeKind ?? 'restaurant'
 
   return (
     <div className="space-y-8 animate-fade-up">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl text-stone-900">{current.name}</h1>
-          <p className="mt-1 text-stone-500">Here’s what’s happening with your restaurant today.</p>
+          <p className="mt-1 text-stone-500">{copy.overviewToday}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge tone={current.ordering.acceptingOrders ? 'success' : 'warning'}>
@@ -63,7 +66,11 @@ export function OverviewPage() {
           { label: 'Today’s orders', value: String(todayOrders.length), icon: ShoppingBag },
           { label: 'Today’s sales', value: formatMoney(sales), icon: DollarSign },
           { label: 'Open tickets', value: String(openOrders.length), icon: ClipboardList },
-          { label: 'Menus / items', value: `${menuCount} / ${itemCount}`, icon: Utensils },
+          {
+            label: `${copy.catalogNounPlural} / ${copy.itemNounPlural.toLowerCase()}`,
+            value: `${menuCount} / ${itemCount}`,
+            icon: Utensils,
+          },
         ].map((card) => (
           <div
             key={card.label}
@@ -96,7 +103,11 @@ export function OverviewPage() {
                 <div>
                   <div className="font-medium">#{order.orderNumber} · {order.customer.name}</div>
                   <div className="text-xs text-stone-500">
-                    {order.fulfillment.type} · {order.items.length} item(s)
+                    {order.fulfillment.type === 'delivery'
+                      ? copy.shipOrDeliveryLabel
+                      : copy.pickupLabel}{' '}
+                    · {order.items.length} {copy.itemNoun}
+                    {order.items.length === 1 ? '' : 's'}
                   </div>
                 </div>
                 <div className="text-right">
@@ -109,7 +120,7 @@ export function OverviewPage() {
                           : 'brand'
                     }
                   >
-                    {order.status.replaceAll('_', ' ')}
+                    {shortStatusLabel(order.status, kind, order.fulfillment.type)}
                   </Badge>
                   <div className="mt-1 text-sm font-medium">
                     {formatMoney(order.pricing.totalCents)}
@@ -127,8 +138,8 @@ export function OverviewPage() {
           <h2 className="mb-4 font-display text-xl">Quick actions</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {[
-              { to: '/dashboard/menus', label: 'Edit menus' },
-              { to: '/dashboard/items', label: 'Item library' },
+              { to: '/dashboard/menus', label: `Edit ${copy.catalogNounPlural.toLowerCase()}` },
+              { to: '/dashboard/items', label: copy.itemLibrary },
               { to: '/dashboard/branding', label: 'Customize branding' },
               { to: '/dashboard/qr', label: 'Create QR code' },
               { to: '/dashboard/analytics', label: 'View analytics' },

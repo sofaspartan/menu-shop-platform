@@ -16,6 +16,7 @@ import {
   rangeFromPreset,
   type DateRange,
 } from '@/services/analyticsService'
+import { storeCopy } from '@/lib/storeCopy'
 import { formatMoney } from '@/lib/utils'
 import { Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
@@ -32,6 +33,7 @@ type Summary = Awaited<ReturnType<typeof getAnalyticsSummary>>
 
 export function AnalyticsPage() {
   const current = useRestaurantStore((s) => s.current())
+  const copy = storeCopy(current?.storeKind)
   const [preset, setPreset] = useState('7d')
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar')
   const [summary, setSummary] = useState<Summary | null>(null)
@@ -58,7 +60,11 @@ export function AnalyticsPage() {
   }, [current, preset])
 
   if (!current) {
-    return <p className="text-sm text-stone-500">Select a restaurant to view analytics.</p>
+    return (
+      <p className="text-sm text-stone-500">
+        {copy.selectStoreToManage('analytics').replace('manage ', 'view ')}
+      </p>
+    )
   }
 
   const metrics = summary
@@ -66,7 +72,10 @@ export function AnalyticsPage() {
         { label: 'Orders', value: String(summary.totalOrders) },
         { label: 'Sales', value: formatMoney(summary.totalSales) },
         { label: 'Avg order value', value: formatMoney(summary.avgOrder) },
-        { label: 'Avg items / order', value: String(summary.avgItems) },
+        {
+          label: `Avg ${copy.itemNounPlural.toLowerCase()} / order`,
+          value: String(summary.avgItems),
+        },
         { label: 'Conversion', value: `${summary.conversion}%` },
       ]
     : []
@@ -77,7 +86,8 @@ export function AnalyticsPage() {
         <div>
           <h1 className="font-display text-3xl">Analytics</h1>
           <p className="mt-1 text-stone-500">
-            Orders, popular items, QR scans, and guest conversion for {current.name}.
+            Orders, popular {copy.itemNounPlural.toLowerCase()}, QR scans, and{' '}
+            {copy.guestNoun} conversion for {current.name}.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

@@ -8,6 +8,7 @@ import { formatScheduleSummary } from '@/lib/scheduling'
 import { Field, Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { storeCopy } from '@/lib/storeCopy'
 import { cn } from '@/lib/utils'
 
 function toLocalInputValue(date: Date): { date: string; time: string } {
@@ -21,6 +22,7 @@ function toLocalInputValue(date: Date): { date: string; time: string } {
 export function PreviewPage() {
   const current = useRestaurantStore((s) => s.current())
   const { db } = useDb()
+  const copy = storeCopy(current?.storeKind)
   const device = usePreviewStore((s) => s.device)
   const enabled = usePreviewStore((s) => s.enabled)
   const simulatedAt = usePreviewStore((s) => s.simulatedAt)
@@ -43,7 +45,11 @@ export function PreviewPage() {
   }, [menus, current, previewClock])
 
   if (!current) {
-    return <p className="text-sm text-stone-500">Select a restaurant to preview.</p>
+    return (
+      <p className="text-sm text-stone-500">
+        {copy.selectStoreToManage('preview').replace('manage ', '')}
+      </p>
+    )
   }
 
   function applyDateTime(date: string, time: string) {
@@ -61,8 +67,9 @@ export function PreviewPage() {
         <div>
           <h1 className="font-display text-3xl">Storefront preview</h1>
           <p className="mt-1 text-stone-500">
-            Simulate date and time to verify which menus guests will see. Preview clock is kept in
-            the local preview store (and can sync via localStorage on the storefront).
+            Simulate date and time to verify which {copy.catalogNounPlural.toLowerCase()}{' '}
+            {copy.guestNoun}s will see. Preview clock is kept in the local preview store (and can
+            sync via localStorage on the storefront).
           </p>
         </div>
         <a
@@ -122,7 +129,9 @@ export function PreviewPage() {
         </div>
         <div className="mt-4 flex flex-wrap gap-2 text-sm">
           <Badge tone={isRestaurantOpen(current, previewClock) ? 'success' : 'warning'}>
-            {isRestaurantOpen(current, previewClock) ? 'Restaurant open' : 'Restaurant closed'}
+            {isRestaurantOpen(current, previewClock)
+              ? `${copy.storeNounTitle} open`
+              : `${copy.storeNounTitle} closed`}
           </Badge>
           <Badge tone={isAcceptingOrders(current, previewClock) ? 'success' : 'danger'}>
             {isAcceptingOrders(current, previewClock)
@@ -137,7 +146,9 @@ export function PreviewPage() {
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-5">
-        <h2 className="font-display text-xl">Menus available at this clock</h2>
+        <h2 className="font-display text-xl">
+          {copy.catalogNounPlural} available at this clock
+        </h2>
         <ul className="mt-4 space-y-2">
           {availableMenus.map((menu) => (
             <li
@@ -149,7 +160,9 @@ export function PreviewPage() {
             </li>
           ))}
           {availableMenus.length === 0 ? (
-            <li className="text-sm text-stone-500">No menus available at the selected time.</li>
+            <li className="text-sm text-stone-500">
+              No {copy.catalogNounPlural.toLowerCase()} available at the selected time.
+            </li>
           ) : null}
         </ul>
       </section>

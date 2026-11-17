@@ -278,9 +278,9 @@ export function DisplaysPage() {
         <div>
           <h1 className="font-display text-3xl">{copy.displayNounPlural}</h1>
           <p className="mt-1 max-w-2xl text-stone-500">
-            Create ordering menu boards, branding signs, graphic slideshows, or featured-item
-            boards. Each gets a public URL for a TV — updates live with your catalog and
-            availability.
+            Create ordering boards, branding signs, graphic slideshows, or featured{' '}
+            {copy.itemNoun} boards. Each gets a public URL for a TV — updates live with your
+            catalog and availability.
           </p>
         </div>
         <Button type="button" onClick={() => setCreateOpen(true)}>
@@ -871,7 +871,8 @@ export function DisplaysPage() {
                       </Field>
                       <p className="text-xs text-stone-500">
                         Set to 1 for a full-bleed image + details layout. Slide titles become
-                        “Featured drink”, “Featured entree”, etc. from the section or menu.
+                        “Featured drink”, “Featured product”, etc. from the section or{' '}
+                        {copy.catalogNoun}.
                       </p>
 
                       <Field label="Pull featured from" htmlFor="disp-catalog-scope">

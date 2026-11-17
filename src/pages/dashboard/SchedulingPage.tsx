@@ -63,7 +63,11 @@ export function SchedulingPage() {
   }, [menus])
 
   if (!current || !user || !ordering) {
-    return <p className="text-sm text-stone-500">Select a restaurant to edit scheduling.</p>
+    return (
+      <p className="text-sm text-stone-500">
+        {copy.selectStoreToManage('scheduling').replace('manage ', 'edit ')}
+      </p>
+    )
   }
 
   function updateHour(day: DayOfWeek, patch: Partial<BusinessHoursDay>) {
@@ -128,7 +132,8 @@ export function SchedulingPage() {
         <div>
           <h1 className="font-display text-3xl">Scheduling</h1>
           <p className="mt-1 text-stone-500">
-            Business hours, ordering windows, and when each menu appears.
+            Business hours, ordering windows, and when each{' '}
+            {copy.catalogNoun} appears.
           </p>
         </div>
         <Button disabled={busy} onClick={() => void save()}>
@@ -332,9 +337,10 @@ export function SchedulingPage() {
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-5">
-        <h2 className="font-display text-xl">Per-menu schedules</h2>
+        <h2 className="font-display text-xl">Per-{copy.catalogNoun} schedules</h2>
         <p className="mt-1 text-sm text-stone-500">
-          Disable a schedule to keep the menu always available when the restaurant is open.
+          Disable a schedule to keep the {copy.catalogNoun} always available when the{' '}
+          {copy.storeNoun} is open.
         </p>
         <div className="mt-4 space-y-4">
           {menus.map((menu) => (

@@ -346,7 +346,7 @@ export function PosPage() {
       const order = await placeOrder({
         restaurantId: current.id,
         customer: {
-          name: guestName.trim() || 'Walk-in guest',
+          name: guestName.trim() || `Walk-in ${copy.guestNoun}`,
           phone: guestPhone,
           email: undefined,
         },
@@ -390,7 +390,7 @@ export function PosPage() {
           <h1 className="font-display text-3xl">Point of sale</h1>
           <p className="mt-1 max-w-2xl text-stone-500">
             Simulate a counter tablet like Square or Toast. Ring up {copy.itemNounPlural.toLowerCase()}{' '}
-            from your live catalog, flip the screen for the guest to tip and pay, then send the
+            from your live catalog, flip the screen for the {copy.guestNoun} to tip and pay, then send the
             order into your Orders queue.
           </p>
         </div>
@@ -685,12 +685,12 @@ function StaffFace({
               Clear
             </button>
           </div>
-          <Field label="Guest name (optional)" htmlFor="pos-guest">
+          <Field label={`${copy.guestNounTitle} name (optional)`} htmlFor="pos-guest">
             <Input
               id="pos-guest"
               value={guestName}
               onChange={(e) => onGuestName(e.target.value)}
-              placeholder="Walk-in guest"
+              placeholder={`Walk-in ${copy.guestNoun}`}
               className="mt-2"
             />
           </Field>
@@ -905,7 +905,7 @@ function CustomerFace({
               </p>
             ) : (
               <p className="mt-2 text-sm leading-relaxed text-emerald-800/75">
-                Added to this guest’s loyalty balance.
+                Added to this {copy.guestNoun}’s loyalty balance.
               </p>
             )}
           </div>
@@ -971,7 +971,7 @@ function CustomerFace({
               : 'Back'}
           </button>
           <p className="text-xs text-stone-400">
-            {guestName.trim() || 'Guest'} · {restaurant.name}
+            {guestName.trim() || copy.guestNounTitle} · {restaurant.name}
           </p>
         </div>
         <div className="mt-3 flex items-center gap-2">

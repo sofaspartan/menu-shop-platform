@@ -133,7 +133,7 @@ export function LoyaltyPage() {
         <h1 className="font-display text-3xl text-stone-900">Loyalty</h1>
         <p className="mt-1 text-sm text-stone-500">
           Customers earn points with each order (matched by email). Configure rewards they can
-          redeem at checkout — works for {copy.storeNoun} and retail alike.
+          redeem at checkout — works for restaurants and retail alike.
         </p>
       </div>
 
@@ -397,7 +397,7 @@ export function LoyaltyPage() {
             <p className="px-4 py-8 text-sm text-stone-500">
               {query
                 ? 'No matching members.'
-                : 'No loyalty accounts yet. They appear after a guest checks out with an email.'}
+                : `No loyalty accounts yet. They appear after a ${copy.guestNoun} checks out with an email.`}
             </p>
           ) : (
             <ul className="divide-y divide-stone-100">

@@ -246,7 +246,7 @@ export function DashboardLayout() {
                   navigate('/dashboard/restaurants/new')
                 }}
               >
-                + New store
+                {copy.newStoreCta}
               </button>
             </div>
           ) : null}

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Plus, Search, Trash2 } from 'lucide-react'
+import { storeCopy } from '@/lib/storeCopy'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -59,6 +60,7 @@ export function CombosPage() {
   const current = useRestaurantStore((s) => s.current())
   const user = useAuthStore((s) => s.user)
   const { db } = useDb()
+  const copy = storeCopy(current?.storeKind)
   const [modalOpen, setModalOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [selectedItemId, setSelectedItemId] = useState('')
@@ -96,7 +98,11 @@ export function CombosPage() {
   const componentChoices = items.filter((i) => !i.isCombo)
 
   if (!current || !user) {
-    return <p className="text-sm text-stone-500">Select a restaurant to manage combos.</p>
+    return (
+      <p className="text-sm text-stone-500">
+        {copy.selectStoreToManage(copy.comboNounPlural.toLowerCase())}
+      </p>
+    )
   }
 
   function openCreate() {
@@ -120,8 +126,8 @@ export function CombosPage() {
     if (!user || !current) throw new Error('Not signed in')
     if (selectedItemId) return selectedItemId
     const created = await menuService.createItem(user.id, current.id, {
-      name: 'New combo',
-      shortDescription: 'Build-your-own combo',
+      name: `New ${copy.comboNoun}`,
+      shortDescription: `Build-your-own ${copy.comboNoun}`,
       basePriceCents: Math.round(Number.parseFloat(basePriceDollars || '0') * 100),
       itemType: 'combo',
       isCombo: true,
@@ -188,13 +194,14 @@ export function CombosPage() {
     <div className="space-y-6 animate-fade-up">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl">Combos</h1>
+          <h1 className="font-display text-3xl">{copy.comboNounPlural}</h1>
           <p className="mt-1 text-stone-500">
-            Configure component groups, included items, and upgrade charges for combo meals.
+            Configure component groups, included {copy.itemNounPlural.toLowerCase()}, and upgrade
+            charges for {copy.comboNounPlural.toLowerCase()}.
           </p>
         </div>
         <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" /> New combo config
+          <Plus className="h-4 w-4" /> New {copy.comboNoun} config
         </Button>
       </div>
 
@@ -202,7 +209,7 @@ export function CombosPage() {
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
         <Input
           className="pl-9"
-          placeholder="Search combos…"
+          placeholder={`Search ${copy.comboNounPlural.toLowerCase()}…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />

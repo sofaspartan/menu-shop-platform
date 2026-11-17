@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Modal } from '@/components/ui/Modal'
 import { formatMoney } from '@/lib/utils'
+import { storeCopy } from '@/lib/storeCopy'
 import type { ItemAvailability, MenuItem } from '@/types'
 
 type ItemForm = {
@@ -82,6 +83,7 @@ export function ItemsPage() {
   const current = useRestaurantStore((s) => s.current())
   const user = useAuthStore((s) => s.user)
   const { db } = useDb()
+  const copy = storeCopy(current?.storeKind)
   const [query, setQuery] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -130,7 +132,11 @@ export function ItemsPage() {
   }, [db, current])
 
   if (!current || !user) {
-    return <p className="text-sm text-stone-500">Select a restaurant to manage items.</p>
+    return (
+      <p className="text-sm text-stone-500">
+        {copy.selectStoreToManage(copy.itemNounPlural.toLowerCase())}
+      </p>
+    )
   }
 
   function openCreate() {
@@ -211,9 +217,10 @@ export function ItemsPage() {
     <div className="space-y-6 animate-fade-up">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl">Item library</h1>
+          <h1 className="font-display text-3xl">{copy.itemLibrary}</h1>
           <p className="mt-1 text-stone-500">
-            Maintain a single catalog of items, then assign them to menu sections.
+            Maintain a single library of {copy.itemNounPlural.toLowerCase()}, then assign them to{' '}
+            {copy.catalogNoun} sections.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -221,10 +228,10 @@ export function ItemsPage() {
             to="/dashboard/combos"
             className="inline-flex h-10 items-center rounded-xl border border-stone-300 px-4 text-sm font-medium hover:bg-stone-50"
           >
-            Manage combos
+            Manage {copy.comboNounPlural.toLowerCase()}
           </Link>
           <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" /> New item
+            <Plus className="h-4 w-4" /> New {copy.itemNoun}
           </Button>
         </div>
       </div>
@@ -233,7 +240,7 @@ export function ItemsPage() {
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
         <Input
           className="pl-9"
-          placeholder="Search items…"
+          placeholder={`Search ${copy.itemNounPlural.toLowerCase()}…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -241,9 +248,17 @@ export function ItemsPage() {
 
       {items.length === 0 ? (
         <EmptyState
-          title={query ? 'No matching items' : 'No items yet'}
-          description="Create food, drinks, and combos for your menus."
-          actionLabel={query ? undefined : 'Create item'}
+          title={
+            query
+              ? `No matching ${copy.itemNounPlural.toLowerCase()}`
+              : `No ${copy.itemNounPlural.toLowerCase()} yet`
+          }
+          description={
+            copy.isRetail
+              ? `Create products and ${copy.comboNounPlural.toLowerCase()} for your catalogs.`
+              : 'Create food, drinks, and combos for your menus.'
+          }
+          actionLabel={query ? undefined : `Create ${copy.itemNoun}`}
           onAction={query ? undefined : openCreate}
         />
       ) : (
@@ -285,7 +300,7 @@ export function ItemsPage() {
                     <p className="mt-2 text-xs text-stone-500">
                       {placements.length > 0
                         ? `On: ${placements.join(' · ')}`
-                        : 'Not assigned to any menu section'}
+                        : `Not assigned to any ${copy.catalogNoun} section`}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">

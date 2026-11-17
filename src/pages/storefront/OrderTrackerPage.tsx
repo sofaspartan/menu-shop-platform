@@ -109,9 +109,7 @@ export function OrderTrackerPage() {
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
             <div>
               <p className="font-medium text-emerald-900">Order placed successfully</p>
-              <p className="text-sm text-emerald-800/80">
-                This page updates live as the kitchen progresses your order — no refresh needed.
-              </p>
+              <p className="text-sm text-emerald-800/80">{copy.trackerLiveBlurb}</p>
             </div>
           </div>
         ) : null}
@@ -143,6 +141,11 @@ export function OrderTrackerPage() {
           <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-[var(--sf-text)]/65">
             {subtitle}
           </p>
+          {isCancelled && order.cancellationNote ? (
+            <p className="mx-auto mt-4 max-w-sm rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800">
+              {order.cancellationNote}
+            </p>
+          ) : null}
 
           <div
             className="mt-8 flex gap-1.5"
@@ -252,10 +255,21 @@ export function OrderTrackerPage() {
           <h2 className="mb-4 text-lg font-medium">Order summary</h2>
           <ul className="space-y-3">
             {order.items.map((item) => (
-              <li key={item.id} className="flex justify-between gap-3 text-sm">
+              <li
+                key={item.id}
+                className={cn(
+                  'flex justify-between gap-3 text-sm',
+                  item.cancelled && 'opacity-70',
+                )}
+              >
                 <div className="min-w-0">
-                  <p className="font-medium">
+                  <p className={cn('font-medium', item.cancelled && 'line-through')}>
                     {item.quantity}× {item.name}
+                    {item.cancelled ? (
+                      <span className="ml-2 text-xs font-normal text-red-700 no-underline">
+                        Cancelled
+                      </span>
+                    ) : null}
                   </p>
                   {item.modifiers.length ? (
                     <p className="text-xs text-[var(--sf-text)]/55">
@@ -272,8 +286,13 @@ export function OrderTrackerPage() {
                       “{item.specialInstructions}”
                     </p>
                   ) : null}
+                  {item.cancelled && item.cancellationNote ? (
+                    <p className="mt-1 text-xs text-red-700">{item.cancellationNote}</p>
+                  ) : null}
                 </div>
-                <span className="shrink-0">{formatMoney(item.lineTotalCents)}</span>
+                <span className={cn('shrink-0', item.cancelled && 'line-through')}>
+                  {formatMoney(item.lineTotalCents)}
+                </span>
               </li>
             ))}
           </ul>

@@ -7,6 +7,7 @@ import { resetDemoData } from '@/data/db'
 import { DEMO_CREDENTIALS } from '@/data/seed/demo'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Textarea } from '@/components/ui/Input'
+import { storeCopy } from '@/lib/storeCopy'
 import type { Restaurant } from '@/types'
 
 export function SettingsPage() {
@@ -14,6 +15,7 @@ export function SettingsPage() {
   const loadRestaurants = useRestaurantStore((s) => s.load)
   const user = useAuthStore((s) => s.user)
   const refreshUser = useAuthStore((s) => s.refresh)
+  const copy = storeCopy(current?.storeKind)
 
   const [profile, setProfile] = useState({
     name: '',
@@ -66,7 +68,11 @@ export function SettingsPage() {
   }, [user])
 
   if (!current || !user) {
-    return <p className="text-sm text-stone-500">Select a restaurant to edit settings.</p>
+    return (
+      <p className="text-sm text-stone-500">
+        {copy.selectStoreToManage('settings').replace('manage ', 'edit ')}
+      </p>
+    )
   }
 
   async function saveRestaurant() {
@@ -98,9 +104,11 @@ export function SettingsPage() {
       }
       await restaurantService.updateRestaurant(user.id, current.id, patch)
       await loadRestaurants(user.id)
-      setMessage('Restaurant profile saved.')
+      setMessage(`${copy.storeNounTitle} profile saved.`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save restaurant')
+      setError(
+        err instanceof Error ? err.message : `Could not save ${copy.storeNoun}`,
+      )
     } finally {
       setBusy(false)
     }
@@ -272,7 +280,7 @@ export function SettingsPage() {
         </div>
         <div className="mt-5">
           <Button disabled={busy} onClick={() => void saveRestaurant()}>
-            Save restaurant
+            Save {copy.storeNoun}
           </Button>
         </div>
       </section>
@@ -314,7 +322,8 @@ export function SettingsPage() {
           </span>
         </p>
         <p className="mt-2 text-sm text-stone-500">
-          Resetting restores the seeded restaurant, menus, orders, and analytics in local storage.
+          Resetting restores the seeded demo {copy.storeNoun}, {copy.catalogNounPlural.toLowerCase()},
+          orders, and analytics in local storage.
         </p>
         <Button className="mt-4" variant="danger" disabled={busy} onClick={() => void onResetDemo()}>
           Reset demo data
@@ -322,7 +331,7 @@ export function SettingsPage() {
       </section>
 
       <p className="text-xs text-stone-400">
-        Slug: /r/{(current as Restaurant).slug} · Restaurant ID: {current.id}
+        Slug: /r/{(current as Restaurant).slug} · {copy.storeNounTitle} ID: {current.id}
       </p>
     </div>
   )

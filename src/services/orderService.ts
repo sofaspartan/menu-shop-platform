@@ -477,8 +477,12 @@ export async function advanceOrderStatus(
     const previous = order.status
     order.status = nextStatus
     order.updatedAt = nowIso()
+    const trimmedNote = note?.trim() || undefined
+    if (nextStatus === 'cancelled') {
+      order.cancellationNote = trimmedNote
+    }
     const historyNote =
-      note ??
+      trimmedNote ??
       (isRetractTransition(previous, nextStatus)
         ? previous === 'completed' || previous === 'cancelled'
           ? `Recalled from ${previous.replaceAll('_', ' ')}`
@@ -493,6 +497,69 @@ export async function advanceOrderStatus(
     if (nextStatus === 'completed') {
       order.payment.status = 'captured'
     }
+    updated = order
+  })
+  return updated!
+}
+
+/** Cancel a single line item; optional note is shown to the customer on the tracker. */
+export async function cancelOrderLineItem(
+  userId: string,
+  restaurantId: string,
+  orderId: string,
+  lineItemId: string,
+  note?: string,
+): Promise<Order> {
+  await assertRestaurantAccess(userId, restaurantId)
+  let updated: Order | null = null
+  await saveDb((d) => {
+    const order = d.orders.find((o) => o.id === orderId && o.restaurantId === restaurantId)
+    if (!order) throw new Error('Order not found.')
+    if (order.status === 'cancelled' || order.status === 'completed') {
+      throw new Error('Cannot cancel items on a closed order.')
+    }
+    const item = order.items.find((i) => i.id === lineItemId)
+    if (!item) throw new Error('Line item not found.')
+    if (item.cancelled) throw new Error('Item already cancelled.')
+
+    const trimmed = note?.trim() || undefined
+    item.cancelled = true
+    item.cancellationNote = trimmed
+
+    const remaining = order.items.filter((i) => !i.cancelled)
+    if (remaining.length === 0) {
+      order.status = 'cancelled'
+      order.cancellationNote =
+        trimmed || 'All items were cancelled.'
+      order.statusHistory.push({
+        status: 'cancelled',
+        at: nowIso(),
+        note: order.cancellationNote,
+        byUserId: userId,
+      })
+    } else {
+      // Reprice merchandise from active lines; keep tax rate, drop fees proportionally simple.
+      const subtotal = remaining.reduce((s, i) => s + i.lineTotalCents, 0)
+      const taxRate = order.pricing.taxRatePercent / 100
+      const taxCents = Math.round(subtotal * taxRate)
+      order.pricing.subtotalCents = subtotal
+      order.pricing.taxCents = taxCents
+      order.pricing.totalCents =
+        subtotal -
+        (order.pricing.discountCents ?? 0) +
+        taxCents +
+        order.pricing.deliveryFeeCents +
+        order.pricing.tipCents
+      order.statusHistory.push({
+        status: order.status,
+        at: nowIso(),
+        note: trimmed
+          ? `Cancelled item “${item.name}”: ${trimmed}`
+          : `Cancelled item “${item.name}”`,
+        byUserId: userId,
+      })
+    }
+    order.updatedAt = nowIso()
     updated = order
   })
   return updated!

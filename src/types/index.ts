@@ -704,6 +704,9 @@ export interface OrderLineItem {
   modifiers: SelectedModifierSnapshot[]
   isCombo: boolean
   comboSelections?: ComboSelectionSnapshot[]
+  /** Staff cancelled this line; optional note is shown to the customer. */
+  cancelled?: boolean
+  cancellationNote?: string
 }
 
 export interface OrderStatusEvent {
@@ -747,6 +750,8 @@ export interface Order extends Timestamps {
   }
   statusHistory: OrderStatusEvent[]
   internalNotes?: string
+  /** Optional reason shared with the customer when the order is cancelled. */
+  cancellationNote?: string
   estimatedReadyAt?: ISODateTime
   demoAutoAdvance?: boolean
   loyaltyAccountId?: ID

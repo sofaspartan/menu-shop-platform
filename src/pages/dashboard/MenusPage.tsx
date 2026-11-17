@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Modal } from '@/components/ui/Modal'
 import { formatMoney } from '@/lib/utils'
+import { storeCopy } from '@/lib/storeCopy'
 import type { MenuSection } from '@/types'
 
 function SortableSection({
@@ -70,6 +71,7 @@ export function MenusPage() {
   const current = useRestaurantStore((s) => s.current())
   const user = useAuthStore((s) => s.user)
   const { db } = useDb()
+  const copy = storeCopy(current?.storeKind)
 
   const [selectedMenuId, setSelectedMenuId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
@@ -135,7 +137,11 @@ export function MenusPage() {
   )
 
   if (!current || !user) {
-    return <p className="text-sm text-stone-500">Select a restaurant to manage menus.</p>
+    return (
+      <p className="text-sm text-stone-500">
+        {copy.selectStoreToManage(copy.catalogNounPlural.toLowerCase())}
+      </p>
+    )
   }
 
   async function createMenu() {
@@ -227,11 +233,15 @@ export function MenusPage() {
   if (menus.length === 0) {
     return (
       <div className="space-y-6 animate-fade-up">
-        <h1 className="font-display text-3xl">Menus</h1>
+        <h1 className="font-display text-3xl">{copy.catalogNounPlural}</h1>
         <EmptyState
-          title="No menus yet"
-          description="Create a breakfast, lunch, dinner, or specialty menu for your restaurant."
-          actionLabel="Create menu"
+          title={`No ${copy.catalogNounPlural.toLowerCase()} yet`}
+          description={
+            copy.isRetail
+              ? `Create a catalog for your ${copy.storeNoun} — seasonal, featured, or everyday products.`
+              : `Create a breakfast, lunch, dinner, or specialty menu for your ${copy.storeNoun}.`
+          }
+          actionLabel={`Create ${copy.catalogNoun}`}
           onAction={() => setCreateOpen(true)}
         />
         <CreateMenuModal
@@ -244,6 +254,7 @@ export function MenusPage() {
           onSubmit={createMenu}
           busy={busy}
           error={error}
+          catalogNoun={copy.catalogNoun}
         />
       </div>
     )
@@ -253,13 +264,14 @@ export function MenusPage() {
     <div className="space-y-6 animate-fade-up">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl">Menus</h1>
+          <h1 className="font-display text-3xl">{copy.catalogNounPlural}</h1>
           <p className="mt-1 text-stone-500">
-            Organize sections and assign items from your library. Schedules are edited separately.
+            Organize sections and assign {copy.itemNounPlural.toLowerCase()} from your library.
+            Schedules are edited separately.
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4" /> New menu
+          <Plus className="h-4 w-4" /> New {copy.catalogNoun}
         </Button>
       </div>
 
@@ -269,7 +281,7 @@ export function MenusPage() {
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
         <Input
           className="pl-9"
-          placeholder="Search menus…"
+          placeholder={`Search ${copy.catalogNounPlural.toLowerCase()}…`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -277,7 +289,9 @@ export function MenusPage() {
 
       <div className="flex flex-wrap gap-2">
         {filteredMenus.length === 0 ? (
-          <p className="text-sm text-stone-500">No menus match “{query.trim()}”.</p>
+          <p className="text-sm text-stone-500">
+            No {copy.catalogNounPlural.toLowerCase()} match “{query.trim()}”.
+          </p>
         ) : (
           filteredMenus.map((m) => (
             <button
@@ -465,7 +479,9 @@ export function MenusPage() {
       </DndContext>
 
       {sections.length === 0 ? (
-        <p className="text-sm text-stone-500">Add a section to start assigning menu items.</p>
+        <p className="text-sm text-stone-500">
+          Add a section to start assigning {copy.itemNounPlural.toLowerCase()}.
+        </p>
       ) : null}
 
       <CreateMenuModal
@@ -478,22 +494,23 @@ export function MenusPage() {
         onSubmit={createMenu}
         busy={busy}
         error={error}
+        catalogNoun={copy.catalogNoun}
       />
 
       <Modal
         open={!!assignSectionId}
         onClose={() => setAssignSectionId(null)}
-        title="Assign item to section"
+        title={`Assign ${copy.itemNoun} to section`}
       >
         <div className="space-y-4">
-          <Field label="Item" htmlFor="assign-item">
+          <Field label={copy.itemNounTitle} htmlFor="assign-item">
             <Select
               id="assign-item"
               value={assignItemId}
               onChange={(e) => setAssignItemId(e.target.value)}
             >
-              <option value="">Select an item…</option>
-              <optgroup label="Unassigned to this menu">
+              <option value="">Select a {copy.itemNoun}…</option>
+              <optgroup label={`Unassigned to this ${copy.catalogNoun}`}>
                 {items
                   .filter((i) => !assignedItemIds.has(i.id))
                   .map((i) => (
@@ -502,11 +519,13 @@ export function MenusPage() {
                     </option>
                   ))}
               </optgroup>
-              <optgroup label="All items">
+              <optgroup label={`All ${copy.itemNounPlural.toLowerCase()}`}>
                 {items.map((i) => (
                   <option key={`all-${i.id}`} value={i.id}>
                     {i.name}
-                    {assignedItemIds.has(i.id) ? ' (already on menu)' : ''}
+                    {assignedItemIds.has(i.id)
+                      ? ` (already on ${copy.catalogNoun})`
+                      : ''}
                   </option>
                 ))}
               </optgroup>
@@ -536,6 +555,7 @@ function CreateMenuModal({
   onSubmit,
   busy,
   error,
+  catalogNoun,
 }: {
   open: boolean
   onClose: () => void
@@ -546,16 +566,17 @@ function CreateMenuModal({
   onSubmit: () => void
   busy: boolean
   error: string
+  catalogNoun: string
 }) {
   return (
-    <Modal open={open} onClose={onClose} title="Create menu">
+    <Modal open={open} onClose={onClose} title={`Create ${catalogNoun}`}>
       <div className="space-y-4">
         <Field label="Name" htmlFor="menu-name">
           <Input
             id="menu-name"
             value={name}
             onChange={(e) => onName(e.target.value)}
-            placeholder="Dinner"
+            placeholder={catalogNoun === 'catalog' ? 'Featured' : 'Dinner'}
             required
           />
         </Field>
@@ -564,7 +585,11 @@ function CreateMenuModal({
             id="menu-desc"
             value={description}
             onChange={(e) => onDescription(e.target.value)}
-            placeholder="Evening favorites and chef specials"
+            placeholder={
+              catalogNoun === 'catalog'
+                ? 'Seasonal picks and bestsellers'
+                : 'Evening favorites and chef specials'
+            }
           />
         </Field>
         {error ? <p className="text-sm text-red-600">{error}</p> : null}

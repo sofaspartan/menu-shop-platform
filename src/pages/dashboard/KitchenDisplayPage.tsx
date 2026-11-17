@@ -128,11 +128,7 @@ export function KitchenDisplayPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl">{copy.bohNoun}</h1>
-          <p className="mt-1 max-w-2xl text-stone-500">
-            Truly live back-of-house board for {copy.kitchenOrShop} staff — new POS and
-            online orders appear here automatically. Bump forward, move back, or recall
-            completed tickets.
-          </p>
+          <p className="mt-1 max-w-2xl text-stone-500">{copy.bohBoardBlurb}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <LiveIndicator pulseKey={`${revision}-${lastSyncedAt ?? 0}`} />
@@ -247,7 +243,7 @@ function BohDeviceFrame({
             <span className="h-2 w-2 rounded-full bg-amber-400" />
             {restaurant.name} · {label}
           </div>
-          <div className="text-[11px] text-stone-500">Back of house</div>
+          <div className="text-[11px] text-stone-500">{label}</div>
         </div>
         <div className="overflow-hidden rounded-xl bg-white" style={style}>
           <div className="h-[min(78vh,720px)] overflow-hidden">{children}</div>
@@ -390,7 +386,9 @@ function BohTicket({
   const elapsed = formatElapsed(now - new Date(order.createdAt).getTime())
   const urgent =
     mode === 'live' && now - new Date(order.createdAt).getTime() > 15 * 60_000
-  const itemCount = order.items.reduce((n, i) => n + i.quantity, 0)
+  const itemCount = order.items
+    .filter((i) => !i.cancelled)
+    .reduce((n, i) => n + i.quantity, 0)
 
   return (
     <article
@@ -430,7 +428,9 @@ function BohTicket({
       </div>
 
       <ul className="mt-3 space-y-2 border-t border-stone-100 pt-3">
-        {order.items.map((item) => (
+        {order.items
+          .filter((item) => !item.cancelled)
+          .map((item) => (
           <li key={item.id} className="text-sm">
             <div className="flex gap-2 font-medium text-stone-900">
               <span className="tabular-nums text-[var(--brand-primary)]">
@@ -461,7 +461,7 @@ function BohTicket({
             ) : null}
             {item.specialInstructions ? (
               <p className="mt-0.5 pl-6 text-xs italic text-stone-600">
-                “{item.specialInstructions}”
+                {copy.specialInstructionsLabel}: “{item.specialInstructions}”
               </p>
             ) : null}
           </li>
