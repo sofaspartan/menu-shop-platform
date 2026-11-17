@@ -330,7 +330,7 @@ function FeaturedHero({
         onClick={() => onOpenItem(item, assignment.priceOverrideCents)}
         className={cn(
           'group grid w-full grid-cols-1 gap-6 text-left lg:grid-cols-2 lg:items-center lg:gap-12',
-          available ? '' : 'cursor-not-allowed opacity-55',
+          available ? 'cursor-pointer' : 'cursor-not-allowed opacity-55',
         )}
       >
         <div className="relative overflow-hidden bg-[color-mix(in_srgb,var(--sf-primary)_6%,white)]">
@@ -391,7 +391,7 @@ function ProductGrid({
               disabled={!available}
               onClick={() => onOpenItem(item, assignment.priceOverrideCents)}
               className={cn(
-                'group w-full text-left',
+                'group w-full cursor-pointer text-left',
                 available ? '' : 'cursor-not-allowed opacity-50',
               )}
             >
