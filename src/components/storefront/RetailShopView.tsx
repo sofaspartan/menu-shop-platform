@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import type { Menu, MenuItem, MenuItemAssignment, MenuSection, Restaurant } from '@/types'
 import { normalizeCoverIntro } from '@/types'
 import { RetailChrome } from '@/components/storefront/RetailChrome'
+import { StorefrontFooter } from '@/components/storefront/StorefrontFooter'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -89,7 +90,7 @@ export function RetailShopView({
   }, [sectionIdsKey])
 
   return (
-    <>
+    <div className="flex min-h-screen flex-col">
       <RetailChrome
         restaurant={restaurant}
         search={search}
@@ -183,7 +184,7 @@ export function RetailShopView({
         </nav>
       ) : null}
 
-      <main className={cn(contentClass, 'pb-28 pt-8')}>
+      <main className={cn(contentClass, 'flex-1 pb-28 pt-8')}>
         {menus.length > 1 ? (
           <div className="mb-8 flex flex-wrap gap-2">
             {menus.map((menu) => {
@@ -250,7 +251,9 @@ export function RetailShopView({
           </>
         )}
       </main>
-    </>
+
+      <StorefrontFooter restaurant={restaurant} />
+    </div>
   )
 }
 

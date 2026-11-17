@@ -5,6 +5,8 @@ import { StorefrontShell } from '@/components/storefront/StorefrontShell'
 import { RetailChrome } from '@/components/storefront/RetailChrome'
 import { RetailBagFab } from '@/components/storefront/RetailBagFab'
 import { StorefrontNav } from '@/components/storefront/StorefrontNav'
+import { StorefrontFooter } from '@/components/storefront/StorefrontFooter'
+import { StorePageHeader } from '@/components/storefront/StorePageHeader'
 import { BagDrawer } from '@/components/storefront/BagDrawer'
 import { Button } from '@/components/ui/Button'
 import { useDb } from '@/hooks/useDb'
@@ -12,7 +14,7 @@ import { useBagStore } from '@/stores/bagStore'
 import { formatHoursSummary } from '@/lib/scheduling'
 import { storefrontContentClass } from '@/lib/storefrontWidth'
 import { formatPhone, cn } from '@/lib/utils'
-import { DEFAULT_BRANDING } from '@/types'
+import { DEFAULT_BRANDING, normalizeContactPage } from '@/types'
 
 export function ContactPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -45,7 +47,7 @@ export function ContactPage() {
     )
   }
 
-  const contact = restaurant.pages.contact
+  const contact = normalizeContactPage(restaurant.pages.contact)
   const phone = contact.phoneOverride?.trim() || restaurant.phone
   const email = contact.emailOverride?.trim() || restaurant.email
   const hoursSummary = formatHoursSummary(restaurant, new Date())
@@ -124,79 +126,82 @@ export function ContactPage() {
 
   return (
     <StorefrontShell branding={restaurant.branding ?? DEFAULT_BRANDING}>
-      {isRetailLayout ? (
-        <RetailChrome restaurant={restaurant} showSearch={false} />
-      ) : (
-        <div className="sticky top-0 z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 backdrop-blur">
-          <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
-            <StorefrontNav restaurant={restaurant} />
-          </div>
-        </div>
-      )}
-
-      <div className={cn(contentClass, 'py-10 pb-28')}>
-        <div className="max-w-3xl">
-        <h1 className="font-display text-4xl text-[var(--sf-text)] sm:text-5xl">
-          {contact.title || 'Contact'}
-        </h1>
-        {contact.intro ? (
-          <p className="mt-3 max-w-2xl text-[17px] leading-relaxed text-[var(--sf-text)]/70">
-            {contact.intro}
-          </p>
-        ) : null}
-
-        <ul className="mt-10 divide-y divide-stone-200/80 border-y border-stone-200/80">
-          {rows.map((row) => (
-            <li key={row.key} className="flex gap-4 py-5">
-              <row.icon className="mt-0.5 h-5 w-5 shrink-0 text-[var(--sf-primary)]" />
-              <div className="min-w-0">
-                <p className="text-xs font-medium uppercase tracking-wider text-[var(--sf-text)]/45">
-                  {row.label}
-                </p>
-                {row.href ? (
-                  <a
-                    href={row.href}
-                    className="mt-1 block whitespace-pre-line text-[17px] text-[var(--sf-text)] hover:text-[var(--sf-primary)]"
-                    target={row.href.startsWith('http') ? '_blank' : undefined}
-                    rel={row.href.startsWith('http') ? 'noreferrer' : undefined}
-                  >
-                    {row.value}
-                  </a>
-                ) : (
-                  <p className="mt-1 whitespace-pre-line text-[17px] text-[var(--sf-text)]">
-                    {row.value}
-                  </p>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        {socialLinks.length ? (
-          <div className="mt-8">
-            <p className="text-xs font-medium uppercase tracking-wider text-[var(--sf-text)]/45">
-              Social
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {socialLinks.map((s) => (
-                <a
-                  key={s.key}
-                  href={s.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full bg-[var(--sf-surface)] px-4 py-2 text-sm font-medium text-[var(--sf-text)] ring-1 ring-stone-200/80 hover:bg-white"
-                >
-                  {s.label}
-                </a>
-              ))}
+      <div className="flex min-h-screen flex-col">
+        {isRetailLayout ? (
+          <RetailChrome restaurant={restaurant} showSearch={false} />
+        ) : (
+          <div className="sticky top-0 z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 backdrop-blur">
+            <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
+              <StorefrontNav restaurant={restaurant} />
             </div>
           </div>
-        ) : null}
+        )}
 
-        {!rows.length && !socialLinks.length ? (
-          <p className="mt-8 text-[var(--sf-text)]/55">No contact details are published yet.</p>
-        ) : null}
+        <StorePageHeader
+          title={contact.title || 'Contact'}
+          subtitle={contact.intro}
+          headerStyle={contact.headerStyle}
+          heroImageUrl={contact.heroImageUrl}
+          storefrontWidth={restaurant.storefrontWidth}
+        />
+
+        <div className={cn(contentClass, 'flex-1 py-10 pb-28')}>
+          <div className="max-w-3xl">
+            <ul className="divide-y divide-stone-200/80 border-y border-stone-200/80">
+              {rows.map((row) => (
+                <li key={row.key} className="flex gap-4 py-5">
+                  <row.icon className="mt-0.5 h-5 w-5 shrink-0 text-[var(--sf-primary)]" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-wider text-[var(--sf-text)]/45">
+                      {row.label}
+                    </p>
+                    {row.href ? (
+                      <a
+                        href={row.href}
+                        className="mt-1 block whitespace-pre-line text-[17px] text-[var(--sf-text)] hover:text-[var(--sf-primary)]"
+                        target={row.href.startsWith('http') ? '_blank' : undefined}
+                        rel={row.href.startsWith('http') ? 'noreferrer' : undefined}
+                      >
+                        {row.value}
+                      </a>
+                    ) : (
+                      <p className="mt-1 whitespace-pre-line text-[17px] text-[var(--sf-text)]">
+                        {row.value}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {socialLinks.length ? (
+              <div className="mt-8">
+                <p className="text-xs font-medium uppercase tracking-wider text-[var(--sf-text)]/45">
+                  Social
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {socialLinks.map((s) => (
+                    <a
+                      key={s.key}
+                      href={s.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full bg-[var(--sf-surface)] px-4 py-2 text-sm font-medium text-[var(--sf-text)] ring-1 ring-stone-200/80 hover:bg-white"
+                    >
+                      {s.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {!rows.length && !socialLinks.length ? (
+              <p className="mt-8 text-[var(--sf-text)]/55">No contact details are published yet.</p>
+            ) : null}
+          </div>
         </div>
+
+        <StorefrontFooter restaurant={restaurant} />
       </div>
 
       {isRetailLayout ? (

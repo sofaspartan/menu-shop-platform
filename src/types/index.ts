@@ -22,9 +22,15 @@ export type StorefrontLayout = 'restaurant' | 'retail'
 /** Content column: centered with max width, or edge-to-edge. */
 export type StorefrontWidth = 'margined' | 'full'
 
+/** Page top: cover image band, or simple title + subtitle (no image). */
+export type PageHeaderStyle = 'cover' | 'simple'
+
 export interface StoreAboutPage {
   enabled: boolean
+  headerStyle: PageHeaderStyle
   title: string
+  /** Supporting line under the title (simple header) or under cover title. */
+  subtitle?: string
   heroImageUrl?: string
   /** Plain text; blank lines become paragraphs. */
   body: string
@@ -32,8 +38,10 @@ export interface StoreAboutPage {
 
 export interface StoreContactPage {
   enabled: boolean
+  headerStyle: PageHeaderStyle
   title: string
   intro?: string
+  heroImageUrl?: string
   showPhone: boolean
   phoneOverride?: string
   showEmail: boolean
@@ -45,6 +53,16 @@ export interface StoreContactPage {
   showFacebook: boolean
   showTwitter: boolean
   showTiktok: boolean
+}
+
+export interface StoreFooter {
+  enabled: boolean
+  /** Defaults to the store name when blank. */
+  companyName?: string
+  /** Defaults to “© {year} {company}. All rights reserved.” when blank. */
+  copyright?: string
+  /** Shop / About / Contact links when those pages are enabled. */
+  showPageLinks: boolean
 }
 
 export type CoverHeroHeight = 'short' | 'tall'
@@ -76,6 +94,7 @@ export interface StorePages {
   coverIntro?: StoreCoverIntro
   /** Show the featured product hero on retail catalogs. */
   featuredEnabled?: boolean
+  footer?: StoreFooter
 }
 
 export type OrderStatus =
@@ -564,6 +583,13 @@ export const DEFAULT_COVER_INTRO: StoreCoverIntro = {
   buttonHref: '',
 }
 
+export const DEFAULT_STORE_FOOTER: StoreFooter = {
+  enabled: true,
+  companyName: '',
+  copyright: '',
+  showPageLinks: true,
+}
+
 export function normalizeCoverIntro(
   intro?: Partial<StoreCoverIntro> | null,
 ): StoreCoverIntro {
@@ -582,11 +608,14 @@ export function normalizeCoverIntro(
 export const DEFAULT_STORE_PAGES: StorePages = {
   about: {
     enabled: false,
+    headerStyle: 'cover',
     title: 'About',
+    subtitle: '',
     body: '',
   },
   contact: {
     enabled: false,
+    headerStyle: 'simple',
     title: 'Contact',
     intro: '',
     showPhone: true,
@@ -601,6 +630,43 @@ export const DEFAULT_STORE_PAGES: StorePages = {
   },
   coverIntro: { ...DEFAULT_COVER_INTRO },
   featuredEnabled: true,
+  footer: { ...DEFAULT_STORE_FOOTER },
+}
+
+export function normalizeStoreFooter(footer?: Partial<StoreFooter> | null): StoreFooter {
+  return {
+    ...DEFAULT_STORE_FOOTER,
+    ...footer,
+    enabled: footer?.enabled ?? DEFAULT_STORE_FOOTER.enabled,
+    showPageLinks: footer?.showPageLinks ?? true,
+  }
+}
+
+export function normalizeAboutPage(
+  about?: Partial<StoreAboutPage> | null,
+): StoreAboutPage {
+  const base = DEFAULT_STORE_PAGES.about
+  return {
+    ...base,
+    ...about,
+    enabled: about?.enabled ?? false,
+    headerStyle: about?.headerStyle === 'simple' ? 'simple' : 'cover',
+    title: about?.title ?? base.title,
+    body: about?.body ?? '',
+  }
+}
+
+export function normalizeContactPage(
+  contact?: Partial<StoreContactPage> | null,
+): StoreContactPage {
+  const base = DEFAULT_STORE_PAGES.contact
+  return {
+    ...base,
+    ...contact,
+    enabled: contact?.enabled ?? false,
+    headerStyle: contact?.headerStyle === 'cover' ? 'cover' : 'simple',
+    title: contact?.title ?? base.title,
+  }
 }
 
 export function defaultStorePagesFor(kind: StoreKind): StorePages {
@@ -610,17 +676,21 @@ export function defaultStorePagesFor(kind: StoreKind): StorePages {
       contact: { ...DEFAULT_STORE_PAGES.contact },
       coverIntro: { ...DEFAULT_COVER_INTRO },
       featuredEnabled: true,
+      footer: { ...DEFAULT_STORE_FOOTER, enabled: false },
     }
   }
   return {
     about: {
       enabled: true,
+      headerStyle: 'cover',
       title: 'About',
+      subtitle: 'Our story, materials, and craft.',
       body: 'Tell your story — craft, materials, and what makes your shop unique.',
     },
     contact: {
       ...DEFAULT_STORE_PAGES.contact,
       enabled: true,
+      headerStyle: 'simple',
       intro: 'Questions about an order or a custom piece? Reach out anytime.',
     },
     coverIntro: {
@@ -630,6 +700,11 @@ export function defaultStorePagesFor(kind: StoreKind): StorePages {
       buttonHref: '#section-featured',
     },
     featuredEnabled: true,
+    footer: {
+      ...DEFAULT_STORE_FOOTER,
+      enabled: true,
+      showPageLinks: true,
+    },
   }
 }
 

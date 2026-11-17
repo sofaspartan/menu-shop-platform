@@ -7,11 +7,18 @@ import { Field, Input, Textarea } from '@/components/ui/Input'
 import type {
   CoverHeroAlign,
   CoverHeroHeight,
+  PageHeaderStyle,
   StorefrontLayout,
   StorefrontWidth,
   StorePages,
 } from '@/types'
-import { defaultStorePagesFor, normalizeCoverIntro } from '@/types'
+import {
+  defaultStorePagesFor,
+  normalizeAboutPage,
+  normalizeContactPage,
+  normalizeCoverIntro,
+  normalizeStoreFooter,
+} from '@/types'
 import { cn } from '@/lib/utils'
 
 export function PagesPage() {
@@ -33,10 +40,11 @@ export function PagesPage() {
     setPages(
       current.pages
         ? {
-            about: { ...current.pages.about },
-            contact: { ...current.pages.contact },
+            about: normalizeAboutPage(current.pages.about),
+            contact: normalizeContactPage(current.pages.contact),
             coverIntro: normalizeCoverIntro(current.pages.coverIntro),
             featuredEnabled: current.pages.featuredEnabled !== false,
+            footer: normalizeStoreFooter(current.pages.footer),
           }
         : defaultStorePagesFor(current.storeKind),
     )
@@ -346,39 +354,91 @@ export function PagesPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-display text-xl">About page</h2>
-            <p className="mt-1 text-sm text-stone-500">Hero image on top, story text below.</p>
+            <p className="mt-1 text-sm text-stone-500">
+              Choose a cover image header or a simple title + subtitle.
+            </p>
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
               checked={pages.about.enabled}
               onChange={(e) =>
-                setPages((p) => ({ ...p, about: { ...p.about, enabled: e.target.checked } }))
+                setPages((p) => ({
+                  ...p,
+                  about: normalizeAboutPage({ ...p.about, enabled: e.target.checked }),
+                }))
               }
             />
             Enabled
           </label>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(
+            [
+              ['cover', 'Cover image', 'Title over a hero image (current About look).'],
+              ['simple', 'Title only', 'Title + subtitle with no image (like Contact).'],
+            ] as Array<[PageHeaderStyle, string, string]>
+          ).map(([value, label, hint]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() =>
+                setPages((p) => ({
+                  ...p,
+                  about: normalizeAboutPage({ ...p.about, headerStyle: value }),
+                }))
+              }
+              className={cn(
+                'rounded-2xl border px-4 py-3 text-left',
+                pages.about.headerStyle === value
+                  ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                  : 'border-stone-200 hover:bg-stone-50',
+              )}
+            >
+              <div className="font-medium">{label}</div>
+              <p className="mt-1 text-xs text-stone-500">{hint}</p>
+            </button>
+          ))}
         </div>
         <Field label="Title" htmlFor="about-title">
           <Input
             id="about-title"
             value={pages.about.title}
             onChange={(e) =>
-              setPages((p) => ({ ...p, about: { ...p.about, title: e.target.value } }))
+              setPages((p) => ({
+                ...p,
+                about: normalizeAboutPage({ ...p.about, title: e.target.value }),
+              }))
             }
           />
         </Field>
-        <Field label="Hero image URL" htmlFor="about-hero">
+        <Field label="Subtitle" htmlFor="about-subtitle">
+          <Input
+            id="about-subtitle"
+            value={pages.about.subtitle ?? ''}
+            onChange={(e) =>
+              setPages((p) => ({
+                ...p,
+                about: normalizeAboutPage({ ...p.about, subtitle: e.target.value }),
+              }))
+            }
+            placeholder="Short supporting line"
+          />
+        </Field>
+        <Field label="Cover image URL" htmlFor="about-hero">
           <Input
             id="about-hero"
             value={pages.about.heroImageUrl ?? ''}
             onChange={(e) =>
               setPages((p) => ({
                 ...p,
-                about: { ...p.about, heroImageUrl: e.target.value || undefined },
+                about: normalizeAboutPage({
+                  ...p.about,
+                  heroImageUrl: e.target.value || undefined,
+                }),
               }))
             }
-            placeholder="https://…"
+            placeholder="Required when using Cover image style"
           />
         </Field>
         <Field label="Body" htmlFor="about-body">
@@ -387,7 +447,10 @@ export function PagesPage() {
             rows={8}
             value={pages.about.body}
             onChange={(e) =>
-              setPages((p) => ({ ...p, about: { ...p.about, body: e.target.value } }))
+              setPages((p) => ({
+                ...p,
+                about: normalizeAboutPage({ ...p.about, body: e.target.value }),
+              }))
             }
             placeholder="Separate paragraphs with a blank line."
           />
@@ -399,7 +462,7 @@ export function PagesPage() {
           <div>
             <h2 className="font-display text-xl">Contact page</h2>
             <p className="mt-1 text-sm text-stone-500">
-              Uses your store profile details; toggle each field on or off.
+              Same header choices as About, plus toggles for each contact field.
             </p>
           </div>
           <label className="flex items-center gap-2 text-sm">
@@ -409,23 +472,54 @@ export function PagesPage() {
               onChange={(e) =>
                 setPages((p) => ({
                   ...p,
-                  contact: { ...p.contact, enabled: e.target.checked },
+                  contact: normalizeContactPage({ ...p.contact, enabled: e.target.checked }),
                 }))
               }
             />
             Enabled
           </label>
         </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(
+            [
+              ['cover', 'Cover image', 'Title over a hero image.'],
+              ['simple', 'Title only', 'Title + intro with no image (current Contact look).'],
+            ] as Array<[PageHeaderStyle, string, string]>
+          ).map(([value, label, hint]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() =>
+                setPages((p) => ({
+                  ...p,
+                  contact: normalizeContactPage({ ...p.contact, headerStyle: value }),
+                }))
+              }
+              className={cn(
+                'rounded-2xl border px-4 py-3 text-left',
+                pages.contact.headerStyle === value
+                  ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                  : 'border-stone-200 hover:bg-stone-50',
+              )}
+            >
+              <div className="font-medium">{label}</div>
+              <p className="mt-1 text-xs text-stone-500">{hint}</p>
+            </button>
+          ))}
+        </div>
         <Field label="Title" htmlFor="contact-title">
           <Input
             id="contact-title"
             value={pages.contact.title}
             onChange={(e) =>
-              setPages((p) => ({ ...p, contact: { ...p.contact, title: e.target.value } }))
+              setPages((p) => ({
+                ...p,
+                contact: normalizeContactPage({ ...p.contact, title: e.target.value }),
+              }))
             }
           />
         </Field>
-        <Field label="Intro" htmlFor="contact-intro">
+        <Field label="Intro / subtitle" htmlFor="contact-intro">
           <Textarea
             id="contact-intro"
             rows={3}
@@ -433,9 +527,25 @@ export function PagesPage() {
             onChange={(e) =>
               setPages((p) => ({
                 ...p,
-                contact: { ...p.contact, intro: e.target.value },
+                contact: normalizeContactPage({ ...p.contact, intro: e.target.value }),
               }))
             }
+          />
+        </Field>
+        <Field label="Cover image URL" htmlFor="contact-hero">
+          <Input
+            id="contact-hero"
+            value={pages.contact.heroImageUrl ?? ''}
+            onChange={(e) =>
+              setPages((p) => ({
+                ...p,
+                contact: normalizeContactPage({
+                  ...p.contact,
+                  heroImageUrl: e.target.value || undefined,
+                }),
+              }))
+            }
+            placeholder="Used when Cover image style is selected"
           />
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -469,7 +579,10 @@ export function PagesPage() {
             onChange={(e) =>
               setPages((p) => ({
                 ...p,
-                contact: { ...p.contact, phoneOverride: e.target.value || undefined },
+                contact: normalizeContactPage({
+                  ...p.contact,
+                  phoneOverride: e.target.value || undefined,
+                }),
               }))
             }
             placeholder="Uses store phone if blank"
@@ -482,12 +595,81 @@ export function PagesPage() {
             onChange={(e) =>
               setPages((p) => ({
                 ...p,
-                contact: { ...p.contact, emailOverride: e.target.value || undefined },
+                contact: normalizeContactPage({
+                  ...p.contact,
+                  emailOverride: e.target.value || undefined,
+                }),
               }))
             }
             placeholder="Uses store email if blank"
           />
         </Field>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl">Footer</h2>
+            <p className="mt-1 text-sm text-stone-500">
+              Centered company name, copyright, and site page links on Shop / About / Contact.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={pages.footer?.enabled !== false}
+              onChange={(e) =>
+                setPages((p) => ({
+                  ...p,
+                  footer: normalizeStoreFooter({ ...p.footer, enabled: e.target.checked }),
+                }))
+              }
+            />
+            Enabled
+          </label>
+        </div>
+        <Field label="Company name" htmlFor="footer-company">
+          <Input
+            id="footer-company"
+            value={pages.footer?.companyName ?? ''}
+            onChange={(e) =>
+              setPages((p) => ({
+                ...p,
+                footer: normalizeStoreFooter({ ...p.footer, companyName: e.target.value }),
+              }))
+            }
+            placeholder="Defaults to store name"
+          />
+        </Field>
+        <Field label="Copyright line" htmlFor="footer-copy">
+          <Input
+            id="footer-copy"
+            value={pages.footer?.copyright ?? ''}
+            onChange={(e) =>
+              setPages((p) => ({
+                ...p,
+                footer: normalizeStoreFooter({ ...p.footer, copyright: e.target.value }),
+              }))
+            }
+            placeholder="Defaults to © {year} {company}. All rights reserved."
+          />
+        </Field>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={pages.footer?.showPageLinks !== false}
+            onChange={(e) =>
+              setPages((p) => ({
+                ...p,
+                footer: normalizeStoreFooter({
+                  ...p.footer,
+                  showPageLinks: e.target.checked,
+                }),
+              }))
+            }
+          />
+          Show Shop / About / Contact links
+        </label>
       </section>
 
       <Button size="lg" disabled={busy} onClick={() => void save()}>

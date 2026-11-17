@@ -99,9 +99,10 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     storefrontLayout: 'restaurant',
     storefrontWidth: 'margined',
     pages: {
-      about: { enabled: false, title: 'About', body: '' },
+      about: { enabled: false, headerStyle: 'cover', title: 'About', body: '' },
       contact: {
         enabled: false,
+        headerStyle: 'simple',
         title: 'Contact',
         showPhone: true,
         showEmail: true,
@@ -113,6 +114,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
         showTwitter: false,
         showTiktok: false,
       },
+      footer: { enabled: false, companyName: '', copyright: '', showPageLinks: true },
     },
     description:
       'A contemporary neighborhood restaurant serving seasonal plates, craft drinks, and weekend brunch favorites. Casual, polished, and always welcoming.',
@@ -1229,7 +1231,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
   return {
-    version: 7,
+    version: 8,
     users: [
       {
         id: userId,

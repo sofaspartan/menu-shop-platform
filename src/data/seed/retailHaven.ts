@@ -60,7 +60,9 @@ export function buildHavenHideSeed(userId: string, orgId: string, ts: string) {
     pages: {
       about: {
         enabled: true,
+        headerStyle: 'cover',
         title: 'Our craft',
+        subtitle: 'A small SoHo workshop making leather goods and lounge pieces to last.',
         heroImageUrl:
           'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=1400&q=80',
         body: `Haven & Hide began as a small leather workshop in SoHo — one bench, a handful of knives, and a belief that everyday objects should feel better with time.
@@ -71,6 +73,7 @@ Every item is made to last. If something needs a repair years from now, bring it
       },
       contact: {
         enabled: true,
+        headerStyle: 'simple',
         title: 'Visit & contact',
         intro: 'Come by the Mercer Street showroom, or write us about custom work and wholesale.',
         showPhone: true,
@@ -82,6 +85,12 @@ Every item is made to last. If something needs a repair years from now, bring it
         showFacebook: false,
         showTwitter: false,
         showTiktok: false,
+      },
+      footer: {
+        enabled: true,
+        companyName: 'Haven & Hide',
+        copyright: '',
+        showPageLinks: true,
       },
       coverIntro: {
         enabled: true,
