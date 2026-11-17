@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeftRight,
   CheckCircle2,
@@ -7,8 +7,15 @@ import {
   Plus,
   Search,
   Trash2,
+  X,
 } from 'lucide-react'
-import type { MenuItem, Restaurant } from '@/types'
+import type {
+  AppDatabase,
+  ComboConfig,
+  MenuItem,
+  ModifierGroup,
+  Restaurant,
+} from '@/types'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -18,7 +25,13 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { resolveListedPrice } from '@/lib/commerce'
-import { calculateOrderPricing } from '@/lib/pricing'
+import {
+  calculateLineUnitPrice,
+  calculateOrderPricing,
+  validateModifierSelections,
+  type BagComboSelection,
+  type BagModifierSelection,
+} from '@/lib/pricing'
 import { brandingStyleVars } from '@/lib/brandingCss'
 import { isItemAvailableNow } from '@/lib/scheduling'
 import { storeCopy } from '@/lib/storeCopy'
@@ -33,6 +46,9 @@ type PosLine = {
   imageUrl?: string
   unitPriceCents: number
   quantity: number
+  modifiers: BagModifierSelection[]
+  comboSelections?: BagComboSelection[]
+  modifierLabels: string[]
 }
 
 type CatalogEntry = {
@@ -41,6 +57,48 @@ type CatalogEntry = {
   priceCents: number
   onSale: boolean
   sectionName: string
+  needsCustomization: boolean
+}
+
+function getModifierGroupsForItem(db: AppDatabase, itemId: string): ModifierGroup[] {
+  return db.itemModifiers
+    .filter((m) => m.itemId === itemId)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((a) => db.modifierGroups.find((g) => g.id === a.modifierGroupId))
+    .filter((g): g is ModifierGroup => Boolean(g))
+}
+
+function getComboForItem(db: AppDatabase, item: MenuItem): ComboConfig | undefined {
+  if (!item.isCombo) return undefined
+  return db.combos.find((c) => c.itemId === item.id)
+}
+
+function itemNeedsCustomization(
+  db: AppDatabase,
+  item: MenuItem,
+): boolean {
+  if (getModifierGroupsForItem(db, item.id).length > 0) return true
+  return Boolean(getComboForItem(db, item))
+}
+
+function lineConfigKey(
+  itemId: string,
+  modifiers: BagModifierSelection[],
+  comboSelections?: BagComboSelection[],
+): string {
+  const mods = [...modifiers]
+    .map((m) => ({ groupId: m.groupId, optionIds: [...m.optionIds].sort() }))
+    .sort((a, b) => a.groupId.localeCompare(b.groupId))
+  const combos = [...(comboSelections ?? [])]
+    .map((c) => ({
+      groupId: c.groupId,
+      itemId: c.itemId,
+      modifiers: [...c.modifiers]
+        .map((m) => ({ groupId: m.groupId, optionIds: [...m.optionIds].sort() }))
+        .sort((a, b) => a.groupId.localeCompare(b.groupId)),
+    }))
+    .sort((a, b) => a.groupId.localeCompare(b.groupId))
+  return JSON.stringify({ itemId, mods, combos })
 }
 
 export function PosPage() {
@@ -56,6 +114,7 @@ export function PosPage() {
   const [customTip, setCustomTip] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [customizing, setCustomizing] = useState<CatalogEntry | null>(null)
   const [completedOrder, setCompletedOrder] = useState<{
     orderNumber: string
     totalCents: number
@@ -91,6 +150,7 @@ export function PosPage() {
         priceCents: listed.priceCents,
         onSale: listed.onSale,
         sectionName: sectionById.get(a.sectionId) || 'General',
+        needsCustomization: itemNeedsCustomization(db, item),
       })
     }
 
@@ -105,6 +165,7 @@ export function PosPage() {
         priceCents: listed.priceCents,
         onSale: listed.onSale,
         sectionName: 'Library',
+        needsCustomization: itemNeedsCustomization(db, item),
       })
     }
 
@@ -159,24 +220,36 @@ export function PosPage() {
 
   function addItem(entry: CatalogEntry) {
     setError('')
+    if (!db) return
+    if (itemNeedsCustomization(db, entry.item)) {
+      setCustomizing(entry)
+      return
+    }
+    commitLine({
+      itemId: entry.item.id,
+      name: entry.item.name,
+      imageUrl: entry.item.imageUrl,
+      unitPriceCents: entry.priceCents,
+      quantity: 1,
+      modifiers: [],
+      modifierLabels: [],
+    })
+  }
+
+  function commitLine(line: Omit<PosLine, 'id'>) {
+    const key = lineConfigKey(line.itemId, line.modifiers, line.comboSelections)
     setLines((prev) => {
-      const existing = prev.find((l) => l.itemId === entry.item.id)
+      const existing = prev.find(
+        (l) => lineConfigKey(l.itemId, l.modifiers, l.comboSelections) === key,
+      )
       if (existing) {
         return prev.map((l) =>
-          l.id === existing.id ? { ...l, quantity: l.quantity + 1 } : l,
+          l.id === existing.id
+            ? { ...l, quantity: l.quantity + line.quantity }
+            : l,
         )
       }
-      return [
-        ...prev,
-        {
-          id: createId('pos'),
-          itemId: entry.item.id,
-          name: entry.item.name,
-          imageUrl: entry.item.imageUrl,
-          unitPriceCents: entry.priceCents,
-          quantity: 1,
-        },
-      ]
+      return [...prev, { ...line, id: createId('pos') }]
     })
   }
 
@@ -194,6 +267,7 @@ export function PosPage() {
     setTipPreset(0)
     setCustomTip('')
     setError('')
+    setCustomizing(null)
     setCompletedOrder(null)
     setPhase('staff')
   }
@@ -243,7 +317,8 @@ export function PosPage() {
         lines: lines.map((l) => ({
           itemId: l.itemId,
           quantity: l.quantity,
-          modifiers: [],
+          modifiers: l.modifiers,
+          comboSelections: l.comboSelections,
         })),
         clientTotalCents: pricing.totalCents,
       })
@@ -323,6 +398,19 @@ export function PosPage() {
               onNewSale={clearTicket}
             />
           )}
+
+          {customizing && db && phase === 'staff' ? (
+            <PosCustomizePanel
+              db={db}
+              restaurant={current}
+              entry={customizing}
+              onClose={() => setCustomizing(null)}
+              onConfirm={(line) => {
+                commitLine(line)
+                setCustomizing(null)
+              }}
+            />
+          ) : null}
         </PosDeviceFrame>
       </div>
     </div>
@@ -369,7 +457,7 @@ function PosDeviceFrame({
             transform: flipping ? 'perspective(1200px) rotateY(82deg)' : undefined,
           }}
         >
-          <div className="min-h-[640px] sm:min-h-[700px]">{children}</div>
+          <div className="relative min-h-[640px] sm:min-h-[700px]">{children}</div>
         </div>
         <div className="mx-auto mt-3 h-1.5 w-28 rounded-full bg-stone-700" />
       </div>
@@ -464,6 +552,11 @@ function StaffFace({
                             </span>
                           ) : null}
                         </p>
+                        {entry.needsCustomization ? (
+                          <p className="text-[11px] font-medium text-stone-400">
+                            Options…
+                          </p>
+                        ) : null}
                       </div>
                     </button>
                   ))}
@@ -510,6 +603,11 @@ function StaffFace({
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{line.name}</p>
+                  {line.modifierLabels.length ? (
+                    <p className="truncate text-xs text-stone-500">
+                      {line.modifierLabels.join(', ')}
+                    </p>
+                  ) : null}
                   <p className="text-xs text-stone-500">
                     {formatMoney(line.unitPriceCents)} each
                   </p>
@@ -671,10 +769,17 @@ function CustomerFace({
       <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto px-5 py-4">
         {lines.map((line) => (
           <li key={line.id} className="flex justify-between gap-3 text-sm">
-            <span>
-              {line.quantity}× {line.name}
+            <span className="min-w-0">
+              <span className="block">
+                {line.quantity}× {line.name}
+              </span>
+              {line.modifierLabels.length ? (
+                <span className="block text-xs text-stone-500">
+                  {line.modifierLabels.join(', ')}
+                </span>
+              ) : null}
             </span>
-            <span className="font-medium">
+            <span className="shrink-0 font-medium">
               {formatMoney(line.unitPriceCents * line.quantity)}
             </span>
           </li>
@@ -778,6 +883,394 @@ function CustomerFace({
         <p className="text-center text-xs text-stone-500">
           Simulated payment — demo card ending 4242
         </p>
+      </div>
+    </div>
+  )
+}
+
+function PosCustomizePanel({
+  db,
+  restaurant,
+  entry,
+  onClose,
+  onConfirm,
+}: {
+  db: AppDatabase
+  restaurant: Restaurant
+  entry: CatalogEntry
+  onClose: () => void
+  onConfirm: (line: Omit<PosLine, 'id'>) => void
+}) {
+  const item = entry.item
+  const groups = useMemo(
+    () => getModifierGroupsForItem(db, item.id),
+    [db, item.id],
+  )
+  const combo = useMemo(() => getComboForItem(db, item), [db, item])
+  const catalogItems = useMemo(
+    () => db.items.filter((i) => i.restaurantId === restaurant.id),
+    [db, restaurant.id],
+  )
+
+  const [quantity, setQuantity] = useState(1)
+  const [modifiers, setModifiers] = useState<BagModifierSelection[]>([])
+  const [comboSelections, setComboSelections] = useState<BagComboSelection[]>([])
+  const [errors, setErrors] = useState<string[]>([])
+
+  useEffect(() => {
+    setQuantity(1)
+    setErrors([])
+    setModifiers(
+      groups.map((g) => ({
+        groupId: g.id,
+        optionIds: g.options.filter((o) => o.isDefault && o.available).map((o) => o.id),
+      })),
+    )
+    if (combo) {
+      setComboSelections(
+        combo.componentGroups.map((cg) => ({
+          groupId: cg.id,
+          itemId: cg.includedItemId ?? cg.allowedItemIds[0] ?? '',
+          modifiers: [],
+        })),
+      )
+    } else {
+      setComboSelections([])
+    }
+  }, [item.id, groups, combo])
+
+  const priced = useMemo(() => {
+    return calculateLineUnitPrice(
+      {
+        item,
+        quantity,
+        modifiers,
+        comboSelections: item.isCombo ? comboSelections : undefined,
+        priceOverrideCents: entry.priceCents,
+      },
+      groups,
+      combo,
+      catalogItems,
+    )
+  }, [item, quantity, modifiers, comboSelections, entry.priceCents, groups, combo, catalogItems])
+
+  function toggleOption(group: ModifierGroup, optionId: string) {
+    setModifiers((prev) => {
+      const existing = prev.find((m) => m.groupId === group.id)
+      const current = existing?.optionIds ?? []
+      let next: string[]
+      if (group.selectionMode === 'single') {
+        next = current.includes(optionId) && !group.required ? [] : [optionId]
+      } else if (current.includes(optionId)) {
+        next = current.filter((id) => id !== optionId)
+      } else if (current.length >= group.maxSelections) {
+        next = [...current.slice(1), optionId]
+      } else {
+        next = [...current, optionId]
+      }
+      const others = prev.filter((m) => m.groupId !== group.id)
+      return [...others, { groupId: group.id, optionIds: next }]
+    })
+  }
+
+  function setComboItem(groupId: string, itemId: string) {
+    setComboSelections((prev) => {
+      const others = prev.filter((s) => s.groupId !== groupId)
+      return [...others, { groupId, itemId, modifiers: [] }]
+    })
+  }
+
+  function toggleComboModifier(
+    comboGroupId: string,
+    group: ModifierGroup,
+    optionId: string,
+  ) {
+    setComboSelections((prev) =>
+      prev.map((sel) => {
+        if (sel.groupId !== comboGroupId) return sel
+        const existing = sel.modifiers.find((m) => m.groupId === group.id)
+        const current = existing?.optionIds ?? []
+        let next: string[]
+        if (group.selectionMode === 'single') {
+          next = current.includes(optionId) && !group.required ? [] : [optionId]
+        } else if (current.includes(optionId)) {
+          next = current.filter((id) => id !== optionId)
+        } else if (current.length >= group.maxSelections) {
+          next = [...current.slice(1), optionId]
+        } else {
+          next = [...current, optionId]
+        }
+        const otherMods = sel.modifiers.filter((m) => m.groupId !== group.id)
+        return {
+          ...sel,
+          modifiers: [...otherMods, { groupId: group.id, optionIds: next }],
+        }
+      }),
+    )
+  }
+
+  function validateCombo(): string[] {
+    if (!combo) return []
+    const errs: string[] = []
+    for (const cg of combo.componentGroups) {
+      const sel = comboSelections.find((s) => s.groupId === cg.id)
+      if (cg.required && (!sel || !sel.itemId)) {
+        errs.push(`Please select “${cg.name}”.`)
+        continue
+      }
+      if (sel && sel.itemId && !cg.allowedItemIds.includes(sel.itemId)) {
+        errs.push(`Invalid selection for “${cg.name}”.`)
+      }
+      if (sel?.itemId) {
+        const componentGroups = getModifierGroupsForItem(db, sel.itemId)
+        errs.push(...validateModifierSelections(componentGroups, sel.modifiers))
+      }
+    }
+    return errs
+  }
+
+  function handleAdd() {
+    const modErrors = validateModifierSelections(groups, modifiers)
+    const comboErrors = validateCombo()
+    const all = [...modErrors, ...comboErrors]
+    if (all.length) {
+      setErrors(all)
+      return
+    }
+    const labels = [
+      ...priced.modifiers.map((m) => m.optionName),
+      ...(priced.comboSelections?.map((c) => c.itemName) ?? []),
+    ]
+    onConfirm({
+      itemId: item.id,
+      name: item.name,
+      imageUrl: item.imageUrl,
+      unitPriceCents: priced.unitPriceCents,
+      quantity,
+      modifiers,
+      comboSelections: item.isCombo ? comboSelections : undefined,
+      modifierLabels: labels,
+    })
+  }
+
+  return (
+    <div className="absolute inset-0 z-20 flex flex-col bg-white/95 backdrop-blur-sm">
+      <div className="flex items-start justify-between gap-3 border-b border-stone-200 px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wider text-stone-400">
+            Customize
+          </p>
+          <h3 className="truncate text-lg font-semibold text-stone-900">{item.name}</h3>
+          <p className="text-sm text-[var(--brand-primary)]">
+            {formatMoney(entry.priceCents)}
+            {entry.onSale ? (
+              <span className="ml-1 text-xs text-stone-400 line-through">
+                {formatMoney(entry.listPriceCents)}
+              </span>
+            ) : null}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg border border-stone-200 p-2 text-stone-500 hover:bg-stone-50"
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
+        {groups.map((group) => {
+          const selected = modifiers.find((m) => m.groupId === group.id)?.optionIds ?? []
+          return (
+            <PosModifierGroupBlock
+              key={group.id}
+              group={group}
+              selected={selected}
+              onToggle={(optionId) => toggleOption(group, optionId)}
+            />
+          )
+        })}
+
+        {combo
+          ? combo.componentGroups.map((cg) => {
+              const sel = comboSelections.find((s) => s.groupId === cg.id)
+              const componentMods = sel?.itemId
+                ? getModifierGroupsForItem(db, sel.itemId)
+                : []
+              return (
+                <div key={cg.id} className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-medium text-stone-900">{cg.name}</h4>
+                    <Badge tone={cg.required ? 'accent' : 'neutral'}>
+                      {cg.required ? 'Required' : 'Optional'}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {cg.allowedItemIds.map((allowedId) => {
+                      const allowed = catalogItems.find((i) => i.id === allowedId)
+                      if (!allowed) return null
+                      const upgrade = cg.upgradeChargesCents[allowedId] ?? 0
+                      const active = sel?.itemId === allowedId
+                      return (
+                        <button
+                          key={allowedId}
+                          type="button"
+                          onClick={() => setComboItem(cg.id, allowedId)}
+                          className={cn(
+                            'flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm',
+                            active
+                              ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/5'
+                              : 'border-stone-200 bg-stone-50 hover:border-stone-300',
+                          )}
+                        >
+                          <span>{allowed.name}</span>
+                          {upgrade > 0 ? (
+                            <span className="text-stone-500">+{formatMoney(upgrade)}</span>
+                          ) : (
+                            <span className="text-stone-400">Included</span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {sel?.itemId && componentMods.length > 0 ? (
+                    <div className="ml-2 space-y-4 border-l-2 border-stone-200 pl-3">
+                      {componentMods.map((group) => {
+                        const selected =
+                          sel.modifiers.find((m) => m.groupId === group.id)?.optionIds ??
+                          []
+                        return (
+                          <PosModifierGroupBlock
+                            key={group.id}
+                            group={group}
+                            selected={selected}
+                            onToggle={(optionId) =>
+                              toggleComboModifier(cg.id, group, optionId)
+                            }
+                          />
+                        )
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })
+          : null}
+
+        {errors.length ? (
+          <ul className="space-y-1 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+            {errors.map((err) => (
+              <li key={err}>{err}</li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-3 border-t border-stone-200 bg-white px-4 py-3">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="rounded-lg border border-stone-200 p-2"
+            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+            aria-label="Decrease quantity"
+          >
+            <Minus className="h-4 w-4" />
+          </button>
+          <span className="w-8 text-center text-sm font-semibold">{quantity}</span>
+          <button
+            type="button"
+            className="rounded-lg border border-stone-200 p-2"
+            onClick={() => setQuantity((q) => q + 1)}
+            aria-label="Increase quantity"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+        <Button
+          type="button"
+          size="lg"
+          className="flex-1 border-0"
+          style={{
+            backgroundColor: restaurant.branding.buttonColor,
+            color: restaurant.branding.buttonTextColor,
+          }}
+          onClick={handleAdd}
+        >
+          Add to ticket · {formatMoney(priced.unitPriceCents * quantity)}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function PosModifierGroupBlock({
+  group,
+  selected,
+  onToggle,
+}: {
+  group: ModifierGroup
+  selected: string[]
+  onToggle: (optionId: string) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="font-medium text-stone-900">{group.name}</h4>
+        <Badge tone={group.required ? 'accent' : 'neutral'}>
+          {group.required ? 'Required' : 'Optional'}
+        </Badge>
+        {group.selectionMode === 'multi' ? (
+          <span className="text-xs text-stone-400">
+            Choose {group.minSelections}–{group.maxSelections}
+          </span>
+        ) : null}
+      </div>
+      {group.description ? (
+        <p className="text-xs text-stone-500">{group.description}</p>
+      ) : null}
+      <div className="space-y-2">
+        {group.options
+          .filter((o) => o.available)
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((option) => {
+            const active = selected.includes(option.id)
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => onToggle(option.id)}
+                className={cn(
+                  'flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm',
+                  active
+                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]/5'
+                    : 'border-stone-200 bg-stone-50 hover:border-stone-300',
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      'flex h-4 w-4 items-center justify-center border',
+                      group.selectionMode === 'single' ? 'rounded-full' : 'rounded',
+                      active
+                        ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)]'
+                        : 'border-stone-300',
+                    )}
+                  >
+                    {active ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}
+                  </span>
+                  {option.name}
+                </span>
+                {option.priceAdjustmentCents !== 0 ? (
+                  <span className="text-stone-500">
+                    {option.priceAdjustmentCents > 0 ? '+' : ''}
+                    {formatMoney(option.priceAdjustmentCents)}
+                  </span>
+                ) : null}
+              </button>
+            )
+          })}
       </div>
     </div>
   )
