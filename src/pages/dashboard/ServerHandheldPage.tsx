@@ -110,7 +110,7 @@ export function ServerHandheldPage() {
           </p>
         </div>
         <Link
-          to="/dashboard/tables"
+          to="/dashboard/dining"
           className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 text-sm font-medium text-stone-700 hover:bg-stone-50"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -193,7 +193,7 @@ export function ServerHandheldPage() {
                       <UtensilsCrossed className="h-8 w-8 text-stone-300" />
                       Seat a party on the floor plan, then return here to order.
                       <Link
-                        to="/dashboard/tables"
+                        to="/dashboard/dining"
                         className="text-[var(--color-brand)] underline"
                       >
                         Open floor plan
@@ -283,7 +283,7 @@ export function ServerHandheldPage() {
                       </span>
                     </div>
                     <Link
-                      to="/dashboard/tables"
+                      to="/dashboard/dining"
                       className="mt-2 block text-center text-xs font-medium text-[var(--color-brand)]"
                     >
                       View on floor plan →

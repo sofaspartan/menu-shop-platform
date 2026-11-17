@@ -28,6 +28,7 @@ import { KitchenDisplayPage } from '@/pages/dashboard/KitchenDisplayPage'
 import { DisplaysPage } from '@/pages/dashboard/DisplaysPage'
 import { DiningPage } from '@/pages/dashboard/DiningPage'
 import { TablesPage } from '@/pages/dashboard/TablesPage'
+import { DiningFloorFullscreenPage } from '@/pages/dashboard/DiningFloorFullscreenPage'
 import { ServerHandheldPage } from '@/pages/dashboard/ServerHandheldPage'
 import { EmployeesPage } from '@/pages/dashboard/EmployeesPage'
 import { DisplayBoardPage } from '@/pages/storefront/DisplayBoardPage'
@@ -87,6 +88,15 @@ export default function App() {
           <Route path="promotions" element={<PromotionsPage />} />
           <Route path="restaurants/new" element={<NewRestaurantPage />} />
         </Route>
+
+        <Route
+          path="/dining/floor"
+          element={
+            <RequireAuth>
+              <DiningFloorFullscreenPage />
+            </RequireAuth>
+          }
+        />
 
         <Route path="/r/:slug" element={<RestaurantPage />} />
         <Route path="/r/:slug/shop" element={<RestaurantPage />} />

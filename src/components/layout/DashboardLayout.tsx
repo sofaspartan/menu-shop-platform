@@ -21,7 +21,6 @@ import {
   Monitor,
   MonitorPlay,
   Armchair,
-  LayoutGrid,
   Smartphone,
   Users,
   type LucideIcon,
@@ -128,7 +127,6 @@ export function DashboardLayout() {
             ? []
             : [
                 { to: '/dashboard/dining', label: 'Dining', icon: Armchair },
-                { to: '/dashboard/tables', label: 'Tables', icon: LayoutGrid },
                 { to: '/dashboard/server', label: 'Server handheld', icon: Smartphone },
               ]),
           { to: '/dashboard/employees', label: 'Employees', icon: Users },
