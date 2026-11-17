@@ -5,6 +5,7 @@ import { LiveIndicator } from '@/components/ui/LiveIndicator'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
 import { brandingStyleVars } from '@/lib/brandingCss'
 import { buildDisplaySlides, type BoardSlide } from '@/lib/displayBoard'
+import { normalizeDisplay } from '@/lib/normalizeDisplay'
 import { storeCopy } from '@/lib/storeCopy'
 import { cn, formatMoney } from '@/lib/utils'
 
@@ -26,14 +27,13 @@ export function DisplayBoardPage() {
 
   const display = useMemo(() => {
     if (!db || !restaurant || !displaySlug) return null
-    return (
-      (db.displays ?? []).find(
-        (d) =>
-          d.restaurantId === restaurant.id &&
-          d.slug === displaySlug &&
-          d.active,
-      ) ?? null
+    const raw = (db.displays ?? []).find(
+      (d) =>
+        d.restaurantId === restaurant.id &&
+        d.slug === displaySlug &&
+        d.active,
     )
+    return raw ? normalizeDisplay(raw) : null
   }, [db, restaurant, displaySlug])
 
   const slides = useMemo(() => {
@@ -42,6 +42,12 @@ export function DisplayBoardPage() {
   }, [db, restaurant, display, now, revision])
 
   const durationMs = Math.max(3, display?.slideDurationSec ?? 8) * 1000
+  const framedGraphics =
+    display?.kind === 'graphics' && display.graphicsChrome === 'framed'
+  const showChrome =
+    display?.kind === 'branding' ||
+    display?.kind === 'featured' ||
+    framedGraphics
 
   useEffect(() => {
     setSlideIndex(0)
@@ -78,72 +84,116 @@ export function DisplayBoardPage() {
   const copy = storeCopy(restaurant.storeKind)
   const style = brandingStyleVars(restaurant.branding)
   const slide = slides[Math.min(slideIndex, Math.max(slides.length - 1, 0))]
-  const showPrices = display.showPrices
+  const dateLabel = now.toLocaleDateString([], {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })
 
   return (
     <div
       className="relative min-h-screen overflow-hidden text-[var(--brand-text)]"
       style={{
         ...style,
-        background: restaurant.branding.backgroundColor,
+        background:
+          display.kind === 'graphics' && display.graphicsChrome === 'fullscreen'
+            ? '#000'
+            : restaurant.branding.backgroundColor,
         fontFamily: 'var(--brand-body)',
       }}
     >
-      <div className="pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage:
-            'radial-gradient(circle at 20% 20%, var(--brand-primary), transparent 45%), radial-gradient(circle at 80% 0%, var(--brand-accent), transparent 40%)',
-        }}
-      />
-
-      <header className="relative z-10 flex items-center justify-between gap-4 px-8 py-5">
-        <div className="flex min-w-0 items-center gap-4">
-          {display.showLogo && restaurant.logoUrl ? (
-            <img
-              src={restaurant.logoUrl}
-              alt=""
-              className="h-12 w-12 rounded-xl object-cover shadow-sm"
+      {showChrome ? (
+        <header className="relative z-10 flex items-center justify-between gap-4 px-8 py-5">
+          <div className="flex min-w-0 items-center gap-4">
+            {display.showLogo && restaurant.logoUrl ? (
+              <img
+                src={restaurant.logoUrl}
+                alt=""
+                className="h-12 w-12 rounded-xl object-cover shadow-sm"
+              />
+            ) : null}
+            {display.showStoreName ? (
+              <div className="min-w-0">
+                <p
+                  className="truncate text-xl font-semibold tracking-tight"
+                  style={{ fontFamily: 'var(--brand-heading)' }}
+                >
+                  {restaurant.name}
+                </p>
+                <p className="text-sm opacity-60">{dateLabel}</p>
+              </div>
+            ) : (
+              <p className="text-sm opacity-60">{dateLabel}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-4">
+            <LiveIndicator
+              pulseKey={`${revision}-${lastSyncedAt ?? 0}-${slideIndex}`}
+              className="!text-[var(--brand-primary)]"
             />
-          ) : null}
-          {display.showStoreName ? (
-            <div className="min-w-0">
-              <p
-                className="truncate text-xl font-semibold tracking-tight"
-                style={{ fontFamily: 'var(--brand-heading)' }}
-              >
-                {restaurant.name}
-              </p>
-              <p className="text-sm opacity-60">{copy.displayBoardLabel}</p>
-            </div>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-4">
-          <LiveIndicator
-            pulseKey={`${revision}-${lastSyncedAt ?? 0}-${slideIndex}`}
-            className="!text-[var(--brand-primary)]"
-          />
-          <p className="text-sm font-medium tabular-nums opacity-60">
-            {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-          </p>
-        </div>
-      </header>
+            <p className="text-sm font-medium tabular-nums opacity-60">
+              {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+            </p>
+          </div>
+        </header>
+      ) : null}
 
-      <main className="relative z-10 flex min-h-[calc(100vh-6.5rem)] items-stretch px-8 pb-8">
+      <main
+        className={cn(
+          'relative z-10 flex items-stretch',
+          showChrome
+            ? framedGraphics
+              ? 'min-h-[calc(100vh-8.5rem)] px-8 pb-3'
+              : 'min-h-[calc(100vh-6.5rem)] px-8 pb-8'
+            : 'min-h-screen',
+        )}
+      >
         {slide ? (
           <SlideView
             key={slide.id + String(slideIndex)}
             slide={slide}
-            showPrices={showPrices}
+            showPrices={display.showPrices}
             surface={restaurant.branding.surfaceColor}
+            fullscreenGraphic={!showChrome}
           />
         ) : (
           <div className="flex flex-1 items-center justify-center rounded-3xl bg-[var(--brand-surface)]/80 text-lg opacity-70">
-            No items available on this board right now.
+            {display.kind === 'graphics'
+              ? 'Add graphic slides in the dashboard to fill this board.'
+              : display.kind === 'featured'
+                ? `No ${copy.itemNounPlural.toLowerCase()} available on this board right now.`
+                : 'Configure this branding board in the dashboard.'}
           </div>
         )}
       </main>
 
-      {slides.length > 1 ? (
+      {framedGraphics && slides.length > 0 ? (
+        <footer className="relative z-10 flex flex-wrap items-center justify-center gap-2 px-8 pb-5 pt-2">
+          {slides.map((s, i) => {
+            const label =
+              s.kind === 'graphic'
+                ? s.title || `Slide ${i + 1}`
+                : s.kind === 'items'
+                  ? s.title
+                  : s.headline
+            return (
+              <span
+                key={s.id}
+                className={cn(
+                  'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                  i === slideIndex
+                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-[var(--brand-button-text)]'
+                    : 'border-[var(--brand-text)]/15 bg-[var(--brand-surface)]/80 text-[var(--brand-text)]/70',
+                )}
+              >
+                {label}
+              </span>
+            )
+          })}
+        </footer>
+      ) : null}
+
+      {!framedGraphics && slides.length > 1 ? (
         <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
           {slides.map((s, i) => (
             <span
@@ -152,7 +202,9 @@ export function DisplayBoardPage() {
                 'h-1.5 rounded-full transition-all',
                 i === slideIndex
                   ? 'w-6 bg-[var(--brand-primary)]'
-                  : 'w-1.5 bg-[var(--brand-text)]/25',
+                  : showChrome
+                    ? 'w-1.5 bg-[var(--brand-text)]/25'
+                    : 'w-1.5 bg-white/40',
               )}
             />
           ))}
@@ -166,17 +218,27 @@ function SlideView({
   slide,
   showPrices,
   surface,
+  fullscreenGraphic,
 }: {
   slide: BoardSlide
   showPrices: boolean
   surface: string
+  fullscreenGraphic: boolean
 }) {
-  if (slide.kind === 'branding') {
+  if (slide.kind === 'branding' || slide.kind === 'graphic') {
+    const imageUrl = slide.kind === 'branding' ? slide.imageUrl : slide.imageUrl
+    const headline = slide.kind === 'branding' ? slide.headline : slide.title
+    const tagline = slide.kind === 'branding' ? slide.tagline : slide.subtitle
     return (
-      <section className="relative flex flex-1 overflow-hidden rounded-[2rem] animate-fade-up">
-        {slide.imageUrl ? (
+      <section
+        className={cn(
+          'relative flex flex-1 overflow-hidden animate-fade-up',
+          fullscreenGraphic ? 'min-h-screen rounded-none' : 'rounded-[2rem]',
+        )}
+      >
+        {imageUrl ? (
           <img
-            src={slide.imageUrl}
+            src={imageUrl}
             alt=""
             className="absolute inset-0 h-full w-full object-cover"
           />
@@ -189,46 +251,26 @@ function SlideView({
             }}
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/25 to-black/10" />
-        <div className="relative z-10 flex flex-1 flex-col justify-end p-10 text-white sm:p-14">
-          <h1
-            className="max-w-4xl text-5xl font-semibold leading-tight tracking-tight sm:text-7xl"
-            style={{ fontFamily: 'var(--brand-heading)' }}
-          >
-            {slide.headline}
-          </h1>
-          {slide.tagline ? (
-            <p className="mt-4 max-w-2xl text-xl text-white/85 sm:text-2xl">{slide.tagline}</p>
-          ) : null}
-        </div>
-      </section>
-    )
-  }
-
-  if (slide.kind === 'custom') {
-    return (
-      <section className="relative flex flex-1 overflow-hidden rounded-[2rem] animate-fade-up">
-        {slide.imageUrl ? (
-          <img
-            src={slide.imageUrl}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-[var(--brand-primary)]" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-        <div className="relative z-10 flex flex-1 flex-col justify-end p-10 text-white sm:p-14">
-          {slide.title ? (
-            <h2
-              className="text-5xl font-semibold tracking-tight sm:text-6xl"
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
+        <div
+          className={cn(
+            'relative z-10 flex flex-1 flex-col justify-end text-white',
+            fullscreenGraphic ? 'p-12 sm:p-16' : 'p-10 sm:p-14',
+          )}
+        >
+          {headline ? (
+            <h1
+              className={cn(
+                'max-w-4xl font-semibold leading-tight tracking-tight',
+                fullscreenGraphic ? 'text-6xl sm:text-8xl' : 'text-5xl sm:text-7xl',
+              )}
               style={{ fontFamily: 'var(--brand-heading)' }}
             >
-              {slide.title}
-            </h2>
+              {headline}
+            </h1>
           ) : null}
-          {slide.subtitle ? (
-            <p className="mt-3 max-w-2xl text-xl text-white/85">{slide.subtitle}</p>
+          {tagline ? (
+            <p className="mt-4 max-w-2xl text-xl text-white/85 sm:text-2xl">{tagline}</p>
           ) : null}
         </div>
       </section>
@@ -236,11 +278,13 @@ function SlideView({
   }
 
   const cols =
-    slide.items.length <= 2
-      ? 'grid-cols-1 sm:grid-cols-2'
-      : slide.items.length <= 4
-        ? 'grid-cols-2 lg:grid-cols-4'
-        : 'grid-cols-2 lg:grid-cols-3'
+    slide.items.length <= 1
+      ? 'grid-cols-1 max-w-3xl mx-auto'
+      : slide.items.length <= 2
+        ? 'grid-cols-1 sm:grid-cols-2'
+        : slide.items.length <= 4
+          ? 'grid-cols-2 lg:grid-cols-4'
+          : 'grid-cols-2 lg:grid-cols-3'
 
   return (
     <section
@@ -265,12 +309,25 @@ function SlideView({
             <MenuItemImage
               src={item.imageUrl}
               alt=""
-              className="aspect-[16/10] w-full object-cover"
-              fallbackClassName="aspect-[16/10] w-full"
+              className={cn(
+                'w-full object-cover',
+                slide.items.length === 1 ? 'aspect-[16/9]' : 'aspect-[16/10]',
+              )}
+              fallbackClassName={cn(
+                'w-full',
+                slide.items.length === 1 ? 'aspect-[16/9]' : 'aspect-[16/10]',
+              )}
             />
             <div className="flex flex-1 flex-col gap-1 p-3 sm:p-4">
               <div className="flex items-start justify-between gap-2">
-                <h3 className="text-lg font-semibold leading-snug sm:text-xl">{item.name}</h3>
+                <h3
+                  className={cn(
+                    'font-semibold leading-snug',
+                    slide.items.length === 1 ? 'text-2xl sm:text-3xl' : 'text-lg sm:text-xl',
+                  )}
+                >
+                  {item.name}
+                </h3>
                 {showPrices ? (
                   <div className="shrink-0 text-right">
                     <p className="text-lg font-semibold text-[var(--brand-primary)]">
@@ -285,7 +342,16 @@ function SlideView({
                 ) : null}
               </div>
               {item.description ? (
-                <p className="line-clamp-2 text-sm opacity-65">{item.description}</p>
+                <p
+                  className={cn(
+                    'opacity-65',
+                    slide.items.length === 1
+                      ? 'line-clamp-4 text-base'
+                      : 'line-clamp-2 text-sm',
+                  )}
+                >
+                  {item.description}
+                </p>
               ) : null}
               {item.soldOut ? (
                 <p className="mt-auto pt-2 text-xs font-semibold uppercase tracking-wider text-red-700">

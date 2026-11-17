@@ -1,5 +1,13 @@
-import type { Display, DisplayCustomSlide, DisplayMode } from '@/types'
+import type {
+  Display,
+  DisplayGraphicSlide,
+  DisplayItemSlide,
+  DisplayKind,
+  FeaturedSource,
+  GraphicsChrome,
+} from '@/types'
 import { getDb, saveDb } from '@/data/db'
+import { normalizeDisplay } from '@/lib/normalizeDisplay'
 import { assertRestaurantAccess } from '@/services/restaurantService'
 import { createId, nowIso, slugify } from '@/lib/utils'
 
@@ -7,6 +15,7 @@ export async function listDisplays(restaurantId: string): Promise<Display[]> {
   const db = await getDb()
   return db.displays
     .filter((d) => d.restaurantId === restaurantId)
+    .map(normalizeDisplay)
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
@@ -32,14 +41,40 @@ async function uniqueDisplaySlug(
   return slug
 }
 
+function defaultsForKind(kind: DisplayKind): Pick<
+  Display,
+  | 'kind'
+  | 'graphicsChrome'
+  | 'graphicSlides'
+  | 'featuredSource'
+  | 'menuIds'
+  | 'showPrices'
+  | 'showSoldOut'
+  | 'itemsPerAutoSlide'
+  | 'itemSlides'
+> {
+  return {
+    kind,
+    graphicsChrome: 'fullscreen',
+    graphicSlides: [],
+    featuredSource: 'auto',
+    menuIds: [],
+    showPrices: true,
+    showSoldOut: false,
+    itemsPerAutoSlide: 4,
+    itemSlides: [],
+  }
+}
+
 export async function createDisplay(
   userId: string,
   restaurantId: string,
   input: {
     name: string
-    mode?: DisplayMode
+    kind: DisplayKind
     headline?: string
     tagline?: string
+    backgroundImageUrl?: string
   },
 ): Promise<Display> {
   await assertRestaurantAccess(userId, restaurantId, [
@@ -55,16 +90,13 @@ export async function createDisplay(
     name: input.name.trim(),
     slug,
     active: true,
-    mode: input.mode ?? 'mixed',
-    menuIds: [],
     slideDurationSec: 8,
-    showPrices: true,
-    showSoldOut: false,
     showLogo: true,
     showStoreName: true,
     headline: input.headline?.trim() || undefined,
     tagline: input.tagline?.trim() || undefined,
-    customSlides: [],
+    backgroundImageUrl: input.backgroundImageUrl?.trim() || undefined,
+    ...defaultsForKind(input.kind),
     createdAt: ts,
     updatedAt: ts,
   }
@@ -72,30 +104,37 @@ export async function createDisplay(
     if (!d.displays) d.displays = []
     d.displays.push(display)
   })
-  return display
+  return normalizeDisplay(display)
 }
+
+export type DisplayPatch = Partial<
+  Pick<
+    Display,
+    | 'name'
+    | 'active'
+    | 'kind'
+    | 'slideDurationSec'
+    | 'showLogo'
+    | 'showStoreName'
+    | 'headline'
+    | 'tagline'
+    | 'backgroundImageUrl'
+    | 'graphicsChrome'
+    | 'graphicSlides'
+    | 'featuredSource'
+    | 'menuIds'
+    | 'showPrices'
+    | 'showSoldOut'
+    | 'itemsPerAutoSlide'
+    | 'itemSlides'
+  >
+> & { slug?: string }
 
 export async function updateDisplay(
   userId: string,
   restaurantId: string,
   displayId: string,
-  patch: Partial<
-    Pick<
-      Display,
-      | 'name'
-      | 'active'
-      | 'mode'
-      | 'menuIds'
-      | 'slideDurationSec'
-      | 'showPrices'
-      | 'showSoldOut'
-      | 'showLogo'
-      | 'showStoreName'
-      | 'headline'
-      | 'tagline'
-      | 'customSlides'
-    >
-  > & { slug?: string },
+  patch: DisplayPatch,
 ): Promise<Display> {
   await assertRestaurantAccess(userId, restaurantId, [
     'owner',
@@ -108,29 +147,49 @@ export async function updateDisplay(
       (x) => x.id === displayId && x.restaurantId === restaurantId,
     )
     if (!display) throw new Error('Display not found.')
-    if (patch.name !== undefined) display.name = patch.name.trim()
-    if (patch.active !== undefined) display.active = patch.active
-    if (patch.mode !== undefined) display.mode = patch.mode
-    if (patch.menuIds !== undefined) display.menuIds = patch.menuIds
+    const next = normalizeDisplay(display)
+
+    if (patch.name !== undefined) next.name = patch.name.trim()
+    if (patch.active !== undefined) next.active = patch.active
+    if (patch.kind !== undefined) next.kind = patch.kind
     if (patch.slideDurationSec !== undefined) {
-      display.slideDurationSec = Math.max(3, Math.min(60, patch.slideDurationSec))
+      next.slideDurationSec = Math.max(3, Math.min(60, patch.slideDurationSec))
     }
-    if (patch.showPrices !== undefined) display.showPrices = patch.showPrices
-    if (patch.showSoldOut !== undefined) display.showSoldOut = patch.showSoldOut
-    if (patch.showLogo !== undefined) display.showLogo = patch.showLogo
-    if (patch.showStoreName !== undefined) display.showStoreName = patch.showStoreName
+    if (patch.showLogo !== undefined) next.showLogo = patch.showLogo
+    if (patch.showStoreName !== undefined) next.showStoreName = patch.showStoreName
     if (patch.headline !== undefined) {
-      display.headline = patch.headline.trim() || undefined
+      next.headline = patch.headline.trim() || undefined
     }
     if (patch.tagline !== undefined) {
-      display.tagline = patch.tagline.trim() || undefined
+      next.tagline = patch.tagline.trim() || undefined
     }
-    if (patch.customSlides !== undefined) display.customSlides = patch.customSlides
+    if (patch.backgroundImageUrl !== undefined) {
+      next.backgroundImageUrl = patch.backgroundImageUrl.trim() || undefined
+    }
+    if (patch.graphicsChrome !== undefined) {
+      next.graphicsChrome = patch.graphicsChrome as GraphicsChrome
+    }
+    if (patch.graphicSlides !== undefined) next.graphicSlides = patch.graphicSlides
+    if (patch.featuredSource !== undefined) {
+      next.featuredSource = patch.featuredSource as FeaturedSource
+    }
+    if (patch.menuIds !== undefined) next.menuIds = patch.menuIds
+    if (patch.showPrices !== undefined) next.showPrices = patch.showPrices
+    if (patch.showSoldOut !== undefined) next.showSoldOut = patch.showSoldOut
+    if (patch.itemsPerAutoSlide !== undefined) {
+      next.itemsPerAutoSlide = Math.max(1, Math.min(8, patch.itemsPerAutoSlide))
+    }
+    if (patch.itemSlides !== undefined) next.itemSlides = patch.itemSlides
     if (patch.slug !== undefined) {
-      display.slug = slugify(patch.slug) || display.slug
+      next.slug = slugify(patch.slug) || next.slug
     }
-    display.updatedAt = nowIso()
-    updated = display
+
+    next.updatedAt = nowIso()
+    // Drop legacy-only fields when rewriting.
+    delete next.mode
+    delete next.customSlides
+    Object.assign(display, next)
+    updated = normalizeDisplay(display)
   })
   return updated!
 }
@@ -160,14 +219,30 @@ export function buildDisplayUrl(
   return `${origin.replace(/\/$/, '')}${buildDisplayPath(storeSlug, displaySlug)}`
 }
 
-export function createCustomSlide(
-  partial?: Partial<DisplayCustomSlide>,
-): DisplayCustomSlide {
+export function createGraphicSlide(
+  partial?: Partial<DisplayGraphicSlide>,
+): DisplayGraphicSlide {
+  return {
+    id: createId('dslide'),
+    imageUrl: partial?.imageUrl ?? '',
+    title: partial?.title,
+    subtitle: partial?.subtitle,
+    sortOrder: partial?.sortOrder ?? 0,
+  }
+}
+
+export function createItemSlide(
+  partial?: Partial<DisplayItemSlide>,
+): DisplayItemSlide {
   return {
     id: createId('dslide'),
     title: partial?.title,
-    subtitle: partial?.subtitle,
-    imageUrl: partial?.imageUrl,
+    itemIds: partial?.itemIds ?? [],
     sortOrder: partial?.sortOrder ?? 0,
   }
+}
+
+/** @deprecated */
+export function createCustomSlide(partial?: Partial<DisplayGraphicSlide>) {
+  return createGraphicSlide(partial)
 }

@@ -530,9 +530,37 @@ export interface QrCode extends Timestamps {
   scanCount: number
 }
 
-/** What a TV / digital board shows. */
-export type DisplayMode = 'featured' | 'catalog' | 'mixed'
+/**
+ * Digital board kinds:
+ * - branding: logo + title on a chosen background image
+ * - graphics: repeating image slideshow (fullscreen or framed with header/footer)
+ * - featured: catalog/product slides (auto from featured items, or manual pages)
+ */
+export type DisplayKind = 'branding' | 'graphics' | 'featured'
 
+/** @deprecated Prefer DisplayKind */
+export type DisplayMode = 'featured' | 'catalog' | 'mixed' | DisplayKind
+
+export type GraphicsChrome = 'fullscreen' | 'framed'
+export type FeaturedSource = 'auto' | 'manual'
+
+export interface DisplayGraphicSlide {
+  id: ID
+  imageUrl: string
+  title?: string
+  subtitle?: string
+  sortOrder: number
+}
+
+/** One page on a featured board — one or many items. */
+export interface DisplayItemSlide {
+  id: ID
+  title?: string
+  itemIds: ID[]
+  sortOrder: number
+}
+
+/** @deprecated Prefer DisplayGraphicSlide / DisplayItemSlide */
 export interface DisplayCustomSlide {
   id: ID
   title?: string
@@ -551,17 +579,34 @@ export interface Display extends Timestamps {
   name: string
   slug: string
   active: boolean
-  mode: DisplayMode
-  /** Limit to these menus; empty/omit = all currently available menus. */
-  menuIds: ID[]
+  kind: DisplayKind
   slideDurationSec: number
-  showPrices: boolean
-  showSoldOut: boolean
   showLogo: boolean
   showStoreName: boolean
   headline?: string
   tagline?: string
-  customSlides: DisplayCustomSlide[]
+
+  /** Branding board background (falls back to store cover). */
+  backgroundImageUrl?: string
+
+  /** Graphics slideshow chrome. */
+  graphicsChrome: GraphicsChrome
+  graphicSlides: DisplayGraphicSlide[]
+
+  /** Featured board: auto from catalog featured flags, or manual pages. */
+  featuredSource: FeaturedSource
+  /** Limit auto featured to these menus; empty = all available. */
+  menuIds: ID[]
+  showPrices: boolean
+  showSoldOut: boolean
+  /** Auto mode: max items per rotating page. */
+  itemsPerAutoSlide: number
+  /** Manual mode pages. */
+  itemSlides: DisplayItemSlide[]
+
+  /** Legacy fields kept for migration from earlier drafts. */
+  mode?: DisplayMode
+  customSlides?: DisplayCustomSlide[]
 }
 
 export interface OrderCustomer {

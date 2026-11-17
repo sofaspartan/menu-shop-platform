@@ -109,13 +109,50 @@ export async function getDb(): Promise<AppDatabase> {
     const adapter = getPersistenceAdapter()
     const existing = await adapter.load()
     // Bump when seed assets/schema change so demos refresh cleanly.
-    if (existing && (existing.version === 11 || existing.version === 12)) {
+    if (
+      existing &&
+      (existing.version === 11 || existing.version === 12 || existing.version === 13)
+    ) {
       if (!existing.brandThemes) existing.brandThemes = []
       if (!existing.coupons) existing.coupons = []
       if (!existing.sales) existing.sales = []
       if (!existing.loyaltyAccounts) existing.loyaltyAccounts = []
       if (!existing.loyaltyLedger) existing.loyaltyLedger = []
       if (!existing.displays) existing.displays = []
+      // Soft-migrate older display drafts in place.
+      existing.displays = existing.displays.map((d) => {
+        const kind =
+          d.kind === 'branding' || d.kind === 'graphics' || d.kind === 'featured'
+            ? d.kind
+            : d.mode === 'branding' || d.mode === 'graphics'
+              ? d.mode
+              : 'featured'
+        return {
+          ...d,
+          kind,
+          graphicsChrome: d.graphicsChrome === 'framed' ? 'framed' : 'fullscreen',
+          graphicSlides:
+            d.graphicSlides ??
+            (d.customSlides || [])
+              .filter((s) => s.imageUrl)
+              .map((s) => ({
+                id: s.id,
+                imageUrl: s.imageUrl || '',
+                title: s.title,
+                subtitle: s.subtitle,
+                sortOrder: s.sortOrder,
+              })),
+          featuredSource: d.featuredSource === 'manual' ? 'manual' : 'auto',
+          menuIds: d.menuIds ?? [],
+          showPrices: d.showPrices !== false,
+          showSoldOut: Boolean(d.showSoldOut),
+          itemsPerAutoSlide: d.itemsPerAutoSlide || 4,
+          itemSlides: d.itemSlides ?? [],
+          showLogo: d.showLogo !== false,
+          showStoreName: d.showStoreName !== false,
+          slideDurationSec: d.slideDurationSec || 8,
+        }
+      })
       const expiredSales = applySaleExpirations(existing.sales, new Date(), nowIso)
       const expiredCoupons = applyCouponExpirations(existing.coupons, new Date(), nowIso)
       if (expiredSales + expiredCoupons > 0) {

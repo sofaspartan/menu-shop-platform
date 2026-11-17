@@ -6,6 +6,7 @@ import type {
   Sale,
 } from '@/types'
 import { resolveListedPrice } from '@/lib/commerce'
+import { normalizeDisplay } from '@/lib/normalizeDisplay'
 import { isItemAvailableNow, getAvailableMenus } from '@/lib/scheduling'
 
 export type BoardItemCard = {
@@ -30,22 +31,16 @@ export type BoardSlide =
     }
   | {
       id: string
-      kind: 'featured'
-      title: string
-      items: BoardItemCard[]
-    }
-  | {
-      id: string
-      kind: 'section'
-      title: string
-      items: BoardItemCard[]
-    }
-  | {
-      id: string
-      kind: 'custom'
+      kind: 'graphic'
       title?: string
       subtitle?: string
-      imageUrl?: string
+      imageUrl: string
+    }
+  | {
+      id: string
+      kind: 'items'
+      title: string
+      items: BoardItemCard[]
     }
 
 function toCard(
@@ -72,29 +67,14 @@ function toCard(
   }
 }
 
-/** Build the live slide deck for a digital display from current catalog state. */
-export function buildDisplaySlides(
+function collectCatalogCards(
   db: AppDatabase,
   restaurant: Restaurant,
   display: Display,
-  now = new Date(),
-): BoardSlide[] {
-  const slides: BoardSlide[] = []
+  now: Date,
+  opts: { featuredOnly: boolean },
+): BoardItemCard[] {
   const sales = db.sales.filter((s) => s.restaurantId === restaurant.id)
-
-  slides.push({
-    id: `branding-${display.id}`,
-    kind: 'branding',
-    headline: display.headline || restaurant.name,
-    tagline:
-      display.tagline ||
-      restaurant.pages.coverIntro?.title ||
-      restaurant.pages.about.subtitle ||
-      restaurant.pages.about.title ||
-      undefined,
-    imageUrl: restaurant.coverImageUrl,
-  })
-
   const menus = getAvailableMenus(
     db.menus.filter((m) => m.restaurantId === restaurant.id),
     restaurant,
@@ -102,15 +82,12 @@ export function buildDisplaySlides(
   ).filter((m) =>
     display.menuIds.length ? display.menuIds.includes(m.id) : true,
   )
-
   const sectionById = new Map(
     db.sections
       .filter((s) => s.restaurantId === restaurant.id)
       .map((s) => [s.id, s]),
   )
-
-  const featured: BoardItemCard[] = []
-  const bySection = new Map<string, BoardItemCard[]>()
+  const cards: BoardItemCard[] = []
 
   for (const menu of menus) {
     const assignments = db.assignments
@@ -118,6 +95,7 @@ export function buildDisplaySlides(
       .sort((a, b) => a.sortOrder - b.sortOrder)
 
     for (const assignment of assignments) {
+      if (opts.featuredOnly && !assignment.featured) continue
       const item = db.items.find((i) => i.id === assignment.itemId)
       if (!item || !item.active) continue
       if (item.availability === 'hidden') continue
@@ -133,72 +111,129 @@ export function buildDisplaySlides(
 
       const section = sectionById.get(assignment.sectionId)
       const sectionName = section?.name || 'Featured'
-      const list =
-        assignment.priceOverrideCents ?? item.basePriceCents
+      const list = assignment.priceOverrideCents ?? item.basePriceCents
       const card = toCard(item, sectionName, list, sales, now)
-
-      if (assignment.featured && (display.mode === 'featured' || display.mode === 'mixed')) {
-        if (!featured.some((f) => f.id === card.id)) featured.push(card)
-      }
-
-      if (display.mode === 'catalog' || display.mode === 'mixed') {
-        const listItems = bySection.get(sectionName) || []
-        if (!listItems.some((c) => c.id === card.id)) listItems.push(card)
-        bySection.set(sectionName, listItems)
-      }
+      if (!cards.some((c) => c.id === card.id)) cards.push(card)
     }
   }
 
-  if (
-    (display.mode === 'featured' || display.mode === 'mixed') &&
-    featured.length
-  ) {
-    // Chunk featured into slides of up to 4
-    for (let i = 0; i < featured.length; i += 4) {
+  return cards
+}
+
+function cardsForItemIds(
+  db: AppDatabase,
+  restaurant: Restaurant,
+  display: Display,
+  itemIds: string[],
+  now: Date,
+): BoardItemCard[] {
+  const sales = db.sales.filter((s) => s.restaurantId === restaurant.id)
+  const cards: BoardItemCard[] = []
+  for (const itemId of itemIds) {
+    const item = db.items.find(
+      (i) => i.id === itemId && i.restaurantId === restaurant.id,
+    )
+    if (!item || !item.active) continue
+    if (item.availability === 'hidden') continue
+    const available = isItemAvailableNow(item, now)
+    const soldOut =
+      item.availability === 'sold_out' ||
+      Boolean(item.trackInventory && (item.stockQty ?? 0) <= 0)
+    if (!available && !soldOut) continue
+    if (soldOut && !display.showSoldOut) continue
+    if (!available && !display.showSoldOut) continue
+
+    const assignment = db.assignments.find(
+      (a) =>
+        a.restaurantId === restaurant.id &&
+        a.itemId === item.id &&
+        a.visible,
+    )
+    const section = assignment
+      ? db.sections.find((s) => s.id === assignment.sectionId)
+      : undefined
+    const list = assignment?.priceOverrideCents ?? item.basePriceCents
+    cards.push(toCard(item, section?.name || 'Featured', list, sales, now))
+  }
+  return cards
+}
+
+/** Build the live slide deck for a digital display from current catalog state. */
+export function buildDisplaySlides(
+  db: AppDatabase,
+  restaurant: Restaurant,
+  rawDisplay: Display,
+  now = new Date(),
+): BoardSlide[] {
+  const display = normalizeDisplay(rawDisplay)
+  const slides: BoardSlide[] = []
+
+  if (display.kind === 'branding') {
+    slides.push({
+      id: `branding-${display.id}`,
+      kind: 'branding',
+      headline: display.headline || restaurant.name,
+      tagline:
+        display.tagline ||
+        restaurant.pages.coverIntro?.title ||
+        restaurant.pages.about.subtitle ||
+        undefined,
+      imageUrl:
+        display.backgroundImageUrl ||
+        restaurant.coverImageUrl ||
+        undefined,
+    })
+    return slides
+  }
+
+  if (display.kind === 'graphics') {
+    const graphics = [...display.graphicSlides]
+      .filter((s) => s.imageUrl.trim())
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+    for (const g of graphics) {
       slides.push({
-        id: `featured-${i}`,
-        kind: 'featured',
-        title: 'Featured',
-        items: featured.slice(i, i + 4),
+        id: g.id,
+        kind: 'graphic',
+        title: g.title,
+        subtitle: g.subtitle,
+        imageUrl: g.imageUrl.trim(),
       })
     }
+    return slides
   }
 
-  if (display.mode === 'catalog' || display.mode === 'mixed') {
-    const orderedSections = [...bySection.entries()].sort((a, b) => {
-      const ao =
-        db.sections.find(
-          (s) => s.restaurantId === restaurant.id && s.name === a[0],
-        )?.sortOrder ?? 999
-      const bo =
-        db.sections.find(
-          (s) => s.restaurantId === restaurant.id && s.name === b[0],
-        )?.sortOrder ?? 999
-      return ao - bo
-    })
-    for (const [sectionName, items] of orderedSections) {
-      for (let i = 0; i < items.length; i += 6) {
-        slides.push({
-          id: `section-${sectionName}-${i}`,
-          kind: 'section',
-          title: sectionName,
-          items: items.slice(i, i + 6),
-        })
-      }
+  // Featured board
+  if (display.featuredSource === 'manual') {
+    const pages = [...display.itemSlides].sort((a, b) => a.sortOrder - b.sortOrder)
+    for (const page of pages) {
+      const items = cardsForItemIds(db, restaurant, display, page.itemIds, now)
+      if (!items.length) continue
+      slides.push({
+        id: page.id,
+        kind: 'items',
+        title: page.title?.trim() || 'Featured',
+        items,
+      })
     }
+    return slides
   }
 
-  const customs = [...display.customSlides].sort(
-    (a, b) => a.sortOrder - b.sortOrder,
-  )
-  for (const slide of customs) {
-    if (!slide.imageUrl && !slide.title) continue
+  const featured = collectCatalogCards(db, restaurant, display, now, {
+    featuredOnly: true,
+  })
+  // If nothing is marked featured, fall back to a broader catalog sample.
+  const pool =
+    featured.length > 0
+      ? featured
+      : collectCatalogCards(db, restaurant, display, now, { featuredOnly: false })
+
+  const per = display.itemsPerAutoSlide || 4
+  for (let i = 0; i < pool.length; i += per) {
     slides.push({
-      id: slide.id,
-      kind: 'custom',
-      title: slide.title,
-      subtitle: slide.subtitle,
-      imageUrl: slide.imageUrl,
+      id: `auto-featured-${i}`,
+      kind: 'items',
+      title: 'Featured',
+      items: pool.slice(i, i + per),
     })
   }
 
