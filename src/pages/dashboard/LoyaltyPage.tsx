@@ -129,25 +129,12 @@ export function LoyaltyPage() {
 
   return (
     <div className="space-y-6 animate-fade-up">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-3xl text-stone-900">Loyalty</h1>
-          <p className="mt-1 text-sm text-stone-500">
-            Customers earn points with each order (matched by email). Configure rewards they can
-            redeem at checkout — works for {copy.storeNoun} and retail alike.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {tab === 'rewards' ? (
-            <Button type="button" variant="outline" onClick={addReward}>
-              <Plus className="h-4 w-4" />
-              Add reward
-            </Button>
-          ) : null}
-          <Button type="button" onClick={() => void save()} disabled={busy}>
-            {busy ? 'Saving…' : 'Save loyalty'}
-          </Button>
-        </div>
+      <div>
+        <h1 className="font-display text-3xl text-stone-900">Loyalty</h1>
+        <p className="mt-1 text-sm text-stone-500">
+          Customers earn points with each order (matched by email). Configure rewards they can
+          redeem at checkout — works for {copy.storeNoun} and retail alike.
+        </p>
       </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -181,17 +168,32 @@ export function LoyaltyPage() {
         ))}
       </div>
 
-      {tab !== 'settings' ? (
-        <div className="relative max-w-md">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-          <Input
-            className="pl-9"
-            placeholder={tab === 'rewards' ? 'Search rewards…' : 'Search members…'}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {tab !== 'settings' ? (
+          <div className="relative max-w-md flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <Input
+              className="pl-9"
+              placeholder={tab === 'rewards' ? 'Search rewards…' : 'Search members…'}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+        ) : (
+          <div />
+        )}
+        <div className="flex flex-wrap gap-2">
+          {tab === 'rewards' ? (
+            <Button type="button" variant="outline" onClick={addReward}>
+              <Plus className="h-4 w-4" />
+              Add reward
+            </Button>
+          ) : null}
+          <Button type="button" onClick={() => void save()} disabled={busy}>
+            {busy ? 'Saving…' : 'Save loyalty'}
+          </Button>
         </div>
-      ) : null}
+      </div>
 
       {tab === 'settings' ? (
         <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5">
@@ -238,10 +240,10 @@ export function LoyaltyPage() {
       ) : null}
 
       {tab === 'rewards' ? (
-        <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-          <aside className="space-y-1">
+        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+          <div className="space-y-2">
             {filteredRewards.length === 0 ? (
-              <p className="px-3 py-4 text-sm text-stone-500">
+              <p className="rounded-2xl border border-dashed border-stone-200 bg-white px-4 py-6 text-sm text-stone-500">
                 {query ? 'No matching rewards.' : 'No rewards yet.'}
               </p>
             ) : (
@@ -251,20 +253,24 @@ export function LoyaltyPage() {
                   type="button"
                   onClick={() => setSelectedRewardId(reward.id)}
                   className={cn(
-                    'flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm',
+                    'w-full rounded-2xl border px-4 py-3 text-left',
                     (selectedReward?.id ?? '') === reward.id
-                      ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
-                      : 'text-stone-700 hover:bg-stone-50',
+                      ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                      : 'border-stone-200 bg-white hover:border-stone-300',
                   )}
                 >
-                  <span className="truncate font-medium">{reward.label}</span>
-                  <span className="mt-0.5 text-[11px] opacity-70">
-                    {reward.pointsCost} pts · {reward.type.replaceAll('_', ' ')}
-                  </span>
+                  <div className="font-medium">{reward.label}</div>
+                  <div className="mt-1 flex flex-wrap gap-2 text-xs text-stone-500">
+                    <span>{reward.type.replaceAll('_', ' ')}</span>
+                    <span>· {reward.pointsCost} pts</span>
+                  </div>
+                  <div className="mt-2">
+                    <Badge tone="accent">{reward.pointsCost} pts</Badge>
+                  </div>
                 </button>
               ))
             )}
-          </aside>
+          </div>
 
           {selectedReward ? (
             <div className="space-y-5 rounded-2xl border border-stone-200 bg-white p-5">

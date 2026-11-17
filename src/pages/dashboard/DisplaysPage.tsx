@@ -280,32 +280,33 @@ export function DisplaysPage() {
           onAction={() => setCreateOpen(true)}
         />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-          <aside className="space-y-1">
+        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+          <div className="space-y-2">
             {displays.map((d) => (
               <button
                 key={d.id}
                 type="button"
                 onClick={() => setSelectedId(d.id)}
                 className={cn(
-                  'flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm',
+                  'w-full rounded-2xl border px-4 py-3 text-left',
                   (selected?.id ?? '') === d.id
-                    ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
-                    : 'text-stone-700 hover:bg-stone-50',
+                    ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                    : 'border-stone-200 bg-white hover:border-stone-300',
                 )}
               >
-                <span className="flex items-center justify-between gap-2">
-                  <span className="truncate font-medium">{d.name}</span>
+                <div className="font-medium">{d.name}</div>
+                <div className="mt-1 flex flex-wrap gap-2 text-xs text-stone-500">
+                  <span>{displayKindLabel(d.kind)}</span>
+                  <span>· /{d.slug}</span>
+                </div>
+                <div className="mt-2">
                   <Badge tone={d.active ? 'success' : 'neutral'}>
                     {d.active ? 'On' : 'Off'}
                   </Badge>
-                </span>
-                <span className="mt-0.5 text-[11px] opacity-70">
-                  {displayKindLabel(d.kind)}
-                </span>
+                </div>
               </button>
             ))}
-          </aside>
+          </div>
 
           {selected ? (
             <div className="space-y-5 rounded-2xl border border-stone-200 bg-white p-5">

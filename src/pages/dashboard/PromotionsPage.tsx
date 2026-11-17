@@ -369,10 +369,10 @@ export function PromotionsPage() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-        <aside className="space-y-1">
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        <div className="space-y-2">
           {listEmpty && !creating ? (
-            <p className="px-3 py-4 text-sm text-stone-500">
+            <p className="rounded-2xl border border-dashed border-stone-200 bg-white px-4 py-6 text-sm text-stone-500">
               {query
                 ? 'No matches.'
                 : tab === 'coupons'
@@ -392,21 +392,23 @@ export function PromotionsPage() {
                     type="button"
                     onClick={() => selectCoupon(coupon.id)}
                     className={cn(
-                      'flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm',
+                      'w-full rounded-2xl border px-4 py-3 text-left',
                       active
-                        ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
-                        : 'text-stone-700 hover:bg-stone-50',
+                        ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                        : 'border-stone-200 bg-white hover:border-stone-300',
                     )}
                   >
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="truncate font-mono font-medium">{coupon.code}</span>
+                    <div className="font-mono font-medium">{coupon.code}</div>
+                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-stone-500">
+                      <span>
+                        {coupon.type === 'percent_off'
+                          ? `${coupon.percentOff}% off`
+                          : `${formatMoney(coupon.amountOffCents ?? 0)} off`}
+                      </span>
+                    </div>
+                    <div className="mt-2">
                       <Badge tone={badge.tone}>{badge.label}</Badge>
-                    </span>
-                    <span className="mt-0.5 text-[11px] opacity-70">
-                      {coupon.type === 'percent_off'
-                        ? `${coupon.percentOff}% off`
-                        : `${formatMoney(coupon.amountOffCents ?? 0)} off`}
-                    </span>
+                    </div>
                   </button>
                 )
               })
@@ -420,28 +422,31 @@ export function PromotionsPage() {
                     type="button"
                     onClick={() => selectSale(sale.id)}
                     className={cn(
-                      'flex w-full flex-col rounded-xl px-3 py-2.5 text-left text-sm',
+                      'w-full rounded-2xl border px-4 py-3 text-left',
                       active
-                        ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
-                        : 'text-stone-700 hover:bg-stone-50',
+                        ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                        : 'border-stone-200 bg-white hover:border-stone-300',
                     )}
                   >
-                    <span className="flex items-center justify-between gap-2">
-                      <span className="truncate font-medium">{sale.name}</span>
+                    <div className="font-medium">{sale.name}</div>
+                    <div className="mt-1 flex flex-wrap gap-2 text-xs text-stone-500">
+                      <span>{sale.percentOff}% off</span>
+                    </div>
+                    <div className="mt-2">
                       <Badge tone={badge.tone}>{badge.label}</Badge>
-                    </span>
-                    <span className="mt-0.5 text-[11px] opacity-70">
-                      {sale.percentOff}% off
-                    </span>
+                    </div>
                   </button>
                 )
               })}
           {creating ? (
-            <div className="rounded-xl bg-[var(--color-brand-soft)] px-3 py-2.5 text-sm font-medium text-[var(--color-brand)]">
-              New {tab === 'coupons' ? 'coupon' : 'sale'}
+            <div className="w-full rounded-2xl border border-[var(--color-brand)] bg-[var(--color-brand-soft)] px-4 py-3 text-left">
+              <div className="font-medium text-[var(--color-brand)]">
+                New {tab === 'coupons' ? 'coupon' : 'sale'}
+              </div>
+              <div className="mt-1 text-xs text-stone-500">Draft</div>
             </div>
           ) : null}
-        </aside>
+        </div>
 
         {creating && tab === 'coupons' ? (
           <div className="space-y-5 rounded-2xl border border-stone-200 bg-white p-5">
