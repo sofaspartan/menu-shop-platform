@@ -65,10 +65,9 @@ export function RetailShopView({
               alt=""
               className="absolute inset-0 h-full w-full object-cover"
             />
-            {/* Soft bottom wash so the intro panel always has a calm backdrop */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/20 to-transparent" />
-            <div className={cn(contentClass, 'absolute inset-x-0 bottom-0 pb-6 pt-10 sm:pb-8')}>
-              <p className="max-w-xl rounded-2xl bg-[color-mix(in_srgb,var(--sf-bg)_88%,transparent)] px-4 py-3.5 text-base leading-relaxed text-[var(--sf-text)] shadow-[0_8px_28px_rgba(0,0,0,0.18)] backdrop-blur-md sm:px-5 sm:py-4 sm:text-lg">
+            <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/75 via-black/35 to-transparent" />
+            <div className={cn(contentClass, 'absolute inset-x-0 bottom-0 pb-8 pt-16 sm:pb-10')}>
+              <p className="max-w-2xl text-base leading-relaxed text-white sm:text-lg">
                 {restaurant.description}
               </p>
             </div>
