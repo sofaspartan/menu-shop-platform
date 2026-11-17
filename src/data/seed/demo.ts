@@ -17,6 +17,7 @@ import { createId, nowIso } from '@/lib/utils'
 import { hashPassword } from '@/lib/crypto'
 import { buildHavenHideSeed } from '@/data/seed/retailHaven'
 import { buildCornerTableDiningSeed } from '@/data/seed/cornerTableDining'
+import { buildCornerTableEmployeesSeed } from '@/data/seed/cornerTableEmployees'
 
 const DEMO_PASSWORD = 'demo1234'
 
@@ -1472,9 +1473,10 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
   const dining = buildCornerTableDiningSeed(ts)
+  const staff = buildCornerTableEmployeesSeed(ts)
 
   return {
-    version: 21,
+    version: 22,
     users: [
       {
         id: userId,
@@ -1521,6 +1523,9 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     orders: [...orders, ...haven.orders],
     diningTables: dining.tables,
     reservations: dining.reservations,
+    employees: staff.employees,
+    timeClockEntries: staff.timeClockEntries,
+    cashDrawerEvents: [],
     coupons: [
       {
         id: 'cpn_ct_lunch',

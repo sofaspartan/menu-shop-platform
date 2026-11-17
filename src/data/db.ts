@@ -16,6 +16,7 @@ import {
 } from '@/data/storage'
 import { buildDemoDatabase } from '@/data/seed/demo'
 import { upsertCornerTableDiningSeed } from '@/data/seed/cornerTableDining'
+import { upsertCornerTableEmployeesSeed } from '@/data/seed/cornerTableEmployees'
 import { applyCouponExpirations, applySaleExpirations } from '@/lib/commerce'
 import { nowIso } from '@/lib/utils'
 
@@ -124,7 +125,8 @@ export async function getDb(): Promise<AppDatabase> {
         existing.version === 18 ||
         existing.version === 19 ||
         existing.version === 20 ||
-        existing.version === 21)
+        existing.version === 21 ||
+        existing.version === 22)
     ) {
       if (!existing.brandThemes) existing.brandThemes = []
       if (!existing.coupons) existing.coupons = []
@@ -134,6 +136,9 @@ export async function getDb(): Promise<AppDatabase> {
       if (!existing.displays) existing.displays = []
       if (!existing.diningTables) existing.diningTables = []
       if (!existing.reservations) existing.reservations = []
+      if (!existing.employees) existing.employees = []
+      if (!existing.timeClockEntries) existing.timeClockEntries = []
+      if (!existing.cashDrawerEvents) existing.cashDrawerEvents = []
       const diningSeed = upsertCornerTableDiningSeed(
         existing.diningTables,
         existing.reservations,
@@ -141,8 +146,19 @@ export async function getDb(): Promise<AppDatabase> {
       )
       existing.diningTables = diningSeed.diningTables
       existing.reservations = diningSeed.reservations
-      if (diningSeed.changed || existing.version < 21) {
-        existing.version = 21
+      const employeeSeed = upsertCornerTableEmployeesSeed(
+        existing.employees,
+        existing.timeClockEntries,
+        nowIso(),
+      )
+      existing.employees = employeeSeed.employees
+      existing.timeClockEntries = employeeSeed.timeClockEntries
+      if (
+        diningSeed.changed ||
+        employeeSeed.changed ||
+        existing.version < 22
+      ) {
+        existing.version = 22
         await adapter.save(existing)
       }
       // Soft-migrate older display drafts in place.

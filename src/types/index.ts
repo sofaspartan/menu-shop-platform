@@ -6,13 +6,16 @@ export type CurrencyCents = number
 
 export type MembershipRole = 'owner' | 'administrator' | 'manager' | 'staff'
 
+/** POS floor staff (separate from dashboard account memberships). */
+export type EmployeeRole = 'manager' | 'server' | 'cashier' | 'kitchen' | 'host'
+
 export type ItemAvailability =
   | 'available'
   | 'temporarily_unavailable'
   | 'sold_out'
   | 'hidden'
 
-export type OrderType = 'pickup' | 'delivery'
+export type OrderType = 'pickup' | 'delivery' | 'dine_in'
 
 /** Vertical for a storefront: food service vs general retail. */
 export type StoreKind = 'restaurant' | 'retail'
@@ -840,6 +843,9 @@ export interface OrderFulfillment {
   type: OrderType
   instructions?: string
   requestedTime?: ISODateTime
+  /** Set for dine-in POS tickets. */
+  tableId?: ID
+  tableName?: string
   address?: {
     line1: string
     line2?: string
@@ -847,6 +853,35 @@ export interface OrderFulfillment {
     state: string
     postalCode: string
   }
+}
+
+export interface Employee extends Timestamps {
+  id: ID
+  restaurantId: ID
+  name: string
+  email?: string
+  phone?: string
+  role: EmployeeRole
+  /** 4-digit POS clock PIN. */
+  pin: string
+  active: boolean
+  hourlyWageCents?: number
+}
+
+export interface TimeClockEntry extends Timestamps {
+  id: ID
+  restaurantId: ID
+  employeeId: ID
+  clockInAt: ISODateTime
+  clockOutAt?: ISODateTime
+}
+
+export interface CashDrawerEvent extends Timestamps {
+  id: ID
+  restaurantId: ID
+  employeeId?: ID
+  openedAt: ISODateTime
+  note?: string
 }
 
 export interface SelectedModifierSnapshot {
@@ -973,6 +1008,9 @@ export interface AppDatabase {
   orders: Order[]
   diningTables: DiningTable[]
   reservations: Reservation[]
+  employees: Employee[]
+  timeClockEntries: TimeClockEntry[]
+  cashDrawerEvents: CashDrawerEvent[]
   coupons: Coupon[]
   sales: Sale[]
   loyaltyAccounts: LoyaltyAccount[]

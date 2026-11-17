@@ -81,12 +81,14 @@ export function storeCopy(kind: StoreKind = 'restaurant') {
       if (orderType === 'delivery') {
         return retail ? 'Placing shipping order…' : 'Placing delivery order…'
       }
+      if (orderType === 'dine_in') return 'Sending to kitchen…'
       return retail ? 'Placing pickup order…' : 'Placing pickup order…'
     },
     estimatedEtaPrefix: (orderType: OrderType) => {
       if (orderType === 'delivery') {
         return retail ? 'Estimated delivery by' : 'Estimated arrival at'
       }
+      if (orderType === 'dine_in') return 'Estimated ready by'
       return retail ? 'Estimated ready for pickup by' : 'Estimated ready by'
     },
     noCatalogTitle: retail ? 'No catalogs available right now' : 'No menus available right now',
@@ -110,11 +112,16 @@ export function statusHeadlineFor(
     case 'preparing':
       return retail ? 'Packing order' : 'Preparing order'
     case 'ready':
-      return orderType === 'pickup' ? 'Ready for pickup' : 'Ready'
+      return orderType === 'pickup'
+        ? 'Ready for pickup'
+        : orderType === 'dine_in'
+          ? 'Ready to serve'
+          : 'Ready'
     case 'out_for_delivery':
       return retail ? 'Shipped' : 'Out for delivery'
     case 'completed':
       if (orderType === 'delivery') return 'Delivered'
+      if (orderType === 'dine_in') return 'Served'
       return 'Picked up'
     case 'cancelled':
       return 'Order cancelled'

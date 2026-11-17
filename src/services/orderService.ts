@@ -106,6 +106,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
   if (input.fulfillment.type === 'delivery' && !restaurant.ordering.deliveryEnabled) {
     throw new Error('Delivery is not available.')
   }
+  // dine_in is always allowed for POS floor sales when the store is open.
   if (!input.customer.name.trim() || !input.customer.phone.trim()) {
     throw new Error('Name and phone are required.')
   }

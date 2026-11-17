@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  ArrowLeft,
   ArrowLeftRight,
   CheckCircle2,
   CreditCard,
@@ -15,12 +16,23 @@ import type {
   ComboConfig,
   MenuItem,
   ModifierGroup,
+  OrderType,
   Restaurant,
 } from '@/types'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
-import { placeOrder } from '@/services/orderService'
+import { advanceOrderStatus, placeOrder } from '@/services/orderService'
+import * as employeeService from '@/services/employeeService'
+import {
+  PosClockView,
+  PosDineInSeatView,
+  PosHomeHubFixed,
+  PosPickUpView,
+  PosRecallView,
+  seatTableForPos,
+  type PosHubView,
+} from '@/components/pos/PosHubViews'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
@@ -47,6 +59,12 @@ import { normalizeLoyaltySettings } from '@/types'
 
 type PosPhase = 'staff' | 'customer' | 'processing' | 'complete'
 type CustomerWizardStep = 'loyalty' | 'tip' | 'pay'
+type OrderingContext = {
+  orderType: Extract<OrderType, 'pickup' | 'dine_in'>
+  tableId?: string
+  tableName?: string
+  guestName?: string
+}
 
 type PosLine = {
   id: string
@@ -113,7 +131,10 @@ function lineConfigKey(
 export function PosPage() {
   const current = useRestaurantStore((s) => s.current())
   const user = useAuthStore((s) => s.user)
-  const { db } = useDb({ pollMs: 3000 })
+  const { db, revision } = useDb({ pollMs: 3000 })
+  const [hub, setHub] = useState<PosHubView>('home')
+  const [ordering, setOrdering] = useState<OrderingContext | null>(null)
+  const [drawerFlash, setDrawerFlash] = useState(false)
   const [phase, setPhase] = useState<PosPhase>('staff')
   const [flipping, setFlipping] = useState(false)
   const [query, setQuery] = useState('')
@@ -237,10 +258,40 @@ export function PosPage() {
     return Math.round(subtotal * (tipPreset / 100))
   }, [tipPreset, customTip, subtotal])
 
+  const activeOrderType = ordering?.orderType ?? 'pickup'
   const pricing = useMemo(() => {
     if (!current) return null
-    return calculateOrderPricing(subtotal, current.ordering, 'pickup', tipCents)
-  }, [current, subtotal, tipCents])
+    return calculateOrderPricing(subtotal, current.ordering, activeOrderType, tipCents)
+  }, [current, subtotal, tipCents, activeOrderType])
+
+  const tables = useMemo(() => {
+    if (!db || !current) return []
+    return (db.diningTables ?? [])
+      .filter((t) => t.restaurantId === current.id)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+  }, [db, current, revision])
+
+  const reservations = useMemo(() => {
+    if (!db || !current) return []
+    return (db.reservations ?? []).filter((r) => r.restaurantId === current.id)
+  }, [db, current, revision])
+
+  const employees = useMemo(() => {
+    if (!db || !current) return []
+    return (db.employees ?? []).filter((e) => e.restaurantId === current.id)
+  }, [db, current, revision])
+
+  const openClocks = useMemo(() => {
+    if (!db || !current) return []
+    return (db.timeClockEntries ?? []).filter(
+      (e) => e.restaurantId === current.id && !e.clockOutAt,
+    )
+  }, [db, current, revision])
+
+  const storeOrders = useMemo(() => {
+    if (!db || !current) return []
+    return db.orders.filter((o) => o.restaurantId === current.id)
+  }, [db, current, revision])
 
   const estimatedLoyaltyPoints =
     loyalty.enabled && loyaltyPhoneReady && !loyaltySkipped
@@ -298,7 +349,7 @@ export function PosPage() {
     )
   }
 
-  function clearTicket() {
+  function clearTicket(opts?: { goHome?: boolean }) {
     setLines([])
     setGuestName('')
     setTipPreset(0)
@@ -309,6 +360,29 @@ export function PosPage() {
     setLoyaltySkipped(false)
     setCompletedOrder(null)
     setPhase('staff')
+    if (opts?.goHome) {
+      setOrdering(null)
+      setHub('home')
+    }
+  }
+
+  function startOrdering(ctx: OrderingContext) {
+    setOrdering(ctx)
+    setGuestName(ctx.guestName ?? '')
+    setLines([])
+    setTipPreset(0)
+    setCustomTip('')
+    setError('')
+    setCustomizing(null)
+    setLoyaltyPhone('')
+    setLoyaltySkipped(false)
+    setCompletedOrder(null)
+    setPhase('staff')
+    setHub('ordering')
+  }
+
+  function goHome() {
+    clearTicket({ goHome: true })
   }
 
   function flipToCustomer() {
@@ -357,8 +431,13 @@ export function PosPage() {
           email: undefined,
         },
         fulfillment: {
-          type: 'pickup',
-          instructions: 'POS counter sale',
+          type: activeOrderType,
+          instructions:
+            activeOrderType === 'dine_in'
+              ? `POS dine-in${ordering?.tableName ? ` · ${ordering.tableName}` : ''}`
+              : 'POS to-go / counter sale',
+          tableId: ordering?.tableId,
+          tableName: ordering?.tableName,
         },
         tipCents,
         simulatedCardLast4: '4242',
@@ -388,6 +467,8 @@ export function PosPage() {
   }
 
   const tipPresets = current.ordering.tipPresetsPercent
+  const restaurant = current
+  const actor = user
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -395,9 +476,8 @@ export function PosPage() {
         <div>
           <h1 className="font-display text-3xl">Point of sale</h1>
           <p className="mt-1 max-w-2xl text-stone-500">
-            Simulate a counter tablet like Square or Toast. Ring up {copy.itemNounPlural.toLowerCase()}{' '}
-            from your live catalog, flip the screen for the {copy.guestNoun} to tip and pay, then send the
-            order into your Orders queue.
+            Counter tablet hub — dine in, to go, pickup handoff, employee clock, and cash drawer —
+            powered by your live {copy.catalogNoun.toLowerCase()}.
           </p>
         </div>
         <Badge tone="accent">Auto-built from {copy.catalogNoun}</Badge>
@@ -406,74 +486,153 @@ export function PosPage() {
       <div className="flex justify-center">
         <PosDeviceFrame
           restaurant={current}
-          flipping={flipping}
-          phase={phase}
+          flipping={flipping && hub === 'ordering'}
+          phase={hub === 'ordering' ? phase : 'staff'}
         >
-          {phase === 'staff' ? (
-            <StaffFace
-              restaurant={current}
-              copy={copy}
-              query={query}
-              onQuery={setQuery}
-              sections={sections}
-              lines={lines}
-              guestName={guestName}
-              onGuestName={setGuestName}
-              subtotal={subtotal}
-              pricing={pricing}
-              error={error}
-              onAdd={addItem}
-              onSetQty={setQty}
-              onClear={clearTicket}
-              onFlip={flipToCustomer}
-            />
-          ) : (
-            <CustomerFace
-              restaurant={current}
-              copy={copy}
-              phase={phase}
-              lines={lines}
-              guestName={guestName}
-              tipPreset={tipPreset}
-              customTip={customTip}
-              tipPresets={tipPresets}
-              tipCents={tipCents}
-              pricing={pricing}
-              error={error}
-              busy={busy}
-              completedOrder={completedOrder}
-              loyaltyEnabled={loyalty.enabled}
-              loyaltyPhone={loyaltyPhone}
-              loyaltySkipped={loyaltySkipped}
-              estimatedLoyaltyPoints={estimatedLoyaltyPoints}
-              pointsPerDollar={loyalty.pointsPerDollar}
-              onLoyaltyPhone={(v) => {
-                setLoyaltySkipped(false)
-                setLoyaltyPhone(v)
+          {hub === 'home' ? (
+            <PosHomeHubFixed
+              restaurant={restaurant}
+              isRetail={copy.isRetail}
+              onDineIn={() => setHub('dine_in')}
+              onToGo={() => startOrdering({ orderType: 'pickup' })}
+              onPickUp={() => setHub('pick_up')}
+              onClock={() => setHub('clock')}
+              onRecall={() => setHub('recall')}
+              drawerFlash={drawerFlash}
+              onOpenDrawer={() => {
+                void employeeService.openCashDrawer(restaurant.id, undefined, 'POS home')
+                setDrawerFlash(true)
+                window.setTimeout(() => setDrawerFlash(false), 2200)
               }}
-              onSkipLoyalty={() => {
-                setLoyaltyPhone('')
-                setLoyaltySkipped(true)
-              }}
-              onTipPreset={setTipPreset}
-              onCustomTip={setCustomTip}
-              onBack={flipToStaff}
-              onPay={() => void chargeCard()}
-              onNewSale={clearTicket}
             />
-          )}
+          ) : null}
 
-          {customizing && db && phase === 'staff' ? (
-            <PosCustomizePanel
-              db={db}
-              restaurant={current}
-              entry={customizing}
-              onClose={() => setCustomizing(null)}
-              onConfirm={(line) => {
-                commitLine(line)
-                setCustomizing(null)
+          {hub === 'dine_in' ? (
+            <PosDineInSeatView
+              tables={tables}
+              reservations={reservations}
+              onBack={() => setHub('home')}
+              onSeatAndOrder={async (table, name, partySize) => {
+                await seatTableForPos(
+                  restaurant.id,
+                  actor.id,
+                  table,
+                  name,
+                  partySize,
+                )
+                startOrdering({
+                  orderType: 'dine_in',
+                  tableId: table.id,
+                  tableName: table.name,
+                  guestName: name,
+                })
               }}
             />
+          ) : null}
+
+          {hub === 'clock' ? (
+            <PosClockView
+              restaurantId={restaurant.id}
+              employees={employees}
+              openClocks={openClocks}
+              onBack={() => setHub('home')}
+              onChanged={() => {
+                /* useDb poll refreshes */
+              }}
+            />
+          ) : null}
+
+          {hub === 'pick_up' ? (
+            <PosPickUpView
+              orders={storeOrders}
+              onBack={() => setHub('home')}
+              onAdvance={async (order, status) => {
+                await advanceOrderStatus(actor.id, restaurant.id, order.id, status)
+              }}
+            />
+          ) : null}
+
+          {hub === 'recall' ? (
+            <PosRecallView orders={storeOrders} onBack={() => setHub('home')} />
+          ) : null}
+
+          {hub === 'ordering' ? (
+            <>
+              {phase === 'staff' ? (
+                <StaffFace
+                  restaurant={current}
+                  copy={copy}
+                  query={query}
+                  onQuery={setQuery}
+                  sections={sections}
+                  lines={lines}
+                  guestName={guestName}
+                  onGuestName={setGuestName}
+                  subtotal={subtotal}
+                  pricing={pricing}
+                  error={error}
+                  onAdd={addItem}
+                  onSetQty={setQty}
+                  onClear={() => clearTicket({ goHome: true })}
+                  onFlip={flipToCustomer}
+                  orderLabel={
+                    ordering?.orderType === 'dine_in'
+                      ? `Dine in${ordering.tableName ? ` · ${ordering.tableName}` : ''}`
+                      : copy.isRetail
+                        ? 'Sale'
+                        : 'To go'
+                  }
+                  onHome={goHome}
+                />
+              ) : (
+                <CustomerFace
+                  restaurant={current}
+                  copy={copy}
+                  phase={phase}
+                  lines={lines}
+                  guestName={guestName}
+                  tipPreset={tipPreset}
+                  customTip={customTip}
+                  tipPresets={tipPresets}
+                  tipCents={tipCents}
+                  pricing={pricing}
+                  error={error}
+                  busy={busy}
+                  completedOrder={completedOrder}
+                  loyaltyEnabled={loyalty.enabled}
+                  loyaltyPhone={loyaltyPhone}
+                  loyaltySkipped={loyaltySkipped}
+                  estimatedLoyaltyPoints={estimatedLoyaltyPoints}
+                  pointsPerDollar={loyalty.pointsPerDollar}
+                  onLoyaltyPhone={(v) => {
+                    setLoyaltySkipped(false)
+                    setLoyaltyPhone(v)
+                  }}
+                  onSkipLoyalty={() => {
+                    setLoyaltyPhone('')
+                    setLoyaltySkipped(true)
+                  }}
+                  onTipPreset={setTipPreset}
+                  onCustomTip={setCustomTip}
+                  onBack={flipToStaff}
+                  onPay={() => void chargeCard()}
+                  onNewSale={() => clearTicket({ goHome: true })}
+                />
+              )}
+
+              {customizing && db && phase === 'staff' ? (
+                <PosCustomizePanel
+                  db={db}
+                  restaurant={current}
+                  entry={customizing}
+                  onClose={() => setCustomizing(null)}
+                  onConfirm={(line) => {
+                    commitLine(line)
+                    setCustomizing(null)
+                  }}
+                />
+              ) : null}
+            </>
           ) : null}
         </PosDeviceFrame>
       </div>
@@ -548,6 +707,8 @@ function StaffFace({
   onSetQty,
   onClear,
   onFlip,
+  orderLabel,
+  onHome,
 }: {
   restaurant: Restaurant
   copy: ReturnType<typeof storeCopy>
@@ -564,6 +725,8 @@ function StaffFace({
   onSetQty: (id: string, qty: number) => void
   onClear: () => void
   onFlip: () => void
+  orderLabel: string
+  onHome: () => void
 }) {
   const [activeSection, setActiveSection] = useState<string>('all')
   const sectionNames = useMemo(() => sections.map(([name]) => name), [sections])
@@ -584,6 +747,17 @@ function StaffFace({
     <div className="grid h-full min-h-0 grid-cols-1 overflow-hidden lg:grid-cols-[1.35fr_0.9fr]">
       <div className="flex min-h-0 flex-col overflow-hidden border-b border-stone-200 lg:border-b-0 lg:border-r">
         <div className="shrink-0 space-y-3 border-b border-stone-100 px-4 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={onHome}
+              className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-xs font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-800"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Home
+            </button>
+            <Badge tone="neutral">{orderLabel}</Badge>
+          </div>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
             <Input

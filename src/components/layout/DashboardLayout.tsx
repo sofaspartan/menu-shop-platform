@@ -21,6 +21,7 @@ import {
   Monitor,
   MonitorPlay,
   Armchair,
+  Users,
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -124,6 +125,7 @@ export function DashboardLayout() {
           ...(copy.isRetail
             ? []
             : [{ to: '/dashboard/dining', label: 'Dining', icon: Armchair }]),
+          { to: '/dashboard/employees', label: 'Employees', icon: Users },
           { to: '/dashboard/preview', label: 'Preview', icon: Eye },
         ],
       },

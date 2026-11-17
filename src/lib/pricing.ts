@@ -115,7 +115,7 @@ export function calculateLineUnitPrice(
 export function calculateOrderPricing(
   subtotalCents: CurrencyCents,
   settings: OrderingSettings,
-  orderType: 'pickup' | 'delivery',
+  orderType: 'pickup' | 'delivery' | 'dine_in',
   tipCents: CurrencyCents,
   extras?: {
     discountCents?: CurrencyCents
