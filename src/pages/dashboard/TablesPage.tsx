@@ -900,7 +900,11 @@ function DesignSidePanel({
             <Field label="Shape">
               <Select
                 value={newTableShape}
-                onChange={(e) => onNewTableShape(e.target.value as DiningTableShape)}
+                onChange={(e) => {
+                  const shape = e.target.value as DiningTableShape
+                  onNewTableShape(shape)
+                  if (shape === 'booth') onNewTableSeats(4)
+                }}
               >
                 {SHAPES.map((s) => (
                   <option key={s.id} value={s.id}>
