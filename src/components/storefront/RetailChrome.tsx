@@ -55,7 +55,7 @@ export function RetailChrome({
               {restaurant.name.slice(0, 1)}
             </span>
           )}
-          <span className="truncate font-display text-lg tracking-tight text-[var(--sf-text)] sm:text-xl">
+          <span className="truncate font-display text-xl tracking-tight text-[var(--sf-text)] sm:text-2xl">
             {restaurant.name}
           </span>
         </Link>
@@ -72,10 +72,10 @@ export function RetailChrome({
                   key={link.to}
                   to={link.to}
                   className={cn(
-                    'rounded-md px-3 py-2 text-sm transition-colors',
+                    'rounded-md px-3 py-2 text-base transition-colors',
                     active
                       ? 'font-semibold text-[var(--sf-text)]'
-                      : 'text-[var(--sf-text)]/60 hover:text-[var(--sf-text)]',
+                      : 'text-[var(--sf-text)]/75 hover:text-[var(--sf-text)]',
                   )}
                 >
                   {link.label}
@@ -112,7 +112,7 @@ export function RetailChrome({
             >
               <ShoppingBag className="h-5 w-5" />
               {bagCount > 0 ? (
-                <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--sf-button)] px-1 text-[10px] font-semibold text-[var(--sf-button-text)]">
+                <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--sf-button)] px-1 text-xs font-semibold text-[var(--sf-button-text)]">
                   {bagCount}
                 </span>
               ) : null}
@@ -133,10 +133,10 @@ export function RetailChrome({
               key={link.to}
               to={link.to}
               className={cn(
-                'shrink-0 rounded-full px-3.5 py-1.5 text-sm',
+                'shrink-0 rounded-full px-3.5 py-1.5 text-base',
                 active
                   ? 'bg-[var(--sf-text)] text-[var(--sf-bg)]'
-                  : 'text-[var(--sf-text)]/65',
+                  : 'text-[var(--sf-text)]/75',
               )}
             >
               {link.label}
@@ -154,7 +154,7 @@ export function RetailChrome({
               value={search ?? ''}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder={`Search ${copy.itemNounPlural.toLowerCase()}…`}
-              className="h-11 w-full rounded-xl border border-stone-200 bg-[var(--sf-surface)] px-4 text-sm text-[var(--sf-text)] outline-none ring-[var(--sf-primary)] placeholder:text-[var(--sf-text)]/40 focus:ring-2"
+              className="h-12 w-full rounded-xl border border-stone-200 bg-[var(--sf-surface)] px-4 text-base text-[var(--sf-text)] outline-none ring-[var(--sf-primary)] placeholder:text-[var(--sf-text)]/45 focus:ring-2"
             />
           </div>
         </div>

@@ -66,7 +66,7 @@ export function RetailShopView({
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 mx-auto max-w-6xl px-4 pb-8 sm:px-6 sm:pb-10">
-              <p className="max-w-xl text-sm text-white/85 sm:text-base">
+              <p className="max-w-2xl text-base leading-relaxed text-white/90 sm:text-lg">
                 {restaurant.description}
               </p>
             </div>
@@ -74,7 +74,7 @@ export function RetailShopView({
         </div>
       ) : (
         <div className="mx-auto max-w-6xl px-4 pb-2 pt-8 sm:px-6">
-          <p className="max-w-2xl text-[15px] leading-relaxed text-[var(--sf-text)]/70">
+          <p className="max-w-2xl text-base leading-relaxed text-[var(--sf-text)]/80 sm:text-lg">
             {restaurant.description}
           </p>
         </div>
@@ -90,10 +90,10 @@ export function RetailShopView({
                   key={menu.id}
                   to={`/r/${restaurant.slug}/menu/${menu.slug}`}
                   className={cn(
-                    'rounded-full px-4 py-2 text-sm transition-colors',
+                    'rounded-full px-4 py-2.5 text-base transition-colors',
                     active
                       ? 'bg-[var(--sf-text)] font-medium text-[var(--sf-bg)]'
-                      : 'text-[var(--sf-text)]/60 hover:text-[var(--sf-text)]',
+                      : 'text-[var(--sf-text)]/75 hover:text-[var(--sf-text)]',
                   )}
                 >
                   {menu.name}
@@ -108,12 +108,12 @@ export function RetailShopView({
         ) : (
           <>
             {sectionItems.length > 1 && !search ? (
-              <div className="mb-10 flex gap-5 overflow-x-auto border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="mb-10 flex gap-6 overflow-x-auto border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {sectionItems.map(({ section }) => (
                   <a
                     key={section.id}
                     href={`#section-${section.id}`}
-                    className="shrink-0 text-sm text-[var(--sf-text)]/55 transition-colors hover:text-[var(--sf-text)]"
+                    className="shrink-0 text-base text-[var(--sf-text)]/70 transition-colors hover:text-[var(--sf-text)]"
                   >
                     {section.name}
                   </a>
@@ -123,7 +123,7 @@ export function RetailShopView({
 
             {featured.length > 0 && !search ? (
               <section className="mb-14">
-                <h2 className="mb-6 font-display text-2xl tracking-tight text-[var(--sf-text)] sm:text-3xl">
+                <h2 className="mb-6 font-display text-2xl font-semibold tracking-tight text-[var(--sf-text)] sm:text-[1.75rem]">
                   Featured
                 </h2>
                 <ProductGrid
@@ -142,17 +142,17 @@ export function RetailShopView({
                 className="mb-16 scroll-mt-28"
               >
                 <div className="mb-6">
-                  <h2 className="font-display text-2xl tracking-tight text-[var(--sf-text)] sm:text-3xl">
+                  <h2 className="font-display text-2xl font-semibold tracking-tight text-[var(--sf-text)] sm:text-[1.75rem]">
                     {section.name}
                   </h2>
                   {section.description ? (
-                    <p className="mt-2 max-w-2xl text-sm text-[var(--sf-text)]/55">
+                    <p className="mt-2 max-w-2xl text-base leading-relaxed text-[var(--sf-text)]/75">
                       {section.description}
                     </p>
                   ) : null}
                 </div>
                 {items.length === 0 ? (
-                  <p className="text-sm text-[var(--sf-text)]/50">No products match.</p>
+                  <p className="text-base text-[var(--sf-text)]/65">No products match.</p>
                 ) : (
                   <ProductGrid
                     items={items}
@@ -210,11 +210,11 @@ function ProductGrid({
                   </span>
                 ) : null}
               </div>
-              <div className="mt-4 space-y-1">
-                <p className="text-base font-medium leading-snug tracking-tight text-[var(--sf-text)]">
+              <div className="mt-4 space-y-1.5">
+                <p className="text-lg font-medium leading-snug tracking-tight text-[var(--sf-text)]">
                   {item.name}
                 </p>
-                <p className="text-[15px] text-[var(--sf-text)]/70">{formatMoney(price)}</p>
+                <p className="text-base text-[var(--sf-text)]/80">{formatMoney(price)}</p>
               </div>
             </button>
           </li>
