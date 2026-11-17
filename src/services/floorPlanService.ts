@@ -215,6 +215,34 @@ const SHAPE_DEFAULTS: Record<DiningTableShape, { width: number; height: number }
   bar: { width: 64, height: 64 },
 }
 
+/** Grow table footprint so seat markers and label text stay readable. */
+export function sizeForSeats(
+  shape: DiningTableShape,
+  seats: number,
+): { width: number; height: number } {
+  const base = SHAPE_DEFAULTS[shape]
+  const n = Math.max(1, seats)
+  if (shape === 'round' || shape === 'bar') {
+    const side = Math.max(base.width, 56 + n * 10)
+    return { width: side, height: side }
+  }
+  if (shape === 'booth') {
+    return {
+      width: Math.max(base.width, 100 + Math.ceil(n / 2) * 28),
+      height: base.height,
+    }
+  }
+  if (shape === 'square') {
+    const side = Math.max(base.width, 72 + Math.ceil(n / 4) * 22)
+    return { width: side, height: side }
+  }
+  // rectangle
+  return {
+    width: Math.max(base.width, 100 + Math.ceil(n / 2) * 22),
+    height: Math.max(base.height, 78 + Math.floor(n / 6) * 18),
+  }
+}
+
 export async function createLayoutTable(
   userId: string,
   restaurantId: string,
@@ -230,7 +258,7 @@ export async function createLayoutTable(
   await assertRestaurantAccess(userId, restaurantId, ['owner', 'administrator', 'manager'])
   const db = await getDb()
   const existing = (db.diningTables ?? []).filter((t) => t.restaurantId === restaurantId)
-  const size = SHAPE_DEFAULTS[input.shape]
+  const size = sizeForSeats(input.shape, input.seats)
   const ts = nowIso()
   const table = normalizeDiningTable({
     id: createId('tbl'),
@@ -285,22 +313,28 @@ export async function updateLayoutTable(
     )
     if (idx < 0) throw new Error('Table not found')
     const current = normalizeDiningTable(d.diningTables[idx])
+    const nextSeats =
+      patch.seats !== undefined
+        ? Math.max(1, Math.min(24, Math.round(patch.seats) || 1))
+        : current.seats
+    const nextShape = patch.shape ?? current.shape
     let width = patch.width ?? current.width
     let height = patch.height ?? current.height
-    if (patch.shape && patch.shape !== current.shape && patch.width === undefined) {
-      width = SHAPE_DEFAULTS[patch.shape].width
-      height = SHAPE_DEFAULTS[patch.shape].height
+    if (patch.width === undefined && patch.height === undefined) {
+      if (patch.shape !== undefined || patch.seats !== undefined) {
+        const sized = sizeForSeats(nextShape, nextSeats)
+        width = sized.width
+        height = sized.height
+      }
     }
     const next = normalizeDiningTable({
       ...current,
       ...patch,
       width,
       height,
+      shape: nextShape,
       name: patch.name !== undefined ? patch.name.trim() || current.name : current.name,
-      seats:
-        patch.seats !== undefined
-          ? Math.max(1, Math.min(24, Math.round(patch.seats) || 1))
-          : current.seats,
+      seats: nextSeats,
       updatedAt: nowIso(),
     })
     d.diningTables[idx] = next

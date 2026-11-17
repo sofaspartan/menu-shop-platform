@@ -340,6 +340,10 @@ export function FloorPlanWorkspace({
                 setSelectedLabelId(null)
                 setSeatParty(Math.min(t.seats, seatParty || 2))
               }}
+              onClearSelection={() => {
+                setSelectedTableId(null)
+                setSelectedLabelId(null)
+              }}
               onSelectLabel={(l) => {
                 setSelectedLabelId(l.id)
                 setSelectedTableId(null)
@@ -978,29 +982,35 @@ function DesignSidePanel({
       {table ? (
         <div className="border-t border-stone-100 pt-3">
           <p className="text-sm font-semibold text-stone-900">Selected · {table.name}</p>
+          <p className="text-xs text-stone-500">Edits update the live floor immediately.</p>
           <div className="mt-2 grid gap-2">
             <Field label="Name">
               <Input
-                key={`${table.id}-name`}
-                defaultValue={table.name}
-                onBlur={(e) => onUpdateTable({ name: e.target.value })}
+                value={table.name}
+                onChange={(e) => onUpdateTable({ name: e.target.value })}
               />
             </Field>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Seats">
                 <Input
                   type="number"
-                  key={`${table.id}-seats`}
-                  defaultValue={table.seats}
-                  onBlur={(e) => onUpdateTable({ seats: Number(e.target.value) || 1 })}
+                  min={1}
+                  max={24}
+                  value={table.seats}
+                  onChange={(e) =>
+                    onUpdateTable({ seats: Math.max(1, Number(e.target.value) || 1) })
+                  }
                 />
               </Field>
               <Field label="Shape">
                 <Select
                   value={table.shape}
-                  onChange={(e) =>
-                    onUpdateTable({ shape: e.target.value as DiningTableShape })
-                  }
+                  onChange={(e) => {
+                    const shape = e.target.value as DiningTableShape
+                    onUpdateTable(
+                      shape === 'booth' ? { shape, seats: Math.max(4, table.seats) } : { shape },
+                    )
+                  }}
                 >
                   {SHAPES.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -1016,7 +1026,13 @@ function DesignSidePanel({
             </Button>
           </div>
         </div>
-      ) : null}
+      ) : (
+        <div className="border-t border-stone-100 pt-3">
+          <p className="text-sm text-stone-500">
+            Click a table on the canvas to edit its name, seats, and shape.
+          </p>
+        </div>
+      )}
 
       <div className="border-t border-stone-100 pt-3">
         <p className="text-sm font-semibold text-stone-900">Floor labels</p>

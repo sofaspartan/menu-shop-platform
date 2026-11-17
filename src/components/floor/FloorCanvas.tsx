@@ -60,12 +60,41 @@ export function shapeRadius(shape: DiningTableShape): string {
   return '14px'
 }
 
-const SEAT_PAD = 20
-const SEAT_W = 16
-const SEAT_H = 11
+const SEAT_PAD = 22
+const SEAT_W = 15
+const SEAT_H = 10
 const BENCH_H = 14
+/** Distance from table edge to seat center. */
+const SEAT_OUT = 11
 
 type SeatSpot = { left: number; top: number; rotate: number }
+
+function splitRectSeats(n: number): {
+  top: number
+  right: number
+  bottom: number
+  left: number
+} {
+  if (n <= 0) return { top: 0, right: 0, bottom: 0, left: 0 }
+  if (n === 1) return { top: 1, right: 0, bottom: 0, left: 0 }
+  if (n === 2) return { top: 1, right: 0, bottom: 1, left: 0 }
+  if (n === 3) return { top: 1, right: 1, bottom: 1, left: 0 }
+  // 4+: one on each short side, rest on long sides (top/bottom).
+  const long = n - 2
+  return {
+    top: Math.ceil(long / 2),
+    right: 1,
+    bottom: Math.floor(long / 2),
+    left: 1,
+  }
+}
+
+function alongEdge(count: number, length: number, inset: number): number[] {
+  if (count <= 0) return []
+  if (count === 1) return [length / 2]
+  const usable = Math.max(0, length - inset * 2)
+  return Array.from({ length: count }, (_, i) => inset + (usable * i) / (count - 1))
+}
 
 /** Chair markers for non-booth tables (capacity around the perimeter). */
 export function seatSpotsForTable(table: DiningTable): SeatSpot[] {
@@ -77,8 +106,8 @@ export function seatSpotsForTable(table: DiningTable): SeatSpot[] {
   const spots: SeatSpot[] = []
 
   if (table.shape === 'round' || table.shape === 'bar') {
-    const rx = w / 2 + 10
-    const ry = h / 2 + 10
+    const rx = w / 2 + SEAT_OUT
+    const ry = h / 2 + SEAT_OUT
     for (let i = 0; i < seats; i++) {
       const angle = -Math.PI / 2 + (i * 2 * Math.PI) / seats
       const cx = w / 2 + Math.cos(angle) * rx
@@ -92,34 +121,36 @@ export function seatSpotsForTable(table: DiningTable): SeatSpot[] {
     return spots
   }
 
-  // Square / rectangle: distribute around the perimeter, starting at top.
-  const perim = 2 * (w + h)
-  for (let i = 0; i < seats; i++) {
-    const d = ((i + 0.5) / seats) * perim
-    let x = 0
-    let y = 0
-    let rotate = 0
-    if (d < w) {
-      x = d
-      y = -8
-      rotate = 0
-    } else if (d < w + h) {
-      x = w + 8
-      y = d - w
-      rotate = 90
-    } else if (d < 2 * w + h) {
-      x = w - (d - w - h)
-      y = h + 8
-      rotate = 180
-    } else {
-      x = -8
-      y = h - (d - 2 * w - h)
-      rotate = -90
-    }
+  const sides = splitRectSeats(seats)
+  const insetX = Math.min(w * 0.22, Math.max(18, w / (Math.max(sides.top, sides.bottom, 2) + 1)))
+  const insetY = Math.min(h * 0.22, Math.max(16, h / (Math.max(sides.left, sides.right, 2) + 1)))
+
+  for (const x of alongEdge(sides.top, w, insetX)) {
     spots.push({
       left: x - SEAT_W / 2,
+      top: -SEAT_OUT - SEAT_H / 2,
+      rotate: 0,
+    })
+  }
+  for (const y of alongEdge(sides.right, h, insetY)) {
+    spots.push({
+      left: w + SEAT_OUT - SEAT_W / 2,
       top: y - SEAT_H / 2,
-      rotate,
+      rotate: 90,
+    })
+  }
+  for (const x of alongEdge(sides.bottom, w, insetX)) {
+    spots.push({
+      left: x - SEAT_W / 2,
+      top: h + SEAT_OUT - SEAT_H / 2,
+      rotate: 180,
+    })
+  }
+  for (const y of alongEdge(sides.left, h, insetY)) {
+    spots.push({
+      left: -SEAT_OUT - SEAT_W / 2,
+      top: y - SEAT_H / 2,
+      rotate: -90,
     })
   }
   return spots
@@ -227,7 +258,7 @@ function TableSeatMarkers({
               top: SEAT_PAD + spot.top,
               width: SEAT_W,
               height: SEAT_H,
-              borderRadius: '999px 999px 6px 6px',
+              borderRadius: '999px 999px 5px 5px',
               transform: `rotate(${spot.rotate}deg)`,
             }}
             title={`Seat ${i + 1}`}
@@ -238,6 +269,87 @@ function TableSeatMarkers({
   )
 }
 
+function TableCardContent({
+  table,
+  designMode,
+  status,
+  meta,
+  check,
+  totals,
+  mins,
+}: {
+  table: DiningTable
+  designMode: boolean
+  status: TableServiceStatus | 'free'
+  meta: (typeof STATUS_META)[TableServiceStatus | 'free']
+  check: TableCheck | undefined
+  totals: ReturnType<typeof computeCheckTotals> | null
+  mins: number | null
+}) {
+  const compact = table.width < 110 || table.height < 88
+
+  return (
+    <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-0.5 overflow-hidden px-1.5 py-1 text-center">
+      <div className="flex max-w-full items-center justify-center gap-1">
+        <span className="truncate text-[11px] font-bold leading-tight text-stone-900 sm:text-xs">
+          {table.name}
+        </span>
+        {status === 'food_ready' ? (
+          <Bell className="h-3 w-3 shrink-0 text-teal-600" />
+        ) : (
+          <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', meta.dot)} />
+        )}
+      </div>
+
+      {designMode ? (
+        <p className="truncate text-[10px] leading-tight text-stone-500">
+          {table.seats} seats
+        </p>
+      ) : (
+        <>
+          {!compact ? (
+            <span
+              className={cn(
+                'max-w-full truncate rounded px-1.5 py-0.5 text-[9px] font-medium leading-none',
+                meta.chip,
+              )}
+            >
+              {meta.label}
+            </span>
+          ) : null}
+          {check ? (
+            <div className="mt-0.5 max-w-full space-y-0.5 text-[9px] leading-tight text-stone-600">
+              {totals && totals.totalCents > 0 ? (
+                <p className="truncate font-semibold text-stone-800">
+                  {formatMoney(totals.totalCents)}
+                </p>
+              ) : check.notes ? (
+                <p className="truncate italic">{check.notes}</p>
+              ) : null}
+              <div className="flex items-center justify-center gap-1.5">
+                <span className="inline-flex items-center gap-0.5">
+                  <Users className="h-2.5 w-2.5" />
+                  {check.partySize}/{table.seats}
+                </span>
+                {mins != null ? (
+                  <span className="inline-flex items-center gap-0.5">
+                    <Clock3 className="h-2.5 w-2.5" />
+                    {mins}m
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <p className="truncate text-[9px] leading-tight text-stone-400">
+              {compact ? meta.label : `${table.seats} seats`}
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 export function FloorCanvas({
   room,
   tables,
@@ -245,6 +357,7 @@ export function FloorCanvas({
   checks,
   selectedTableId,
   onSelectTable,
+  onClearSelection,
   designMode = false,
   onMoveTable,
   selectedLabelId,
@@ -258,6 +371,7 @@ export function FloorCanvas({
   checks: TableCheck[]
   selectedTableId?: string | null
   onSelectTable?: (table: DiningTable) => void
+  onClearSelection?: () => void
   designMode?: boolean
   onMoveTable?: (tableId: string, x: number, y: number) => void
   selectedLabelId?: string | null
@@ -267,6 +381,7 @@ export function FloorCanvas({
 }) {
   const shellRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
+  const dragMoved = useRef(false)
 
   useEffect(() => {
     const el = shellRef.current
@@ -288,31 +403,44 @@ export function FloorCanvas({
     id: string,
     originX: number,
     originY: number,
+    onSelect?: () => void,
   ) {
     if (!designMode) return
-    e.preventDefault()
     e.stopPropagation()
     const target = e.currentTarget as HTMLElement
-    target.setPointerCapture(e.pointerId)
+    const pointerId = e.pointerId
     const startClientX = e.clientX
     const startClientY = e.clientY
+    dragMoved.current = false
+    let dragging = false
 
     function onMove(ev: PointerEvent) {
       const dx = (ev.clientX - startClientX) / scale
       const dy = (ev.clientY - startClientY) / scale
+      if (!dragging) {
+        if (Math.hypot(dx, dy) < 4) return
+        dragging = true
+        dragMoved.current = true
+        try {
+          target.setPointerCapture(pointerId)
+        } catch {
+          /* ignore */
+        }
+      }
       const x = Math.max(0, Math.round(originX + dx))
       const y = Math.max(0, Math.round(originY + dy))
       if (kind === 'table') onMoveTable?.(id, x, y)
       else onMoveLabel?.(id, x, y)
     }
-    function onUp(ev: PointerEvent) {
+    function onUp() {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
       try {
-        target.releasePointerCapture(ev.pointerId)
+        target.releasePointerCapture(pointerId)
       } catch {
         /* ignore */
       }
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
+      if (!dragMoved.current) onSelect?.()
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
@@ -331,6 +459,7 @@ export function FloorCanvas({
         backgroundImage: 'radial-gradient(circle, #d6d3d1 1px, transparent 1px)',
         backgroundSize: '18px 18px',
       }}
+      onClick={() => onClearSelection?.()}
     >
       <div
         className="absolute left-0 top-0 origin-top-left"
@@ -354,9 +483,11 @@ export function FloorCanvas({
               style={{ left: label.x, top: label.y }}
               onClick={(e) => {
                 e.stopPropagation()
-                onSelectLabel?.(label)
+                if (!designMode || !dragMoved.current) onSelectLabel?.(label)
               }}
-              onPointerDown={(e) => startDrag(e, 'label', label.id, label.x, label.y)}
+              onPointerDown={(e) =>
+                startDrag(e, 'label', label.id, label.x, label.y, () => onSelectLabel?.(label))
+              }
             >
               {label.text}
             </button>
@@ -387,15 +518,20 @@ export function FloorCanvas({
                 transform: table.rotation ? `rotate(${table.rotation}deg)` : undefined,
               }}
               onPointerDown={(e) => {
-                if (designMode) startDrag(e, 'table', table.id, table.x, table.y)
+                if (!designMode) return
+                startDrag(e, 'table', table.id, table.x, table.y, () => onSelectTable?.(table))
+              }}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (designMode) return
+                onSelectTable?.(table)
               }}
             >
               <TableSeatMarkers table={table} occupied={occupiedSeats} />
 
-              <button
-                type="button"
+              <div
                 className={cn(
-                  'absolute flex flex-col items-stretch border-2 p-2 text-left shadow-sm transition',
+                  'absolute border-2 shadow-sm transition',
                   meta.ring,
                   selected && 'border-orange-500 ring-4 ring-orange-300',
                 )}
@@ -406,68 +542,22 @@ export function FloorCanvas({
                   height: table.height,
                   borderRadius: shapeRadius(table.shape),
                 }}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onSelectTable?.(table)
-                }}
               >
                 {selected ? (
-                  <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-white shadow">
+                  <span className="absolute -right-2 -top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-white shadow">
                     <Check className="h-3 w-3" />
                   </span>
                 ) : null}
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-xs font-bold text-stone-900">{table.name}</span>
-                  {status === 'food_ready' ? (
-                    <Bell className="h-3.5 w-3.5 text-teal-600" />
-                  ) : (
-                    <span className={cn('h-2 w-2 rounded-full', meta.dot)} />
-                  )}
-                </div>
-                {!designMode ? (
-                  <>
-                    <span
-                      className={cn(
-                        'mt-1 w-fit rounded px-1.5 py-0.5 text-[10px] font-medium',
-                        meta.chip,
-                      )}
-                    >
-                      {meta.label}
-                    </span>
-                    {check ? (
-                      <div className="mt-auto space-y-0.5 pt-1 text-[10px] text-stone-600">
-                        {totals && totals.totalCents > 0 ? (
-                          <p className="font-semibold text-stone-800">
-                            {formatMoney(totals.totalCents)}
-                          </p>
-                        ) : check.notes ? (
-                          <p className="truncate italic">{check.notes}</p>
-                        ) : null}
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center gap-0.5">
-                            <Users className="h-3 w-3" />
-                            {check.partySize}/{table.seats}
-                          </span>
-                          {mins != null ? (
-                            <span className="inline-flex items-center gap-0.5">
-                              <Clock3 className="h-3 w-3" />
-                              {mins}m
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="mt-auto text-[10px] text-stone-400">
-                        {table.seats} seats
-                      </p>
-                    )}
-                  </>
-                ) : (
-                  <p className="mt-auto text-[10px] text-stone-500">
-                    {table.shape} · {table.seats}
-                  </p>
-                )}
-              </button>
+                <TableCardContent
+                  table={table}
+                  designMode={designMode}
+                  status={status}
+                  meta={meta}
+                  check={check}
+                  totals={totals}
+                  mins={mins}
+                />
+              </div>
             </div>
           )
         })}
