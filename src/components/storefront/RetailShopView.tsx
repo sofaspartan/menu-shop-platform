@@ -40,11 +40,14 @@ export function RetailShopView({
   const contentClass = storefrontContentClass(restaurant.storefrontWidth)
   const showHero =
     restaurant.branding.coverDisplay !== 'none' && Boolean(restaurant.coverImageUrl)
-  const featuredHero = featured[0] ?? null
-  const sectionLinks =
-    sectionItems.length > 1 && !search
-      ? sectionItems.map(({ section }) => ({ id: section.id, name: section.name }))
-      : undefined
+  const featuredHero = !search ? (featured[0] ?? null) : null
+  const sectionLinks = !search
+    ? [
+        ...(featuredHero ? [{ id: 'featured', name: 'Featured' }] : []),
+        ...sectionItems.map(({ section }) => ({ id: section.id, name: section.name })),
+      ]
+    : []
+  const showSectionNav = sectionLinks.length > 1
 
   return (
     <>
@@ -79,7 +82,7 @@ export function RetailShopView({
       )}
 
       {/* Sits under the cover; sticks under the site header once you scroll past it. */}
-      {sectionLinks ? (
+      {showSectionNav ? (
         <nav
           aria-label="Product sections"
           className="sticky top-[4.25rem] z-20 border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] bg-[var(--sf-bg)]/95 backdrop-blur-md sm:top-[4.5rem]"
@@ -130,7 +133,7 @@ export function RetailShopView({
           <EmptyState title={copy.noCatalogTitle} description={copy.noCatalogBody} />
         ) : (
           <>
-            {featuredHero && !search ? (
+            {featuredHero ? (
               <FeaturedHero
                 entry={featuredHero}
                 onOpenItem={onOpenItem}
@@ -191,13 +194,13 @@ function FeaturedHero({
   const blurb = item.shortDescription || item.fullDescription
 
   return (
-    <section className="mb-16">
+    <section id="section-featured" className="mb-16 scroll-mt-40">
       <button
         type="button"
         disabled={!available}
         onClick={() => onOpenItem(item, assignment.priceOverrideCents)}
         className={cn(
-          'group grid w-full gap-6 text-left lg:grid-cols-2 lg:items-center lg:gap-12',
+          'group grid w-full grid-cols-1 gap-6 text-left lg:grid-cols-2 lg:items-center lg:gap-12',
           available ? '' : 'cursor-not-allowed opacity-55',
         )}
       >
@@ -248,7 +251,7 @@ function ProductGrid({
   unavailableLabel: (item: MenuItem) => string
 }) {
   return (
-    <ul className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-14">
+    <ul className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 sm:gap-y-12 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-14">
       {items.map(({ item, assignment }) => {
         const available = isItemOrderable(item)
         const price = assignment.priceOverrideCents ?? item.basePriceCents
