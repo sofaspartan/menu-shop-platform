@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bell } from 'lucide-react'
+import { Bell, Search } from 'lucide-react'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useDb } from '@/hooks/useDb'
 import { formatMoney } from '@/lib/utils'
 import { Badge } from '@/components/ui/Badge'
+import { Input } from '@/components/ui/Input'
 import type { OrderStatus } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -23,6 +24,7 @@ export function OrdersPage() {
   const current = useRestaurantStore((s) => s.current())
   const { db } = useDb()
   const [tab, setTab] = useState<(typeof TABS)[number]['id']>('all')
+  const [query, setQuery] = useState('')
 
   const orders = useMemo(() => {
     if (!db || !current) return []
@@ -30,6 +32,25 @@ export function OrdersPage() {
       .filter((o) => o.restaurantId === current.id)
       .filter((o) => (tab === 'all' ? true : o.status === tab))
   }, [db, current, tab])
+
+  const filteredOrders = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return orders
+    return orders.filter((order) => {
+      const statusLabel = order.status.replaceAll('_', ' ')
+      const itemNames = order.items.map((i) => i.name).join(' ')
+      return (
+        order.orderNumber.toLowerCase().includes(q) ||
+        order.reference.toLowerCase().includes(q) ||
+        order.customer.name.toLowerCase().includes(q) ||
+        order.customer.phone.toLowerCase().includes(q) ||
+        (order.customer.email || '').toLowerCase().includes(q) ||
+        statusLabel.includes(q) ||
+        order.fulfillment.type.toLowerCase().includes(q) ||
+        itemNames.toLowerCase().includes(q)
+      )
+    })
+  }, [orders, query])
 
   const newCount =
     db && current
@@ -71,8 +92,18 @@ export function OrdersPage() {
         ))}
       </div>
 
+      <div className="relative max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+        <Input
+          className="pl-9"
+          placeholder="Search orders…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+
       <div className="grid gap-3">
-        {orders.map((order) => (
+        {filteredOrders.map((order) => (
           <Link
             key={order.id}
             to={`/dashboard/orders/${order.id}`}
@@ -113,9 +144,11 @@ export function OrdersPage() {
             </div>
           </Link>
         ))}
-        {orders.length === 0 ? (
+        {filteredOrders.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-stone-300 bg-white/70 p-10 text-center text-sm text-stone-500">
-            No orders in this view.
+            {query.trim()
+              ? `No orders match “${query.trim()}”.`
+              : 'No orders in this view.'}
           </div>
         ) : null}
       </div>

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { Download, Plus } from 'lucide-react'
+import { Download, Plus, Search } from 'lucide-react'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -29,6 +29,7 @@ export function QrPage() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
   const [presetId, setPresetId] = useState('screen')
   const [name, setName] = useState('')
   const [targetType, setTargetType] = useState<'restaurant' | 'menu'>('restaurant')
@@ -49,7 +50,23 @@ export function QrPage() {
     return db.qrCodes.filter((q) => q.restaurantId === current.id)
   }, [db, current])
 
-  const selected = qrCodes.find((q) => q.id === selectedId) ?? qrCodes[0] ?? null
+  const filteredQrCodes = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return qrCodes
+    return qrCodes.filter(
+      (qr) =>
+        qr.name.toLowerCase().includes(q) ||
+        qr.targetType.toLowerCase().includes(q) ||
+        (qr.campaign || '').toLowerCase().includes(q),
+    )
+  }, [qrCodes, query])
+
+  const selected =
+    filteredQrCodes.find((q) => q.id === selectedId) ??
+    qrCodes.find((q) => q.id === selectedId) ??
+    filteredQrCodes[0] ??
+    qrCodes[0] ??
+    null
   const preset = PRESETS.find((p) => p.id === presetId) ?? PRESETS[0]
 
   const qrUrl =
@@ -157,9 +174,24 @@ export function QrPage() {
           onAction={() => setCreateOpen(true)}
         />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        <>
+          <div className="relative max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <Input
+              className="pl-9"
+              placeholder="Search QR codes…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
           <div className="space-y-2">
-            {qrCodes.map((qr) => (
+            {filteredQrCodes.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-stone-200 bg-white px-4 py-6 text-sm text-stone-500">
+                No matches for “{query.trim()}”.
+              </p>
+            ) : null}
+            {filteredQrCodes.map((qr) => (
               <button
                 key={qr.id}
                 type="button"
@@ -275,7 +307,8 @@ export function QrPage() {
               </div>
             </div>
           ) : null}
-        </div>
+          </div>
+        </>
       )}
 
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Create QR code">

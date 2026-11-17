@@ -85,8 +85,6 @@ export function DashboardLayout() {
         items: [
           { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
           { to: '/dashboard/orders', label: 'Orders', icon: ClipboardList },
-          { to: '/dashboard/pos', label: 'Point of sale', icon: TabletSmartphone },
-          { to: '/dashboard/kitchen', label: copy.bohNoun, icon: Monitor },
         ],
       },
       {
@@ -120,6 +118,8 @@ export function DashboardLayout() {
           { to: '/dashboard/branding', label: 'Branding', icon: Palette },
           { to: '/dashboard/pages', label: 'Pages & layout', icon: FileText },
           { to: '/dashboard/displays', label: copy.displayNounPlural, icon: MonitorPlay },
+          { to: '/dashboard/pos', label: 'Point of sale', icon: TabletSmartphone },
+          { to: '/dashboard/kitchen', label: copy.bohNoun, icon: Monitor },
           { to: '/dashboard/preview', label: 'Preview', icon: Eye },
         ],
       },

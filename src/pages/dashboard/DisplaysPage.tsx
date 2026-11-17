@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Copy, ExternalLink, MonitorPlay, Plus, Trash2 } from 'lucide-react'
+import { Copy, ExternalLink, MonitorPlay, Plus, Search, Trash2 } from 'lucide-react'
 import type {
   Display,
   DisplayGraphicSlide,
@@ -54,6 +54,7 @@ export function DisplaysPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [createKind, setCreateKind] = useState<DisplayKind>('menu')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -88,7 +89,25 @@ export function DisplaysPage() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [db, current])
 
-  const selected = displays.find((d) => d.id === selectedId) ?? displays[0] ?? null
+  const filteredDisplays = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return displays
+    return displays.filter(
+      (d) =>
+        d.name.toLowerCase().includes(q) ||
+        d.slug.toLowerCase().includes(q) ||
+        displayKindLabel(d.kind).toLowerCase().includes(q) ||
+        (d.headline || '').toLowerCase().includes(q) ||
+        (d.tagline || '').toLowerCase().includes(q),
+    )
+  }, [displays, query])
+
+  const selected =
+    filteredDisplays.find((d) => d.id === selectedId) ??
+    displays.find((d) => d.id === selectedId) ??
+    filteredDisplays[0] ??
+    displays[0] ??
+    null
 
   const publicUrl =
     current && selected
@@ -280,9 +299,24 @@ export function DisplaysPage() {
           onAction={() => setCreateOpen(true)}
         />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        <>
+          <div className="relative max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <Input
+              className="pl-9"
+              placeholder={`Search ${copy.displayNounPlural.toLowerCase()}…`}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
           <div className="space-y-2">
-            {displays.map((d) => (
+            {filteredDisplays.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-stone-200 bg-white px-4 py-6 text-sm text-stone-500">
+                No matches for “{query.trim()}”.
+              </p>
+            ) : null}
+            {filteredDisplays.map((d) => (
               <button
                 key={d.id}
                 type="button"
@@ -987,6 +1021,7 @@ export function DisplaysPage() {
             </div>
           ) : null}
         </div>
+        </>
       )}
 
       <Modal
