@@ -69,6 +69,29 @@ const STATUS_FLOW: Record<OrderStatus, OrderStatus[]> = {
   cancelled: [],
 }
 
+/** Kitchen / fulfillment can send tickets backward or recall completed ones. */
+const STATUS_RETRACT: Record<OrderStatus, OrderStatus[]> = {
+  received: [],
+  confirmed: ['received'],
+  preparing: ['confirmed', 'received'],
+  ready: ['preparing', 'confirmed'],
+  out_for_delivery: ['ready', 'preparing'],
+  completed: ['ready', 'out_for_delivery', 'preparing', 'confirmed'],
+  cancelled: ['received', 'preparing'],
+}
+
+function allowedTransitions(order: Order): OrderStatus[] {
+  const forward =
+    order.status === 'preparing'
+      ? order.fulfillment.type === 'delivery'
+        ? (['out_for_delivery', 'cancelled'] as OrderStatus[])
+        : (['ready', 'cancelled'] as OrderStatus[])
+      : STATUS_FLOW[order.status]
+  const retract = STATUS_RETRACT[order.status] ?? []
+  // Deduplicate while preserving order (forward first).
+  return [...new Set([...forward, ...retract])]
+}
+
 export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
   const db = await getDb()
   const restaurant = db.restaurants.find((r) => r.id === input.restaurantId)
@@ -447,16 +470,24 @@ export async function advanceOrderStatus(
   await saveDb((d) => {
     const order = d.orders.find((o) => o.id === orderId && o.restaurantId === restaurantId)
     if (!order) throw new Error('Order not found.')
-    const allowed = STATUS_FLOW[order.status]
+    const allowed = allowedTransitions(order)
     if (!allowed.includes(nextStatus)) {
       throw new Error(`Cannot move from ${order.status} to ${nextStatus}.`)
     }
+    const previous = order.status
     order.status = nextStatus
     order.updatedAt = nowIso()
+    const historyNote =
+      note ??
+      (isRetractTransition(previous, nextStatus)
+        ? previous === 'completed' || previous === 'cancelled'
+          ? `Recalled from ${previous.replaceAll('_', ' ')}`
+          : `Moved back from ${previous.replaceAll('_', ' ')}`
+        : undefined)
     order.statusHistory.push({
       status: nextStatus,
       at: order.updatedAt,
-      note,
+      note: historyNote,
       byUserId: userId,
     })
     if (nextStatus === 'completed') {
@@ -465,6 +496,10 @@ export async function advanceOrderStatus(
     updated = order
   })
   return updated!
+}
+
+function isRetractTransition(from: OrderStatus, to: OrderStatus): boolean {
+  return (STATUS_RETRACT[from] ?? []).includes(to)
 }
 
 export async function rejectOrder(
@@ -498,6 +533,22 @@ export function nextStatusesFor(order: Order): OrderStatus[] {
       : ['ready', 'cancelled']
   }
   return STATUS_FLOW[order.status]
+}
+
+/** Prior / recall statuses available from the kitchen display. */
+export function retractStatusesFor(order: Order): OrderStatus[] {
+  let options = [...(STATUS_RETRACT[order.status] ?? [])]
+  if (order.status === 'completed' && order.fulfillment.type === 'pickup') {
+    options = options.filter((s) => s !== 'out_for_delivery')
+  }
+  if (order.status === 'completed' && order.fulfillment.type === 'delivery') {
+    // Prefer shipping/out path first for delivery recalls.
+    options = [
+      'out_for_delivery',
+      ...options.filter((s) => s !== 'out_for_delivery'),
+    ]
+  }
+  return options
 }
 
 export function estimateReadyLabel(restaurant: Restaurant, settings?: OrderingSettings) {
