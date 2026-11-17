@@ -20,14 +20,24 @@ const IMAGES = {
     'https://images.unsplash.com/photo-1473187983305-f615310e7daa?w=200&h=200&fit=crop&q=80',
   tote:
     'https://images.unsplash.com/photo-1590874103328-eac38a67437a?w=800&q=80',
+  toteDetail:
+    'https://images.unsplash.com/photo-1594223274512-ad4803739b7c?w=800&q=80',
+  toteFlat:
+    'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&q=80',
   crossbody:
     'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&q=80',
+  crossbodyDetail:
+    'https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=800&q=80',
   wallet:
     'https://images.unsplash.com/photo-1627123424574-724758594e93?w=800&q=80',
   belt:
     'https://images.unsplash.com/photo-1624222247344-550fb60583fd?w=800&q=80',
   chair:
     'https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=800&q=80',
+  chairAngle:
+    'https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=800&q=80',
+  chairDetail:
+    'https://images.unsplash.com/photo-1598300042247-d088f8ab3a91?w=800&q=80',
   ottoman:
     'https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=800&q=80',
   deskPad:
@@ -292,6 +302,7 @@ Every item is made to last. If something needs a repair years from now, bring it
       restaurantId,
       name: 'Weekender Tote',
       imageUrl: IMAGES.tote,
+      imageUrls: [IMAGES.toteDetail, IMAGES.toteFlat],
       shortDescription: 'Full-grain leather tote with cotton lining.',
       fullDescription:
         'Roomy enough for a laptop and overnight essentials. Solid brass hardware, hand-stitched seams.',
@@ -311,6 +322,7 @@ Every item is made to last. If something needs a repair years from now, bring it
       restaurantId,
       name: 'Crossbody Sling',
       imageUrl: IMAGES.crossbody,
+      imageUrls: [IMAGES.crossbodyDetail],
       shortDescription: 'Compact everyday bag with adjustable strap.',
       basePriceCents: 16800,
       itemType: 'product',
@@ -362,6 +374,7 @@ Every item is made to last. If something needs a repair years from now, bring it
       restaurantId,
       name: 'Lounge Chair',
       imageUrl: IMAGES.chair,
+      imageUrls: [IMAGES.chairAngle, IMAGES.chairDetail],
       shortDescription: 'Leather lounge chair on solid oak legs.',
       fullDescription: 'Made to order. Ships in 2–3 weeks. Spot-clean only.',
       basePriceCents: 128000,

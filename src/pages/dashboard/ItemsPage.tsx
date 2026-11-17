@@ -25,6 +25,8 @@ type ItemForm = {
   featured: boolean
   active: boolean
   imageUrl: string
+  /** One URL per line; extras beyond the primary cover. */
+  imageUrls: string
   isCombo: boolean
 }
 
@@ -40,8 +42,17 @@ const emptyForm = (): ItemForm => ({
   featured: false,
   active: true,
   imageUrl: '',
+  imageUrls: '',
   isCombo: false,
 })
+
+function parseImageUrls(raw: string): string[] | undefined {
+  const urls = raw
+    .split(/\n|,/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return urls.length ? urls : undefined
+}
 
 function formFromItem(item: MenuItem): ItemForm {
   return {
@@ -56,6 +67,7 @@ function formFromItem(item: MenuItem): ItemForm {
     featured: item.featured,
     active: item.active,
     imageUrl: item.imageUrl || '',
+    imageUrls: (item.imageUrls ?? []).join('\n'),
     isCombo: item.isCombo,
   }
 }
@@ -153,6 +165,7 @@ export function ItemsPage() {
       featured: form.featured,
       active: form.active,
       imageUrl: form.imageUrl.trim() || undefined,
+      imageUrls: parseImageUrls(form.imageUrls),
       isCombo: form.isCombo,
     }
     try {
@@ -348,7 +361,7 @@ export function ItemsPage() {
               />
             </Field>
           </div>
-          <Field label="Image URL" htmlFor="item-image">
+          <Field label="Cover image URL" htmlFor="item-image">
             <Input
               id="item-image"
               value={form.imageUrl}
@@ -373,6 +386,21 @@ export function ItemsPage() {
               <option value="hidden">Hidden</option>
             </Select>
           </Field>
+          <div className="sm:col-span-2">
+            <Field
+              label="Gallery image URLs"
+              htmlFor="item-gallery"
+              hint="One URL per line. Shown as thumbnails under the cover in the product modal."
+            >
+              <Textarea
+                id="item-gallery"
+                value={form.imageUrls}
+                onChange={(e) => setForm((f) => ({ ...f, imageUrls: e.target.value }))}
+                placeholder={'https://…\nhttps://…'}
+                rows={3}
+              />
+            </Field>
+          </div>
           <div className="sm:col-span-2">
             <Field label="Allergens (comma-separated)" htmlFor="item-allergens">
               <Input

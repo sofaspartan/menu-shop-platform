@@ -16,6 +16,7 @@ import {
   type BagModifierSelection,
 } from '@/lib/pricing'
 import { brandingStyleVars } from '@/lib/brandingCss'
+import { resolveItemImages } from '@/lib/itemImages'
 import { storeCopy } from '@/lib/storeCopy'
 import { formatMoney, cn } from '@/lib/utils'
 import { trackEvent } from '@/services/analyticsService'
@@ -47,6 +48,7 @@ export function ItemCustomizer({
   const [comboSelections, setComboSelections] = useState<BagComboSelection[]>([])
   const [notes, setNotes] = useState('')
   const [errors, setErrors] = useState<string[]>([])
+  const [activeImage, setActiveImage] = useState(0)
 
   const groups: ModifierGroup[] = useMemo(() => {
     if (!db || !item) return []
@@ -68,6 +70,11 @@ export function ItemCustomizer({
     [db, restaurant.id],
   )
 
+  const images = useMemo(
+    () => (item ? resolveItemImages(item) : []),
+    [item],
+  )
+
   const groupsKey = groups.map((g) => g.id).join(',')
   const comboKey = combo?.itemId ?? ''
 
@@ -83,6 +90,8 @@ export function ItemCustomizer({
 
   useEffect(() => {
     if (!open || !item) return
+
+    setActiveImage(0)
 
     if (editingLine) {
       setQuantity(editingLine.quantity)
@@ -238,11 +247,13 @@ export function ItemCustomizer({
       ...(priced.comboSelections?.map((c) => c.itemName) ?? []),
     ]
 
+    const primaryImage = images[0] || item.imageUrl
+
     const payload = {
       restaurantId: restaurant.id,
       itemId: item.id,
       name: item.name,
-      imageUrl: item.imageUrl,
+      imageUrl: primaryImage,
       quantity,
       unitPriceCents: priced.unitPriceCents,
       modifiers,
@@ -270,7 +281,7 @@ export function ItemCustomizer({
       // Close the modal first so the flying image isn't trapped under the dialog overlay.
       window.requestAnimationFrame(() => {
         startFlight({
-          imageUrl: item.imageUrl,
+          imageUrl: primaryImage,
           from: {
             x: rect.left,
             y: rect.top,
@@ -289,6 +300,7 @@ export function ItemCustomizer({
   const lineTotal = priced.unitPriceCents * quantity
   const isEditing = Boolean(editingLine)
   const copy = storeCopy(restaurant.storeKind)
+  const selectedSrc = images[Math.min(activeImage, Math.max(images.length - 1, 0))]
 
   return (
     <Modal
@@ -296,169 +308,207 @@ export function ItemCustomizer({
       onClose={onClose}
       wide
       shell
+      hideHeader
+      title={item.name}
       style={brandingStyleVars(restaurant.branding)}
-      className="sm:max-w-xl"
+      className="sm:max-w-4xl"
+      bodyClassName="flex min-h-0 flex-col overflow-hidden p-0"
     >
-      <div className="space-y-5">
-        <div
-          ref={imageRef}
-          className="overflow-hidden rounded-[var(--sf-radius,12px)]"
-        >
-          <MenuItemImage
-            src={item.imageUrl}
-            alt=""
-            className="h-48 w-full object-cover sm:h-56"
-            fallbackClassName="h-48 w-full sm:h-56"
-          />
-        </div>
-
-        <div>
-          <h2 className="text-2xl text-[var(--sf-text)]">{item.name}</h2>
-          <p className="mt-1 text-sm text-[var(--sf-text)]/70">
-            {item.fullDescription || item.shortDescription}
-          </p>
-          <p className="mt-2 text-lg font-semibold text-[var(--sf-primary)]">
-            {formatMoney(priceOverrideCents ?? item.basePriceCents)}
-          </p>
-        </div>
-
-        {groups.map((group) => {
-          const selected = modifiers.find((m) => m.groupId === group.id)?.optionIds ?? []
-          return (
-            <ModifierGroupBlock
-              key={group.id}
-              group={group}
-              selected={selected}
-              onToggle={(optionId) => toggleOption(group, optionId)}
+      <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
+        <div className="shrink-0 border-b border-stone-100 bg-[var(--sf-surface)] px-4 pb-4 pt-5 sm:w-[46%] sm:border-b-0 sm:border-r sm:border-stone-100 sm:px-5 sm:pb-5">
+          <div
+            ref={imageRef}
+            className="overflow-hidden rounded-[var(--sf-radius,12px)]"
+          >
+            <MenuItemImage
+              src={selectedSrc}
+              alt=""
+              className="aspect-[4/3] w-full object-cover sm:aspect-square"
+              fallbackClassName="aspect-[4/3] w-full sm:aspect-square"
             />
-          )
-        })}
+          </div>
+          {images.length > 1 ? (
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {images.map((src, index) => {
+                const active = index === activeImage
+                return (
+                  <button
+                    key={`${src}-${index}`}
+                    type="button"
+                    onClick={() => setActiveImage(index)}
+                    aria-label={`View image ${index + 1}`}
+                    aria-pressed={active}
+                    className={cn(
+                      'h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-colors',
+                      active
+                        ? 'border-[var(--sf-primary)]'
+                        : 'border-transparent opacity-80 hover:opacity-100',
+                    )}
+                  >
+                    <MenuItemImage
+                      src={src}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      fallbackClassName="h-full w-full"
+                    />
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+        </div>
 
-        {combo
-          ? combo.componentGroups.map((cg) => {
-              const sel = comboSelections.find((s) => s.groupId === cg.id)
-              const componentMods = sel?.itemId
-                ? getModifierGroupsForItem(sel.itemId)
-                : []
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
+            <div>
+              <h2 className="pr-10 text-2xl text-[var(--sf-text)]">{item.name}</h2>
+              <p className="mt-1 text-sm text-[var(--sf-text)]/70">
+                {item.fullDescription || item.shortDescription}
+              </p>
+              <p className="mt-2 text-lg font-semibold text-[var(--sf-primary)]">
+                {formatMoney(priceOverrideCents ?? item.basePriceCents)}
+              </p>
+            </div>
+
+            {groups.map((group) => {
+              const selected = modifiers.find((m) => m.groupId === group.id)?.optionIds ?? []
               return (
-                <div key={cg.id} className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-medium text-[var(--sf-text)]">{cg.name}</h3>
-                    <Badge tone={cg.required ? 'accent' : 'neutral'}>
-                      {cg.required ? 'Required' : 'Optional'}
-                    </Badge>
-                  </div>
-                  {cg.description ? (
-                    <p className="text-xs text-[var(--sf-text)]/60">{cg.description}</p>
-                  ) : null}
-                  <div className="space-y-2">
-                    {cg.allowedItemIds.map((allowedId) => {
-                      const allowed = catalogItems.find((i) => i.id === allowedId)
-                      if (!allowed) return null
-                      const upgrade = cg.upgradeChargesCents[allowedId] ?? 0
-                      const active = sel?.itemId === allowedId
-                      return (
-                        <button
-                          key={allowedId}
-                          type="button"
-                          onClick={() => setComboItem(cg.id, allowedId)}
-                          className={cn(
-                            'flex w-full items-center justify-between rounded-[var(--sf-radius,12px)] border px-3 py-2.5 text-left text-sm transition-colors',
-                            active
-                              ? 'border-[var(--sf-primary)] bg-[var(--sf-primary)]/5'
-                              : 'border-stone-200 bg-[var(--sf-surface)] hover:border-stone-300',
-                          )}
-                        >
-                          <span>{allowed.name}</span>
-                          {upgrade > 0 ? (
-                            <span className="text-[var(--sf-text)]/60">
-                              +{formatMoney(upgrade)}
-                            </span>
-                          ) : (
-                            <span className="text-[var(--sf-text)]/50">Included</span>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  {sel?.itemId && componentMods.length > 0 ? (
-                    <div className="ml-2 space-y-4 border-l-2 border-stone-200 pl-3">
-                      {componentMods.map((group) => {
-                        const selected =
-                          sel.modifiers.find((m) => m.groupId === group.id)?.optionIds ??
-                          []
-                        return (
-                          <ModifierGroupBlock
-                            key={group.id}
-                            group={group}
-                            selected={selected}
-                            onToggle={(optionId) =>
-                              toggleComboModifier(cg.id, group, optionId)
-                            }
-                          />
-                        )
-                      })}
-                    </div>
-                  ) : null}
-                </div>
+                <ModifierGroupBlock
+                  key={group.id}
+                  group={group}
+                  selected={selected}
+                  onToggle={(optionId) => toggleOption(group, optionId)}
+                />
               )
-            })
-          : null}
+            })}
 
-        {notesEnabled ? (
-          <Field label="Special instructions" htmlFor="item-notes">
-            <Textarea
-              id="item-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Allergies, preferences, etc."
-              rows={2}
-            />
-          </Field>
-        ) : null}
+            {combo
+              ? combo.componentGroups.map((cg) => {
+                  const sel = comboSelections.find((s) => s.groupId === cg.id)
+                  const componentMods = sel?.itemId
+                    ? getModifierGroupsForItem(sel.itemId)
+                    : []
+                  return (
+                    <div key={cg.id} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium text-[var(--sf-text)]">{cg.name}</h3>
+                        <Badge tone={cg.required ? 'accent' : 'neutral'}>
+                          {cg.required ? 'Required' : 'Optional'}
+                        </Badge>
+                      </div>
+                      {cg.description ? (
+                        <p className="text-xs text-[var(--sf-text)]/60">{cg.description}</p>
+                      ) : null}
+                      <div className="space-y-2">
+                        {cg.allowedItemIds.map((allowedId) => {
+                          const allowed = catalogItems.find((i) => i.id === allowedId)
+                          if (!allowed) return null
+                          const upgrade = cg.upgradeChargesCents[allowedId] ?? 0
+                          const active = sel?.itemId === allowedId
+                          return (
+                            <button
+                              key={allowedId}
+                              type="button"
+                              onClick={() => setComboItem(cg.id, allowedId)}
+                              className={cn(
+                                'flex w-full items-center justify-between rounded-[var(--sf-radius,12px)] border px-3 py-2.5 text-left text-sm transition-colors',
+                                active
+                                  ? 'border-[var(--sf-primary)] bg-[var(--sf-primary)]/5'
+                                  : 'border-stone-200 bg-[var(--sf-surface)] hover:border-stone-300',
+                              )}
+                            >
+                              <span>{allowed.name}</span>
+                              {upgrade > 0 ? (
+                                <span className="text-[var(--sf-text)]/60">
+                                  +{formatMoney(upgrade)}
+                                </span>
+                              ) : (
+                                <span className="text-[var(--sf-text)]/50">Included</span>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {sel?.itemId && componentMods.length > 0 ? (
+                        <div className="ml-2 space-y-4 border-l-2 border-stone-200 pl-3">
+                          {componentMods.map((group) => {
+                            const selected =
+                              sel.modifiers.find((m) => m.groupId === group.id)?.optionIds ??
+                              []
+                            return (
+                              <ModifierGroupBlock
+                                key={group.id}
+                                group={group}
+                                selected={selected}
+                                onToggle={(optionId) =>
+                                  toggleComboModifier(cg.id, group, optionId)
+                                }
+                              />
+                            )
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                })
+              : null}
 
-        {errors.length ? (
-          <ul className="space-y-1 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
-            {errors.map((err) => (
-              <li key={err}>{err}</li>
-            ))}
-          </ul>
-        ) : null}
+            {notesEnabled ? (
+              <Field label="Special instructions" htmlFor="item-notes">
+                <Textarea
+                  id="item-notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Allergies, preferences, etc."
+                  rows={2}
+                />
+              </Field>
+            ) : null}
 
-        <div className="flex items-center justify-between gap-4 border-t border-stone-200 pt-4">
-          <div className="flex items-center gap-2">
+            {errors.length ? (
+              <ul className="space-y-1 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+                {errors.map((err) => (
+                  <li key={err}>{err}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+
+          <div className="flex shrink-0 items-center justify-between gap-4 border-t border-stone-200 bg-white px-5 py-4">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Decrease quantity"
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              >
+                <Minus className="h-4 w-4" />
+              </Button>
+              <span className="w-8 text-center text-base font-semibold">{quantity}</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label="Increase quantity"
+                onClick={() => setQuantity((q) => q + 1)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
             <Button
               type="button"
-              variant="outline"
-              size="icon"
-              aria-label="Decrease quantity"
-              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              size="lg"
+              className="flex-1 border-0 hover:opacity-90"
+              style={{
+                backgroundColor: restaurant.branding.buttonColor,
+                color: restaurant.branding.buttonTextColor,
+              }}
+              onClick={() => void handleSubmit()}
             >
-              <Minus className="h-4 w-4" />
-            </Button>
-            <span className="w-8 text-center text-base font-semibold">{quantity}</span>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label="Increase quantity"
-              onClick={() => setQuantity((q) => q + 1)}
-            >
-              <Plus className="h-4 w-4" />
+              {isEditing ? copy.updateBag : copy.addToBag} · {formatMoney(lineTotal)}
             </Button>
           </div>
-          <Button
-            type="button"
-            size="lg"
-            className="flex-1 border-0 hover:opacity-90"
-            style={{
-              backgroundColor: restaurant.branding.buttonColor,
-              color: restaurant.branding.buttonTextColor,
-            }}
-            onClick={() => void handleSubmit()}
-          >
-            {isEditing ? copy.updateBag : copy.addToBag} · {formatMoney(lineTotal)}
-          </Button>
         </div>
       </div>
     </Modal>

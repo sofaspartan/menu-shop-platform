@@ -304,7 +304,10 @@ export interface MenuItem extends Timestamps {
   id: ID
   restaurantId: ID
   name: string
+  /** Primary / cover image (also used in grids and bag lines). */
   imageUrl?: string
+  /** Additional gallery images shown in the product modal. */
+  imageUrls?: string[]
   shortDescription: string
   fullDescription?: string
   basePriceCents: CurrencyCents

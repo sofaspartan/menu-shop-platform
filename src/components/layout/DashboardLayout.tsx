@@ -59,11 +59,11 @@ export function DashboardLayout() {
     <div className="min-h-screen bg-[var(--color-canvas)] lg:flex">
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-40 w-72 border-r border-stone-200 bg-white p-4 transition-transform lg:static lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-stone-200 bg-white p-4 transition-transform lg:sticky lg:top-0 lg:h-svh lg:translate-x-0 lg:self-start',
           mobileOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="mb-6 flex items-center gap-3 px-2">
+        <div className="mb-6 flex shrink-0 items-center gap-3 px-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-brand)] text-white">
             <UtensilsCrossed className="h-5 w-5" />
           </div>
@@ -73,7 +73,7 @@ export function DashboardLayout() {
           </div>
         </div>
 
-        <div className="relative mb-4">
+        <div className="relative mb-4 shrink-0">
           <button
             type="button"
             className="flex w-full items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-left"
@@ -126,7 +126,7 @@ export function DashboardLayout() {
           ) : null}
         </div>
 
-        <nav className="space-y-1">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto">
           {nav.map((item) => (
             <NavLink
               key={item.to}
@@ -146,7 +146,7 @@ export function DashboardLayout() {
           ))}
         </nav>
 
-        <div className="mt-6 border-t border-stone-100 pt-4">
+        <div className="mt-4 shrink-0 border-t border-stone-100 pt-4">
           <div className="px-3 text-sm font-medium">{user.name}</div>
           <div className="px-3 text-xs text-stone-500">{user.email}</div>
           <Button

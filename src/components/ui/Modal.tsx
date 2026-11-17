@@ -13,6 +13,8 @@ export function Modal({
   wide,
   style,
   shell,
+  hideHeader,
+  bodyClassName,
 }: {
   open: boolean
   onClose: () => void
@@ -24,6 +26,9 @@ export function Modal({
   style?: React.CSSProperties
   /** Adds storefront-vars so --sf-* aliases resolve inside the portal. */
   shell?: boolean
+  /** Skip the default title bar; caller can place its own close control. */
+  hideHeader?: boolean
+  bodyClassName?: string
 }) {
   useEffect(() => {
     if (!open) return
@@ -65,21 +70,40 @@ export function Modal({
           className,
         )}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
-          <h2 className="font-display text-xl text-stone-900">
-            {title || 'Dialog'}
-          </h2>
+        {hideHeader ? (
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
             aria-label="Close"
-            className="h-10 w-10 shrink-0 rounded-full"
+            className="absolute right-3 top-3 z-20 h-10 w-10 shrink-0 rounded-full bg-white/90 shadow-sm backdrop-blur"
           >
             <X className="h-5 w-5" />
           </Button>
+        ) : (
+          <div className="flex items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
+            <h2 className="font-display text-xl text-stone-900">
+              {title || 'Dialog'}
+            </h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              aria-label="Close"
+              className="h-10 w-10 shrink-0 rounded-full"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+        )}
+        <div
+          className={cn(
+            'min-h-0 flex-1 overflow-y-auto px-5 py-4',
+            bodyClassName,
+          )}
+        >
+          {children}
         </div>
-        <div className="overflow-y-auto px-5 py-4">{children}</div>
       </div>
     </div>,
     document.body,
