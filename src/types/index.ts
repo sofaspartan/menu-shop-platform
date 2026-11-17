@@ -47,10 +47,21 @@ export interface StoreContactPage {
   showTiktok: boolean
 }
 
-/** Cover image overlay copy for retail (and optional restaurant) storefronts. */
+export type CoverHeroHeight = 'short' | 'tall'
+export type CoverHeroAlign = 'left' | 'center'
+
+/** Cover / hero band for retail (and optional restaurant) storefronts. */
 export interface StoreCoverIntro {
+  /** Show the cover image section at all. */
+  enabled: boolean
+  height: CoverHeroHeight
+  /** Overlay copy alignment inside the cover. */
+  align: CoverHeroAlign
+  showTitle: boolean
+  showDescription: boolean
+  showButton: boolean
   title?: string
-  /** Shown when non-empty; hidden if blank. */
+  /** Shown when showButton is on and label is non-empty. */
   buttonLabel?: string
   /**
    * Button target: absolute URL, in-app path (`/r/slug/about`), or hash (`#section-featured`).
@@ -63,6 +74,8 @@ export interface StorePages {
   about: StoreAboutPage
   contact: StoreContactPage
   coverIntro?: StoreCoverIntro
+  /** Show the featured product hero on retail catalogs. */
+  featuredEnabled?: boolean
 }
 
 export type OrderStatus =
@@ -540,9 +553,30 @@ export const DEFAULT_RETAIL_ORDERING: OrderingSettings = {
 }
 
 export const DEFAULT_COVER_INTRO: StoreCoverIntro = {
+  enabled: true,
+  height: 'short',
+  align: 'left',
+  showTitle: true,
+  showDescription: true,
+  showButton: true,
   title: '',
   buttonLabel: '',
   buttonHref: '',
+}
+
+export function normalizeCoverIntro(
+  intro?: Partial<StoreCoverIntro> | null,
+): StoreCoverIntro {
+  return {
+    ...DEFAULT_COVER_INTRO,
+    ...intro,
+    enabled: intro?.enabled ?? DEFAULT_COVER_INTRO.enabled,
+    height: intro?.height === 'tall' ? 'tall' : 'short',
+    align: intro?.align === 'center' ? 'center' : 'left',
+    showTitle: intro?.showTitle ?? true,
+    showDescription: intro?.showDescription ?? true,
+    showButton: intro?.showButton ?? true,
+  }
 }
 
 export const DEFAULT_STORE_PAGES: StorePages = {
@@ -566,6 +600,7 @@ export const DEFAULT_STORE_PAGES: StorePages = {
     showTiktok: true,
   },
   coverIntro: { ...DEFAULT_COVER_INTRO },
+  featuredEnabled: true,
 }
 
 export function defaultStorePagesFor(kind: StoreKind): StorePages {
@@ -574,6 +609,7 @@ export function defaultStorePagesFor(kind: StoreKind): StorePages {
       about: { ...DEFAULT_STORE_PAGES.about },
       contact: { ...DEFAULT_STORE_PAGES.contact },
       coverIntro: { ...DEFAULT_COVER_INTRO },
+      featuredEnabled: true,
     }
   }
   return {
@@ -588,10 +624,12 @@ export function defaultStorePagesFor(kind: StoreKind): StorePages {
       intro: 'Questions about an order or a custom piece? Reach out anytime.',
     },
     coverIntro: {
+      ...DEFAULT_COVER_INTRO,
       title: 'New season essentials',
       buttonLabel: 'Shop featured',
       buttonHref: '#section-featured',
     },
+    featuredEnabled: true,
   }
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Menu, MenuItem, MenuItemAssignment, MenuSection, Restaurant } from '@/types'
+import { normalizeCoverIntro } from '@/types'
 import { RetailChrome } from '@/components/storefront/RetailChrome'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
 import { Badge } from '@/components/ui/Badge'
@@ -39,9 +40,13 @@ export function RetailShopView({
 }) {
   const copy = storeCopy(restaurant.storeKind)
   const contentClass = storefrontContentClass(restaurant.storefrontWidth)
-  const showHero =
-    restaurant.branding.coverDisplay !== 'none' && Boolean(restaurant.coverImageUrl)
-  const featuredHero = !search ? (featured[0] ?? null) : null
+  const coverIntro = normalizeCoverIntro(restaurant.pages?.coverIntro)
+  const featuredEnabled = restaurant.pages?.featuredEnabled !== false
+  const showCover =
+    coverIntro.enabled &&
+    restaurant.branding.coverDisplay !== 'none' &&
+    Boolean(restaurant.coverImageUrl)
+  const featuredHero = !search && featuredEnabled ? (featured[0] ?? null) : null
   const sectionLinks = !search
     ? [
         ...(featuredHero ? [{ id: 'featured', name: 'Featured' }] : []),
@@ -91,37 +96,58 @@ export function RetailShopView({
         onSearchChange={onSearchChange}
       />
 
-      {showHero ? (
+      {showCover ? (
         <div className="relative w-full overflow-hidden">
-          <div className="relative aspect-[21/9] min-h-[200px] max-h-[360px] w-full sm:min-h-[260px]">
+          <div
+            className={cn(
+              'relative w-full',
+              coverIntro.height === 'tall'
+                ? 'aspect-[16/11] min-h-[320px] max-h-[640px] sm:min-h-[420px] sm:aspect-[21/10]'
+                : 'aspect-[21/9] min-h-[200px] max-h-[360px] sm:min-h-[260px]',
+            )}
+          >
             <img
               src={restaurant.coverImageUrl}
               alt=""
               className="absolute inset-0 h-full w-full object-cover"
             />
             <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-            <div className={cn(contentClass, 'absolute inset-x-0 bottom-0 pb-8 pt-16 sm:pb-10')}>
+            <div
+              className={cn(
+                contentClass,
+                'absolute inset-x-0 bottom-0 pb-8 pt-16 sm:pb-10',
+                coverIntro.align === 'center' && 'flex justify-center text-center',
+              )}
+            >
               <CoverIntroCopy
-                title={restaurant.pages?.coverIntro?.title}
-                description={restaurant.description}
-                buttonLabel={restaurant.pages?.coverIntro?.buttonLabel}
-                buttonHref={restaurant.pages?.coverIntro?.buttonHref}
+                title={coverIntro.showTitle ? coverIntro.title : undefined}
+                description={coverIntro.showDescription ? restaurant.description : undefined}
+                buttonLabel={coverIntro.showButton ? coverIntro.buttonLabel : undefined}
+                buttonHref={coverIntro.buttonHref}
+                align={coverIntro.align}
                 onLight={false}
               />
             </div>
           </div>
         </div>
-      ) : (
-        <div className={cn(contentClass, 'pb-2 pt-8')}>
+      ) : coverIntro.enabled ? (
+        <div
+          className={cn(
+            contentClass,
+            'pb-2 pt-8',
+            coverIntro.align === 'center' && 'flex justify-center text-center',
+          )}
+        >
           <CoverIntroCopy
-            title={restaurant.pages?.coverIntro?.title}
-            description={restaurant.description}
-            buttonLabel={restaurant.pages?.coverIntro?.buttonLabel}
-            buttonHref={restaurant.pages?.coverIntro?.buttonHref}
+            title={coverIntro.showTitle ? coverIntro.title : undefined}
+            description={coverIntro.showDescription ? restaurant.description : undefined}
+            buttonLabel={coverIntro.showButton ? coverIntro.buttonLabel : undefined}
+            buttonHref={coverIntro.buttonHref}
+            align={coverIntro.align}
             onLight
           />
         </div>
-      )}
+      ) : null}
 
       {/* Sits under the cover; sticks under the site header once you scroll past it. */}
       {showSectionNav ? (
@@ -233,12 +259,14 @@ function CoverIntroCopy({
   description,
   buttonLabel,
   buttonHref,
+  align = 'left',
   onLight,
 }: {
   title?: string
   description?: string
   buttonLabel?: string
   buttonHref?: string
+  align?: 'left' | 'center'
   onLight?: boolean
 }) {
   const heading = title?.trim()
@@ -249,9 +277,13 @@ function CoverIntroCopy({
   if (!heading && !body && !cta) return null
 
   const external = Boolean(href && /^https?:\/\//i.test(href))
+  const ctaClass = cn(
+    'mt-5 inline-flex items-center rounded-2xl px-5 py-2.5 text-base font-medium transition-transform hover:-translate-y-0.5',
+    onLight ? 'bg-[var(--sf-button)] text-[var(--sf-button-text)]' : 'bg-white text-stone-900',
+  )
 
   return (
-    <div className="max-w-2xl">
+    <div className={cn('max-w-2xl', align === 'center' && 'mx-auto')}>
       {heading ? (
         <h1
           className={cn(
@@ -275,29 +307,11 @@ function CoverIntroCopy({
       ) : null}
       {cta && href ? (
         external ? (
-          <a
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            className={cn(
-              'mt-5 inline-flex items-center rounded-2xl px-5 py-2.5 text-base font-medium transition-transform hover:-translate-y-0.5',
-              onLight
-                ? 'bg-[var(--sf-button)] text-[var(--sf-button-text)]'
-                : 'bg-white text-stone-900',
-            )}
-          >
+          <a href={href} target="_blank" rel="noreferrer" className={ctaClass}>
             {cta}
           </a>
         ) : (
-          <a
-            href={href}
-            className={cn(
-              'mt-5 inline-flex items-center rounded-2xl px-5 py-2.5 text-base font-medium transition-transform hover:-translate-y-0.5',
-              onLight
-                ? 'bg-[var(--sf-button)] text-[var(--sf-button-text)]'
-                : 'bg-white text-stone-900',
-            )}
-          >
+          <a href={href} className={ctaClass}>
             {cta}
           </a>
         )

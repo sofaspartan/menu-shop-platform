@@ -84,10 +84,17 @@ Every item is made to last. If something needs a repair years from now, bring it
         showTiktok: false,
       },
       coverIntro: {
+        enabled: true,
+        height: 'short',
+        align: 'left',
+        showTitle: true,
+        showDescription: true,
+        showButton: true,
         title: 'Leather goods, made to last',
         buttonLabel: 'Shop featured',
         buttonHref: '#section-featured',
       },
+      featuredEnabled: true,
     },
     description:
       'Handcrafted leather goods and small furniture — bags, wallets, belts, and living-room pieces made to last.',

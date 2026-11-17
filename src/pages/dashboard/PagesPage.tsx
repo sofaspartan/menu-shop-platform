@@ -4,8 +4,14 @@ import { useRestaurantStore } from '@/stores/restaurantStore'
 import * as restaurantService from '@/services/restaurantService'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Textarea } from '@/components/ui/Input'
-import type { StorefrontLayout, StorefrontWidth, StorePages } from '@/types'
-import { defaultStorePagesFor } from '@/types'
+import type {
+  CoverHeroAlign,
+  CoverHeroHeight,
+  StorefrontLayout,
+  StorefrontWidth,
+  StorePages,
+} from '@/types'
+import { defaultStorePagesFor, normalizeCoverIntro } from '@/types'
 import { cn } from '@/lib/utils'
 
 export function PagesPage() {
@@ -29,11 +35,8 @@ export function PagesPage() {
         ? {
             about: { ...current.pages.about },
             contact: { ...current.pages.contact },
-            coverIntro: {
-              title: current.pages.coverIntro?.title ?? '',
-              buttonLabel: current.pages.coverIntro?.buttonLabel ?? '',
-              buttonHref: current.pages.coverIntro?.buttonHref ?? '',
-            },
+            coverIntro: normalizeCoverIntro(current.pages.coverIntro),
+            featuredEnabled: current.pages.featuredEnabled !== false,
           }
         : defaultStorePagesFor(current.storeKind),
     )
@@ -157,14 +160,120 @@ export function PagesPage() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
-        <div>
-          <h2 className="font-display text-xl">Cover intro</h2>
-          <p className="mt-1 text-sm text-stone-500">
-            Title and optional button over the cover image. Store description stays as the supporting
-            line.
-          </p>
+      <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl">Cover / hero</h2>
+            <p className="mt-1 text-sm text-stone-500">
+              Control the cover image band, overlay copy, and alignment on the retail shop.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={pages.coverIntro?.enabled !== false}
+              onChange={(e) =>
+                setPages((p) => ({
+                  ...p,
+                  coverIntro: normalizeCoverIntro({ ...p.coverIntro, enabled: e.target.checked }),
+                }))
+              }
+            />
+            Enabled
+          </label>
         </div>
+
+        <div>
+          <p className="text-sm font-medium text-stone-700">Hero height</p>
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ['short', 'Short', 'Current compact cover band.'],
+                ['tall', 'Tall', 'Taller hero for a more dramatic first impression.'],
+              ] as Array<[CoverHeroHeight, string, string]>
+            ).map(([value, label, hint]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() =>
+                  setPages((p) => ({
+                    ...p,
+                    coverIntro: normalizeCoverIntro({ ...p.coverIntro, height: value }),
+                  }))
+                }
+                className={cn(
+                  'rounded-2xl border px-4 py-3 text-left',
+                  (pages.coverIntro?.height ?? 'short') === value
+                    ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                    : 'border-stone-200 hover:bg-stone-50',
+                )}
+              >
+                <div className="font-medium">{label}</div>
+                <p className="mt-1 text-xs text-stone-500">{hint}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-stone-700">Overlay alignment</p>
+          <div className="mt-2 grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ['left', 'Left', 'Left-aligned title, description, and button.'],
+                ['center', 'Centered', 'Horizontally centered overlay content.'],
+              ] as Array<[CoverHeroAlign, string, string]>
+            ).map(([value, label, hint]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() =>
+                  setPages((p) => ({
+                    ...p,
+                    coverIntro: normalizeCoverIntro({ ...p.coverIntro, align: value }),
+                  }))
+                }
+                className={cn(
+                  'rounded-2xl border px-4 py-3 text-left',
+                  (pages.coverIntro?.align ?? 'left') === value
+                    ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                    : 'border-stone-200 hover:bg-stone-50',
+                )}
+              >
+                <div className="font-medium">{label}</div>
+                <p className="mt-1 text-xs text-stone-500">{hint}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          {(
+            [
+              ['showTitle', 'Show title'],
+              ['showDescription', 'Show description'],
+              ['showButton', 'Show button'],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={Boolean(pages.coverIntro?.[key] ?? true)}
+                onChange={(e) =>
+                  setPages((p) => ({
+                    ...p,
+                    coverIntro: normalizeCoverIntro({
+                      ...p.coverIntro,
+                      [key]: e.target.checked,
+                    }),
+                  }))
+                }
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+
         <Field label="Title" htmlFor="cover-title">
           <Input
             id="cover-title"
@@ -172,38 +281,65 @@ export function PagesPage() {
             onChange={(e) =>
               setPages((p) => ({
                 ...p,
-                coverIntro: { ...p.coverIntro, title: e.target.value },
+                coverIntro: normalizeCoverIntro({ ...p.coverIntro, title: e.target.value }),
               }))
             }
             placeholder="e.g. Leather goods, made to last"
           />
         </Field>
-        <Field label="Button label (optional)" htmlFor="cover-btn-label">
+        <Field label="Button label" htmlFor="cover-btn-label">
           <Input
             id="cover-btn-label"
             value={pages.coverIntro?.buttonLabel ?? ''}
             onChange={(e) =>
               setPages((p) => ({
                 ...p,
-                coverIntro: { ...p.coverIntro, buttonLabel: e.target.value },
+                coverIntro: normalizeCoverIntro({
+                  ...p.coverIntro,
+                  buttonLabel: e.target.value,
+                }),
               }))
             }
-            placeholder="Leave blank to hide the button"
+            placeholder="e.g. Shop featured"
           />
         </Field>
-        <Field label="Button link (optional)" htmlFor="cover-btn-href">
+        <Field label="Button link" htmlFor="cover-btn-href">
           <Input
             id="cover-btn-href"
             value={pages.coverIntro?.buttonHref ?? ''}
             onChange={(e) =>
               setPages((p) => ({
                 ...p,
-                coverIntro: { ...p.coverIntro, buttonHref: e.target.value },
+                coverIntro: normalizeCoverIntro({
+                  ...p.coverIntro,
+                  buttonHref: e.target.value,
+                }),
               }))
             }
             placeholder="#section-featured, /r/your-slug/about, or https://…"
           />
         </Field>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl">Featured section</h2>
+            <p className="mt-1 text-sm text-stone-500">
+              Large hero product at the top of the retail catalog (uses your featured items).
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={pages.featuredEnabled !== false}
+              onChange={(e) =>
+                setPages((p) => ({ ...p, featuredEnabled: e.target.checked }))
+              }
+            />
+            Enabled
+          </label>
+        </div>
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">

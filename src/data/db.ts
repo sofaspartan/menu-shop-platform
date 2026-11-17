@@ -1,5 +1,5 @@
 import type { AppDatabase } from '@/types'
-import { defaultStorePagesFor } from '@/types'
+import { defaultStorePagesFor, normalizeCoverIntro } from '@/types'
 import { getPersistenceAdapter } from '@/data/storage'
 import { buildDemoDatabase } from '@/data/seed/demo'
 
@@ -24,7 +24,7 @@ export async function getDb(): Promise<AppDatabase> {
     const adapter = getPersistenceAdapter()
     const existing = await adapter.load()
     // Bump when seed assets/schema change so demos refresh cleanly.
-    if (existing && existing.version === 6) {
+    if (existing && existing.version === 7) {
       if (!existing.brandThemes) existing.brandThemes = []
       for (const r of existing.restaurants) {
         if (!r.storeKind) r.storeKind = 'restaurant'
@@ -36,9 +36,9 @@ export async function getDb(): Promise<AppDatabase> {
         }
         if (!r.pages) {
           r.pages = defaultStorePagesFor(r.storeKind ?? 'restaurant')
-        }
-        if (r.pages && !r.pages.coverIntro) {
-          r.pages.coverIntro = { title: '', buttonLabel: '', buttonHref: '' }
+        } else {
+          r.pages.coverIntro = normalizeCoverIntro(r.pages.coverIntro)
+          if (r.pages.featuredEnabled === undefined) r.pages.featuredEnabled = true
         }
       }
       memory = existing
