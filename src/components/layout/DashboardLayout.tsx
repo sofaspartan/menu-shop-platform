@@ -15,6 +15,8 @@ import {
   ChevronDown,
   Layers,
   FileText,
+  Gift,
+  Percent,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
@@ -43,6 +45,8 @@ export function DashboardLayout() {
     { to: '/dashboard/scheduling', label: 'Scheduling', icon: Clock3 },
     { to: '/dashboard/branding', label: 'Branding', icon: Palette },
     { to: '/dashboard/pages', label: 'Pages & layout', icon: FileText },
+    { to: '/dashboard/promotions', label: 'Coupons & sales', icon: Percent },
+    { to: '/dashboard/loyalty', label: 'Loyalty', icon: Gift },
     { to: '/dashboard/qr', label: 'QR codes', icon: QrCode },
     { to: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
     { to: '/dashboard/preview', label: 'Preview', icon: Eye },

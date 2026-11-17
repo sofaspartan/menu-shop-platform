@@ -30,8 +30,12 @@ export async function getDb(): Promise<AppDatabase> {
     const adapter = getPersistenceAdapter()
     const existing = await adapter.load()
     // Bump when seed assets/schema change so demos refresh cleanly.
-    if (existing && existing.version === 10) {
+    if (existing && existing.version === 11) {
       if (!existing.brandThemes) existing.brandThemes = []
+      if (!existing.coupons) existing.coupons = []
+      if (!existing.sales) existing.sales = []
+      if (!existing.loyaltyAccounts) existing.loyaltyAccounts = []
+      if (!existing.loyaltyLedger) existing.loyaltyLedger = []
       for (const r of existing.restaurants) {
         if (!r.storeKind) r.storeKind = 'restaurant'
         if (!r.storefrontLayout) {
@@ -39,6 +43,13 @@ export async function getDb(): Promise<AppDatabase> {
         }
         if (!r.storefrontWidth) {
           r.storefrontWidth = 'margined'
+        }
+        if (!r.loyalty) {
+          r.loyalty = {
+            enabled: false,
+            pointsPerDollar: 1,
+            rewards: [],
+          }
         }
         if (!r.pages) {
           r.pages = defaultStorePagesFor(r.storeKind ?? 'restaurant')

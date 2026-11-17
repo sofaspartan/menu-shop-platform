@@ -273,6 +273,12 @@ export function OrderTrackerPage() {
               <dt className="text-[var(--sf-text)]/60">Subtotal</dt>
               <dd>{formatMoney(order.pricing.subtotalCents)}</dd>
             </div>
+            {(order.pricing.discountCents ?? 0) > 0 ? (
+              <div className="flex justify-between text-emerald-700">
+                <dt>{order.pricing.discountLabel || 'Discount'}</dt>
+                <dd>−{formatMoney(order.pricing.discountCents)}</dd>
+              </div>
+            ) : null}
             <div className="flex justify-between">
               <dt className="text-[var(--sf-text)]/60">Tax</dt>
               <dd>{formatMoney(order.pricing.taxCents)}</dd>
@@ -292,6 +298,37 @@ export function OrderTrackerPage() {
               <dd>{formatMoney(order.pricing.totalCents)}</dd>
             </div>
           </dl>
+          {order.pricing.loyaltyPointsEarned || order.pricing.loyaltyPointsRedeemed ? (
+            <div className="mt-4 rounded-xl bg-[color-mix(in_srgb,var(--sf-primary)_8%,white)] px-3 py-3 text-sm text-[var(--sf-text)]">
+              {order.pricing.loyaltyPointsEarned ? (
+                <p>
+                  You earned{' '}
+                  <span className="font-semibold">
+                    {order.pricing.loyaltyPointsEarned} points
+                  </span>{' '}
+                  on this order
+                  {order.customer.email ? (
+                    <>
+                      {' '}
+                      for <span className="font-medium">{order.customer.email}</span>
+                    </>
+                  ) : null}
+                  .
+                </p>
+              ) : null}
+              {order.pricing.loyaltyPointsRedeemed ? (
+                <p className={order.pricing.loyaltyPointsEarned ? 'mt-1' : undefined}>
+                  Redeemed {order.pricing.loyaltyPointsRedeemed} points on a reward.
+                </p>
+              ) : null}
+              {restaurant?.loyalty?.enabled && order.loyaltyAccountId && db ? (
+                <LoyaltyBalanceNote
+                  accountId={order.loyaltyAccountId}
+                  restaurantId={restaurant.id}
+                />
+              ) : null}
+            </div>
+          ) : null}
           <p className="mt-3 text-xs text-[var(--sf-text)]/50">
             {order.payment.message} · Card ending {order.payment.simulatedCardLast4}
           </p>
@@ -309,6 +346,38 @@ export function OrderTrackerPage() {
         ) : null}
       </div>
     </StorefrontShell>
+  )
+}
+
+function LoyaltyBalanceNote({
+  accountId,
+  restaurantId,
+}: {
+  accountId: string
+  restaurantId: string
+}) {
+  const { db } = useDb()
+  const account = db?.loyaltyAccounts.find(
+    (a) => a.id === accountId && a.restaurantId === restaurantId,
+  )
+  if (!account) return null
+  const restaurant = db?.restaurants.find((r) => r.id === restaurantId)
+  const rewards = restaurant?.loyalty?.rewards ?? []
+  const next = [...rewards]
+    .sort((a, b) => a.pointsCost - b.pointsCost)
+    .find((r) => r.pointsCost > account.pointsBalance)
+  return (
+    <p className="mt-2 text-[var(--sf-text)]/75">
+      Balance: <span className="font-semibold">{account.pointsBalance} points</span>
+      {next ? (
+        <>
+          {' '}
+          · {next.pointsCost - account.pointsBalance} more to unlock “{next.label}”
+        </>
+      ) : rewards.length ? (
+        <> · You’re ready to redeem a reward next time</>
+      ) : null}
+    </p>
   )
 }
 

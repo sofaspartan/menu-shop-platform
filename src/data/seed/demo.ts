@@ -168,6 +168,27 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       bodyFont: 'DM Sans',
     },
     ordering: { ...DEFAULT_ORDERING },
+    loyalty: {
+      enabled: true,
+      pointsPerDollar: 1,
+      rewards: [
+        {
+          id: 'rew_ct_10',
+          type: 'percent_off',
+          label: '10% off your order',
+          pointsCost: 100,
+          percentOff: 10,
+          maxDiscountCents: 1500,
+        },
+        {
+          id: 'rew_ct_free_side',
+          type: 'free_item',
+          label: 'Free side salad',
+          pointsCost: 150,
+          itemId: 'item_side_salad',
+        },
+      ],
+    },
     overlapBehavior: 'show_both',
     isDemo: true,
     createdAt: ts,
@@ -968,6 +989,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       ],
       pricing: {
         subtotalCents: 2498,
+        discountCents: 0,
         taxCents: 206,
         deliveryFeeCents: 0,
         tipCents: 400,
@@ -1017,6 +1039,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       ],
       pricing: {
         subtotalCents: 3098,
+        discountCents: 0,
         taxCents: 256,
         deliveryFeeCents: 399,
         tipCents: 500,
@@ -1076,6 +1099,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       ],
       pricing: {
         subtotalCents: 2447,
+        discountCents: 0,
         taxCents: 202,
         deliveryFeeCents: 0,
         tipCents: 300,
@@ -1122,6 +1146,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       ],
       pricing: {
         subtotalCents: 2999,
+        discountCents: 0,
         taxCents: 247,
         deliveryFeeCents: 0,
         tipCents: 600,
@@ -1181,6 +1206,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       ],
       pricing: {
         subtotalCents: 3698,
+        discountCents: 0,
         taxCents: 305,
         deliveryFeeCents: 399,
         tipCents: 700,
@@ -1250,7 +1276,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
   return {
-    version: 10,
+    version: 11,
     users: [
       {
         id: userId,
@@ -1294,6 +1320,62 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     qrCodes: [...qrCodes, ...haven.qrCodes],
     brandThemes: [],
     orders: [...orders, ...haven.orders],
+    coupons: [
+      {
+        id: 'cpn_ct_lunch',
+        restaurantId,
+        code: 'LUNCH15',
+        type: 'percent_off' as const,
+        percentOff: 15,
+        minSubtotalCents: 2000,
+        maxDiscountCents: 1200,
+        active: true,
+        usedCount: 3,
+        createdAt: ts,
+        updatedAt: ts,
+      },
+      ...haven.coupons,
+    ],
+    sales: [
+      {
+        id: 'sale_ct_brunch',
+        restaurantId,
+        name: 'Brunch favorites',
+        percentOff: 10,
+        itemIds: ['item_pancakes', 'item_benedict', 'item_avocado_toast'],
+        active: true,
+        createdAt: ts,
+        updatedAt: ts,
+      },
+      ...haven.sales,
+    ],
+    loyaltyAccounts: [
+      {
+        id: 'loyal_ct_demo',
+        restaurantId,
+        email: 'taylor@example.com',
+        phone: '5550101001',
+        name: 'Taylor Kim',
+        pointsBalance: 85,
+        lifetimePoints: 85,
+        createdAt: ts,
+        updatedAt: ts,
+      },
+      ...haven.loyaltyAccounts,
+    ],
+    loyaltyLedger: [
+      {
+        id: 'llg_ct_1',
+        restaurantId,
+        accountId: 'loyal_ct_demo',
+        orderId: 'ord_sample_1',
+        delta: 85,
+        reason: 'Points earned on order',
+        balanceAfter: 85,
+        createdAt: ts,
+      },
+      ...haven.loyaltyLedger,
+    ],
     analyticsEvents: [...analyticsEvents, ...haven.analyticsEvents],
     sessions: [],
     passwordResetTokens: [],

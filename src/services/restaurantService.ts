@@ -9,6 +9,7 @@ import type {
 } from '@/types'
 import {
   DEFAULT_BRANDING,
+  DEFAULT_LOYALTY,
   DEFAULT_ORDERING,
   DEFAULT_RETAIL_ORDERING,
   defaultStorePagesFor,
@@ -98,6 +99,7 @@ export async function createRestaurant(
     ordering: {
       ...(storeKind === 'retail' ? DEFAULT_RETAIL_ORDERING : DEFAULT_ORDERING),
     },
+    loyalty: { ...DEFAULT_LOYALTY, rewards: [] },
     storefrontLayout: storeKind === 'retail' ? 'retail' : 'restaurant',
     storefrontWidth: 'margined',
     pages: defaultStorePagesFor(storeKind),

@@ -221,6 +221,85 @@ export interface OrderingSettings {
   itemNotesEnabled: boolean
 }
 
+/** Earn/redeem rules for a store (restaurant or retail). */
+export type LoyaltyRewardType = 'percent_off' | 'amount_off' | 'free_item'
+
+export interface LoyaltyReward {
+  id: ID
+  type: LoyaltyRewardType
+  label: string
+  pointsCost: number
+  /** For percent_off */
+  percentOff?: number
+  maxDiscountCents?: number
+  /** For amount_off */
+  amountOffCents?: number
+  /** For free_item — catalog item id */
+  itemId?: ID
+}
+
+export interface LoyaltySettings {
+  enabled: boolean
+  /** Points earned per $1 of merchandise subtotal (before tax/fees/tip). */
+  pointsPerDollar: number
+  rewards: LoyaltyReward[]
+}
+
+export interface LoyaltyAccount extends Timestamps {
+  id: ID
+  restaurantId: ID
+  /** Lowercased email — guest checkout identity for this store. */
+  email: string
+  phone?: string
+  name?: string
+  pointsBalance: number
+  lifetimePoints: number
+}
+
+export interface LoyaltyLedgerEntry {
+  id: ID
+  restaurantId: ID
+  accountId: ID
+  orderId?: ID
+  delta: number
+  reason: string
+  balanceAfter: number
+  createdAt: ISODateTime
+}
+
+export type CouponType = 'percent_off' | 'amount_off'
+
+export interface Coupon extends Timestamps {
+  id: ID
+  restaurantId: ID
+  code: string
+  type: CouponType
+  percentOff?: number
+  amountOffCents?: number
+  minSubtotalCents?: number
+  maxDiscountCents?: number
+  /** Empty/undefined = entire order; otherwise only matching line items. */
+  itemIds?: ID[]
+  startsAt?: ISODateTime
+  endsAt?: ISODateTime
+  active: boolean
+  usageLimit?: number
+  usedCount: number
+}
+
+/** Percent-off promotion on specific items or the whole store. */
+export interface Sale extends Timestamps {
+  id: ID
+  restaurantId: ID
+  name: string
+  percentOff: number
+  /** Empty = storewide. */
+  itemIds: ID[]
+  startsAt?: ISODateTime
+  endsAt?: ISODateTime
+  active: boolean
+}
+
 export interface Restaurant extends Timestamps {
   id: ID
   organizationId: ID
@@ -252,6 +331,7 @@ export interface Restaurant extends Timestamps {
   timezone: string
   branding: RestaurantBranding
   ordering: OrderingSettings
+  loyalty: LoyaltySettings
   overlapBehavior: OverlapBehavior
   isDemo?: boolean
 }
@@ -322,6 +402,13 @@ export interface MenuItem extends Timestamps {
   schedule?: ScheduleRule
   notesEnabled?: boolean
   isCombo: boolean
+  /**
+   * When true, `stockQty` is decremented on purchase.
+   * For retail this is units on hand; for restaurants it is typically
+   * prepared portions / servings available today.
+   */
+  trackInventory?: boolean
+  stockQty?: number
 }
 
 /** Assignment of a library item into a menu section (no duplication of the item) */
@@ -469,11 +556,18 @@ export interface OrderStatusEvent {
 
 export interface OrderPricing {
   subtotalCents: CurrencyCents
+  /** Absolute discount applied to merchandise (coupons / loyalty). */
+  discountCents: CurrencyCents
+  discountLabel?: string
+  couponCode?: string
   taxCents: CurrencyCents
   deliveryFeeCents: CurrencyCents
   tipCents: CurrencyCents
   totalCents: CurrencyCents
   taxRatePercent: number
+  loyaltyPointsEarned?: number
+  loyaltyPointsRedeemed?: number
+  loyaltyRewardId?: ID
 }
 
 export interface Order extends Timestamps {
@@ -496,6 +590,7 @@ export interface Order extends Timestamps {
   internalNotes?: string
   estimatedReadyAt?: ISODateTime
   demoAutoAdvance?: boolean
+  loyaltyAccountId?: ID
 }
 
 export interface AnalyticsEvent {
@@ -536,6 +631,10 @@ export interface AppDatabase {
   qrCodes: QrCode[]
   brandThemes: BrandTheme[]
   orders: Order[]
+  coupons: Coupon[]
+  sales: Sale[]
+  loyaltyAccounts: LoyaltyAccount[]
+  loyaltyLedger: LoyaltyLedgerEntry[]
   analyticsEvents: AnalyticsEvent[]
   sessions: AuthSession[]
   passwordResetTokens: Array<{
@@ -586,6 +685,25 @@ export const DEFAULT_RETAIL_ORDERING: OrderingSettings = {
   deliveryFeeCents: 999,
   estimatedPrepMinutes: 90,
   tipPresetsPercent: [10, 15, 20],
+}
+
+export const DEFAULT_LOYALTY: LoyaltySettings = {
+  enabled: false,
+  pointsPerDollar: 1,
+  rewards: [],
+}
+
+export function normalizeLoyaltySettings(
+  loyalty?: Partial<LoyaltySettings> | null,
+): LoyaltySettings {
+  return {
+    enabled: loyalty?.enabled ?? DEFAULT_LOYALTY.enabled,
+    pointsPerDollar:
+      typeof loyalty?.pointsPerDollar === 'number' && loyalty.pointsPerDollar >= 0
+        ? loyalty.pointsPerDollar
+        : DEFAULT_LOYALTY.pointsPerDollar,
+    rewards: Array.isArray(loyalty?.rewards) ? loyalty.rewards : [],
+  }
 }
 
 export const DEFAULT_COVER_INTRO: StoreCoverIntro = {

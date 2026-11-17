@@ -9,6 +9,15 @@ import type {
 } from '@/types'
 import { getDb, saveDb } from '@/data/db'
 import {
+  computeCouponDiscount,
+  computeLoyaltyDiscount,
+  isCouponActive,
+  itemHasStock,
+  normalizeCouponCode,
+  pointsEarnedForSubtotal,
+  resolveListedPrice,
+} from '@/lib/commerce'
+import {
   calculateLineUnitPrice,
   calculateOrderPricing,
   validateModifierSelections,
@@ -18,6 +27,7 @@ import {
 import { createId, nowIso } from '@/lib/utils'
 import { assertRestaurantAccess } from '@/services/restaurantService'
 import { trackEvent } from '@/services/analyticsService'
+import { normalizeLoyaltySettings } from '@/types'
 
 export interface PlaceOrderInput {
   restaurantId: string
@@ -32,6 +42,8 @@ export interface PlaceOrderInput {
     comboSelections?: BagComboSelection[]
     specialInstructions?: string
   }>
+  couponCode?: string
+  loyaltyRewardId?: string
   /** Client-submitted total is ignored — server recalculates */
   clientTotalCents?: number
 }
@@ -68,15 +80,28 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
   }
   if (!input.lines.length) throw new Error('Your bag is empty.')
 
+  const loyalty = normalizeLoyaltySettings(restaurant.loyalty)
+  const sales = db.sales.filter((s) => s.restaurantId === restaurant.id)
+  const now = new Date()
+
   const lineItems: OrderLineItem[] = []
   let subtotal = 0
+  const qtyByItem = new Map<string, number>()
 
   for (const line of input.lines) {
     const item = db.items.find(
       (i) => i.id === line.itemId && i.restaurantId === input.restaurantId,
     )
-    if (!item || !item.active || item.availability !== 'available') {
+    if (!item || !item.active || item.availability !== 'available' || !itemHasStock(item)) {
       throw new Error(`Item “${item?.name ?? line.itemId}” is unavailable.`)
+    }
+
+    const requested = (qtyByItem.get(item.id) ?? 0) + line.quantity
+    qtyByItem.set(item.id, requested)
+    if (item.trackInventory && requested > (item.stockQty ?? 0)) {
+      throw new Error(
+        `Only ${item.stockQty ?? 0} left of “${item.name}”. Reduce quantity and try again.`,
+      )
     }
 
     const groupIds = db.itemModifiers
@@ -104,6 +129,18 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
       }
     }
 
+    const assignment = db.assignments.find(
+      (a) =>
+        a.itemId === item.id &&
+        a.restaurantId === restaurant.id &&
+        a.visible,
+    )
+    const listBase =
+      assignment?.priceOverrideCents ??
+      (item.isCombo && combo ? combo.basePriceCents : item.basePriceCents)
+    const listed = resolveListedPrice(listBase, item.id, sales, now)
+
+    // Sale applies to the catalog base; modifiers / combo upgrades stay full price.
     const priced = calculateLineUnitPrice(
       {
         item,
@@ -111,6 +148,7 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
         modifiers: line.modifiers,
         comboSelections: line.comboSelections,
         specialInstructions: line.specialInstructions,
+        priceOverrideCents: listed.priceCents,
       },
       groups,
       combo,
@@ -143,11 +181,85 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
     )
   }
 
+  let discountCents = 0
+  let discountLabel: string | undefined
+  let couponCode: string | undefined
+  let couponId: string | undefined
+
+  if (input.couponCode?.trim()) {
+    const code = normalizeCouponCode(input.couponCode)
+    const coupon = db.coupons.find(
+      (c) => c.restaurantId === restaurant.id && c.code === code,
+    )
+    if (!coupon || !isCouponActive(coupon, now)) {
+      throw new Error('That coupon is invalid or expired.')
+    }
+    const result = computeCouponDiscount(
+      coupon,
+      lineItems.map((l) => ({
+        itemId: l.sourceItemId,
+        lineTotalCents: l.lineTotalCents,
+      })),
+    )
+    if ('error' in result) throw new Error(result.error)
+    discountCents = result.discountCents
+    discountLabel = result.label
+    couponCode = coupon.code
+    couponId = coupon.id
+  }
+
+  let loyaltyRewardId: string | undefined
+  let loyaltyPointsRedeemed = 0
+  let loyaltyAccountId: string | undefined
+  const email = input.customer.email?.trim().toLowerCase()
+
+  if (input.loyaltyRewardId) {
+    if (!loyalty.enabled) throw new Error('Loyalty rewards are not enabled.')
+    if (!email) throw new Error('Enter your email to redeem loyalty rewards.')
+    const reward = loyalty.rewards.find((r) => r.id === input.loyaltyRewardId)
+    if (!reward) throw new Error('Loyalty reward not found.')
+    const account = db.loyaltyAccounts.find(
+      (a) => a.restaurantId === restaurant.id && a.email === email,
+    )
+    if (!account || account.pointsBalance < reward.pointsCost) {
+      throw new Error('Not enough loyalty points for that reward.')
+    }
+    const freeLine =
+      reward.type === 'free_item' && reward.itemId
+        ? lineItems.find((l) => l.sourceItemId === reward.itemId)
+        : undefined
+    const remainingSubtotal = Math.max(0, subtotal - discountCents)
+    const result = computeLoyaltyDiscount(
+      reward,
+      remainingSubtotal,
+      freeLine?.lineTotalCents,
+    )
+    if ('error' in result) throw new Error(result.error)
+    discountCents += result.discountCents
+    discountLabel = discountLabel
+      ? `${discountLabel} + ${result.label}`
+      : result.label
+    loyaltyRewardId = reward.id
+    loyaltyPointsRedeemed = reward.pointsCost
+    loyaltyAccountId = account.id
+  }
+
+  const taxableBase = Math.max(0, subtotal - discountCents)
+  const earned = pointsEarnedForSubtotal(loyalty, taxableBase)
+
   const pricing = calculateOrderPricing(
     subtotal,
     restaurant.ordering,
     input.fulfillment.type,
     Math.max(0, input.tipCents),
+    {
+      discountCents,
+      discountLabel,
+      couponCode,
+      loyaltyPointsEarned: loyalty.enabled && email ? earned : undefined,
+      loyaltyPointsRedeemed: loyaltyPointsRedeemed || undefined,
+      loyaltyRewardId,
+    },
   )
 
   const ts = nowIso()
@@ -178,11 +290,90 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
     ).toISOString(),
     createdAt: ts,
     updatedAt: ts,
+    loyaltyAccountId,
   }
 
   await saveDb((d) => {
     d.orders.unshift(order)
+
+    // Inventory
+    for (const [itemId, qty] of qtyByItem) {
+      const item = d.items.find((i) => i.id === itemId)
+      if (!item?.trackInventory) continue
+      item.stockQty = Math.max(0, (item.stockQty ?? 0) - qty)
+      item.updatedAt = ts
+      if (item.stockQty <= 0) {
+        item.availability = 'sold_out'
+      }
+    }
+
+    // Coupon usage
+    if (couponId) {
+      const coupon = d.coupons.find((c) => c.id === couponId)
+      if (coupon) {
+        coupon.usedCount += 1
+        coupon.updatedAt = ts
+      }
+    }
+
+    // Loyalty earn / redeem
+    if (loyalty.enabled && email) {
+      let account = d.loyaltyAccounts.find(
+        (a) => a.restaurantId === restaurant.id && a.email === email,
+      )
+      if (!account) {
+        account = {
+          id: createId('loyal'),
+          restaurantId: restaurant.id,
+          email,
+          phone: input.customer.phone.trim(),
+          name: input.customer.name.trim(),
+          pointsBalance: 0,
+          lifetimePoints: 0,
+          createdAt: ts,
+          updatedAt: ts,
+        }
+        d.loyaltyAccounts.push(account)
+      } else {
+        account.phone = input.customer.phone.trim()
+        account.name = input.customer.name.trim()
+      }
+
+      if (loyaltyPointsRedeemed > 0) {
+        account.pointsBalance = Math.max(0, account.pointsBalance - loyaltyPointsRedeemed)
+        d.loyaltyLedger.push({
+          id: createId('llg'),
+          restaurantId: restaurant.id,
+          accountId: account.id,
+          orderId: order.id,
+          delta: -loyaltyPointsRedeemed,
+          reason: `Redeemed reward`,
+          balanceAfter: account.pointsBalance,
+          createdAt: ts,
+        })
+      }
+
+      if (earned > 0) {
+        account.pointsBalance += earned
+        account.lifetimePoints += earned
+        d.loyaltyLedger.push({
+          id: createId('llg'),
+          restaurantId: restaurant.id,
+          accountId: account.id,
+          orderId: order.id,
+          delta: earned,
+          reason: 'Points earned on order',
+          balanceAfter: account.pointsBalance,
+          createdAt: ts,
+        })
+      }
+
+      account.updatedAt = ts
+      order.loyaltyAccountId = account.id
+      // Keep pricing snapshot in sync with final earn amount already set
+    }
   })
+
   await trackEvent({
     restaurantId: restaurant.id,
     type: 'order_placed',

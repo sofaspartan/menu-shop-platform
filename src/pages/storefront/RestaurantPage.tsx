@@ -33,9 +33,11 @@ import {
   isAcceptingOrders,
   isItemAvailableNow,
 } from '@/lib/scheduling'
+import { resolveListedPrice } from '@/lib/commerce'
 import { storeCopy } from '@/lib/storeCopy'
-import { formatMoney, formatPhone, cn } from '@/lib/utils'
+import { formatPhone, cn } from '@/lib/utils'
 import { trackEvent } from '@/services/analyticsService'
+import { PriceDisplay } from '@/components/storefront/PriceDisplay'
 
 export function RestaurantPage() {
   const { slug, menuSlug } = useParams<{ slug: string; menuSlug?: string }>()
@@ -75,6 +77,14 @@ export function RestaurantPage() {
   const restaurant = useMemo(
     () => db?.restaurants.find((r) => r.slug === slug) ?? null,
     [db, slug],
+  )
+
+  const sales = useMemo(
+    () =>
+      db && restaurant
+        ? db.sales.filter((s) => s.restaurantId === restaurant.id)
+        : [],
+    [db, restaurant],
   )
 
   useEffect(() => {
@@ -590,11 +600,17 @@ export function RestaurantPage() {
                 </div>
                 {isRetailLayout ? (
                   <ul className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4">
-                    {featured.map(({ item, assignment }) => (
+                    {featured.map(({ item, assignment }) => {
+                      const listed = resolveListedPrice(
+                        assignment.priceOverrideCents ?? item.basePriceCents,
+                        item.id,
+                        sales,
+                      )
+                      return (
                       <li key={assignment.id}>
                         <button
                           type="button"
-                          onClick={() => openItem(item, assignment.priceOverrideCents)}
+                          onClick={() => openItem(item, listed.priceCents)}
                           className="w-full text-left transition-transform hover:-translate-y-0.5"
                         >
                           <MenuItemImage
@@ -606,20 +622,31 @@ export function RestaurantPage() {
                           <p className="mt-2.5 text-sm font-medium leading-snug text-[var(--sf-text)]">
                             {item.name}
                           </p>
-                          <p className="mt-0.5 text-sm font-semibold text-[var(--sf-primary)]">
-                            {formatMoney(assignment.priceOverrideCents ?? item.basePriceCents)}
-                          </p>
+                          <div className="mt-0.5">
+                            <PriceDisplay
+                              listPriceCents={listed.listPriceCents}
+                              priceCents={listed.priceCents}
+                              onSale={listed.onSale}
+                              size="sm"
+                            />
+                          </div>
                         </button>
                       </li>
-                    ))}
+                    )})}
                   </ul>
                 ) : (
                   <div className="flex gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {featured.map(({ item, assignment }) => (
+                    {featured.map(({ item, assignment }) => {
+                      const listed = resolveListedPrice(
+                        assignment.priceOverrideCents ?? item.basePriceCents,
+                        item.id,
+                        sales,
+                      )
+                      return (
                       <button
                         key={assignment.id}
                         type="button"
-                        onClick={() => openItem(item, assignment.priceOverrideCents)}
+                        onClick={() => openItem(item, listed.priceCents)}
                         className="w-60 shrink-0 text-left transition-transform hover:-translate-y-0.5"
                       >
                         <MenuItemImage
@@ -629,11 +656,16 @@ export function RestaurantPage() {
                           fallbackClassName="mb-3 h-40 w-full rounded-[var(--sf-radius,12px)]"
                         />
                         <p className="font-medium text-[var(--sf-text)]">{item.name}</p>
-                        <p className="mt-0.5 text-sm font-semibold text-[var(--sf-primary)]">
-                          {formatMoney(assignment.priceOverrideCents ?? item.basePriceCents)}
-                        </p>
+                        <div className="mt-0.5">
+                          <PriceDisplay
+                            listPriceCents={listed.listPriceCents}
+                            priceCents={listed.priceCents}
+                            onSale={listed.onSale}
+                            size="sm"
+                          />
+                        </div>
                       </button>
-                    ))}
+                    )})}
                   </div>
                 )}
               </section>
@@ -662,13 +694,17 @@ export function RestaurantPage() {
                   <ul className="grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4">
                     {items.map(({ item, assignment }) => {
                       const available = isItemOrderable(item, now)
-                      const price = assignment.priceOverrideCents ?? item.basePriceCents
+                      const listed = resolveListedPrice(
+                        assignment.priceOverrideCents ?? item.basePriceCents,
+                        item.id,
+                        sales,
+                      )
                       return (
                         <li key={assignment.id}>
                           <button
                             type="button"
                             disabled={!available}
-                            onClick={() => openItem(item, assignment.priceOverrideCents)}
+                            onClick={() => openItem(item, listed.priceCents)}
                             className={cn(
                               'w-full text-left transition-transform',
                               available
@@ -687,6 +723,10 @@ export function RestaurantPage() {
                                 <span className="absolute left-2 top-2">
                                   <Badge tone="warning">{unavailableLabel(item)}</Badge>
                                 </span>
+                              ) : listed.onSale ? (
+                                <span className="absolute left-2 top-2">
+                                  <Badge tone="accent">{listed.percentOff}% off</Badge>
+                                </span>
                               ) : null}
                             </div>
                             <p className="mt-2.5 text-sm font-medium leading-snug text-[var(--sf-text)]">
@@ -695,9 +735,14 @@ export function RestaurantPage() {
                             <p className="mt-0.5 line-clamp-2 text-xs text-[var(--sf-text)]/55">
                               {item.shortDescription}
                             </p>
-                            <p className="mt-1.5 text-sm font-semibold text-[var(--sf-primary)]">
-                              {formatMoney(price)}
-                            </p>
+                            <div className="mt-1.5">
+                              <PriceDisplay
+                                listPriceCents={listed.listPriceCents}
+                                priceCents={listed.priceCents}
+                                onSale={listed.onSale}
+                                size="sm"
+                              />
+                            </div>
                           </button>
                         </li>
                       )
@@ -707,7 +752,11 @@ export function RestaurantPage() {
                   <ul className="divide-y divide-stone-200/70">
                     {items.map(({ item, assignment }) => {
                       const available = isItemOrderable(item, now)
-                      const price = assignment.priceOverrideCents ?? item.basePriceCents
+                      const listed = resolveListedPrice(
+                        assignment.priceOverrideCents ?? item.basePriceCents,
+                        item.id,
+                        sales,
+                      )
                       const labels = dietaryLabels.filter((l) =>
                         item.dietaryLabelIds.includes(l.id),
                       )
@@ -716,7 +765,7 @@ export function RestaurantPage() {
                           <button
                             type="button"
                             disabled={!available}
-                            onClick={() => openItem(item, assignment.priceOverrideCents)}
+                            onClick={() => openItem(item, listed.priceCents)}
                             className={cn(
                               'flex w-full gap-4 py-5 text-left transition-opacity',
                               available ? 'hover:opacity-90' : 'cursor-not-allowed opacity-55',
@@ -729,6 +778,8 @@ export function RestaurantPage() {
                                 </h3>
                                 {!available ? (
                                   <Badge tone="warning">{unavailableLabel(item)}</Badge>
+                                ) : listed.onSale ? (
+                                  <Badge tone="accent">{listed.percentOff}% off</Badge>
                                 ) : null}
                               </div>
                               <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-[var(--sf-text)]/65">
@@ -746,9 +797,14 @@ export function RestaurantPage() {
                                   ))}
                                 </div>
                               ) : null}
-                              <p className="mt-3 text-sm font-semibold text-[var(--sf-primary)]">
-                                {formatMoney(price)}
-                              </p>
+                              <div className="mt-3">
+                                <PriceDisplay
+                                  listPriceCents={listed.listPriceCents}
+                                  priceCents={listed.priceCents}
+                                  onSale={listed.onSale}
+                                  size="sm"
+                                />
+                              </div>
                             </div>
                             <MenuItemImage
                               src={item.imageUrl}
@@ -863,6 +919,7 @@ function isItemOrderable(item: MenuItem, at: Date) {
 }
 
 function unavailableLabel(item: MenuItem) {
+  if (item.trackInventory && (item.stockQty ?? 0) <= 0) return 'Sold out'
   switch (item.availability) {
     case 'sold_out':
       return 'Sold out'

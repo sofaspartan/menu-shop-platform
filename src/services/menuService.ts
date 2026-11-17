@@ -225,6 +225,8 @@ export async function createItem(
     schedule: input.schedule,
     notesEnabled: input.notesEnabled,
     isCombo: input.isCombo ?? false,
+    trackInventory: input.trackInventory,
+    stockQty: input.trackInventory ? (input.stockQty ?? 0) : undefined,
     createdAt: ts,
     updatedAt: ts,
   }
@@ -412,6 +414,25 @@ export async function updateItemAvailability(
   availability: MenuItem['availability'],
 ) {
   return updateItem(userId, restaurantId, itemId, { availability })
+}
+
+/** Set absolute stock; re-opens sold-out items when restocked. */
+export async function setItemStock(
+  userId: string,
+  restaurantId: string,
+  itemId: string,
+  stockQty: number,
+  trackInventory = true,
+) {
+  const qty = Math.max(0, Math.floor(stockQty))
+  const patch: Partial<MenuItem> = {
+    trackInventory,
+    stockQty: trackInventory ? qty : undefined,
+  }
+  if (trackInventory) {
+    patch.availability = qty <= 0 ? 'sold_out' : 'available'
+  }
+  return updateItem(userId, restaurantId, itemId, patch)
 }
 
 export async function updateMenuSchedule(

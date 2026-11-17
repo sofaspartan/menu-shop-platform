@@ -144,6 +144,12 @@ export function OrderDetailPage() {
             </div>
             <div className="mt-4 space-y-1 border-t border-stone-100 pt-4 text-sm">
               <Row label="Subtotal" value={formatMoney(order.pricing.subtotalCents)} />
+              {(order.pricing.discountCents ?? 0) > 0 ? (
+                <Row
+                  label={order.pricing.discountLabel || 'Discount'}
+                  value={`−${formatMoney(order.pricing.discountCents)}`}
+                />
+              ) : null}
               <Row label={`Tax (${order.pricing.taxRatePercent}%)`} value={formatMoney(order.pricing.taxCents)} />
               {order.pricing.deliveryFeeCents ? (
                 <Row
@@ -154,6 +160,12 @@ export function OrderDetailPage() {
                 />
               ) : null}
               <Row label="Tip" value={formatMoney(order.pricing.tipCents)} />
+              {order.pricing.loyaltyPointsEarned ? (
+                <Row
+                  label="Loyalty points earned"
+                  value={`+${order.pricing.loyaltyPointsEarned}`}
+                />
+              ) : null}
               <Row label="Total" value={formatMoney(order.pricing.totalCents)} bold />
             </div>
           </section>

@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Menu, MenuItem, MenuItemAssignment, MenuSection, Restaurant } from '@/types'
 import { normalizeCoverIntro } from '@/types'
 import { RetailChrome } from '@/components/storefront/RetailChrome'
 import { StorefrontFooter } from '@/components/storefront/StorefrontFooter'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
+import { PriceDisplay } from '@/components/storefront/PriceDisplay'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useDb } from '@/hooks/useDb'
+import { resolveListedPrice } from '@/lib/commerce'
 import { storeCopy } from '@/lib/storeCopy'
 import { storefrontContentClass } from '@/lib/storefrontWidth'
-import { formatMoney, cn } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 type CatalogItem = {
   item: MenuItem
@@ -39,6 +42,11 @@ export function RetailShopView({
   isItemOrderable: (item: MenuItem) => boolean
   unavailableLabel: (item: MenuItem) => string
 }) {
+  const { db } = useDb()
+  const sales = useMemo(
+    () => (db ? db.sales.filter((s) => s.restaurantId === restaurant.id) : []),
+    [db, restaurant.id],
+  )
   const copy = storeCopy(restaurant.storeKind)
   const contentClass = storefrontContentClass(restaurant.storefrontWidth)
   const coverIntro = normalizeCoverIntro(restaurant.pages?.coverIntro)
@@ -223,6 +231,7 @@ export function RetailShopView({
             {featuredHero ? (
               <FeaturedHero
                 entry={featuredHero}
+                sales={sales}
                 onOpenItem={onOpenItem}
                 isItemOrderable={isItemOrderable}
                 unavailableLabel={unavailableLabel}
@@ -250,6 +259,7 @@ export function RetailShopView({
                 ) : (
                   <ProductGrid
                     items={items}
+                    sales={sales}
                     onOpenItem={onOpenItem}
                     isItemOrderable={isItemOrderable}
                     unavailableLabel={unavailableLabel}
@@ -339,18 +349,21 @@ function CoverIntroCopy({
 
 function FeaturedHero({
   entry,
+  sales,
   onOpenItem,
   isItemOrderable,
   unavailableLabel,
 }: {
   entry: CatalogItem
+  sales: import('@/types').Sale[]
   onOpenItem: (item: MenuItem, priceOverride?: number) => void
   isItemOrderable: (item: MenuItem) => boolean
   unavailableLabel: (item: MenuItem) => string
 }) {
   const { item, assignment } = entry
   const available = isItemOrderable(item)
-  const price = assignment.priceOverrideCents ?? item.basePriceCents
+  const listPrice = assignment.priceOverrideCents ?? item.basePriceCents
+  const listed = resolveListedPrice(listPrice, item.id, sales)
   const blurb = item.shortDescription || item.fullDescription
 
   return (
@@ -358,7 +371,7 @@ function FeaturedHero({
       <button
         type="button"
         disabled={!available}
-        onClick={() => onOpenItem(item, assignment.priceOverrideCents)}
+        onClick={() => onOpenItem(item, listed.priceCents)}
         className={cn(
           'group grid w-full grid-cols-1 gap-6 text-left lg:grid-cols-2 lg:items-center lg:gap-12',
           available ? 'cursor-pointer' : 'cursor-not-allowed opacity-55',
@@ -375,6 +388,10 @@ function FeaturedHero({
             <span className="absolute left-4 top-4">
               <Badge tone="warning">{unavailableLabel(item)}</Badge>
             </span>
+          ) : listed.onSale ? (
+            <span className="absolute left-4 top-4">
+              <Badge tone="accent">{listed.percentOff}% off</Badge>
+            </span>
           ) : null}
         </div>
         <div className="flex flex-col justify-center px-0 lg:py-6">
@@ -389,7 +406,14 @@ function FeaturedHero({
               {blurb}
             </p>
           ) : null}
-          <p className="mt-5 text-xl text-[var(--sf-text)]">{formatMoney(price)}</p>
+          <div className="mt-5">
+            <PriceDisplay
+              listPriceCents={listed.listPriceCents}
+              priceCents={listed.priceCents}
+              onSale={listed.onSale}
+              size="lg"
+            />
+          </div>
           <span className="mt-6 inline-flex w-fit items-center rounded-2xl bg-[var(--sf-button)] px-5 py-2.5 text-base font-medium text-[var(--sf-button-text)] transition-transform group-hover:-translate-y-0.5">
             {available ? 'View product' : unavailableLabel(item)}
           </span>
@@ -401,11 +425,13 @@ function FeaturedHero({
 
 function ProductGrid({
   items,
+  sales,
   onOpenItem,
   isItemOrderable,
   unavailableLabel,
 }: {
   items: CatalogItem[]
+  sales: import('@/types').Sale[]
   onOpenItem: (item: MenuItem, priceOverride?: number) => void
   isItemOrderable: (item: MenuItem) => boolean
   unavailableLabel: (item: MenuItem) => string
@@ -414,13 +440,14 @@ function ProductGrid({
     <ul className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 sm:gap-y-12 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-14">
       {items.map(({ item, assignment }) => {
         const available = isItemOrderable(item)
-        const price = assignment.priceOverrideCents ?? item.basePriceCents
+        const listPrice = assignment.priceOverrideCents ?? item.basePriceCents
+        const listed = resolveListedPrice(listPrice, item.id, sales)
         return (
           <li key={assignment.id}>
             <button
               type="button"
               disabled={!available}
-              onClick={() => onOpenItem(item, assignment.priceOverrideCents)}
+              onClick={() => onOpenItem(item, listed.priceCents)}
               className={cn(
                 'group w-full cursor-pointer text-left',
                 available ? '' : 'cursor-not-allowed opacity-50',
@@ -437,13 +464,21 @@ function ProductGrid({
                   <span className="absolute left-3 top-3">
                     <Badge tone="warning">{unavailableLabel(item)}</Badge>
                   </span>
+                ) : listed.onSale ? (
+                  <span className="absolute left-3 top-3">
+                    <Badge tone="accent">{listed.percentOff}% off</Badge>
+                  </span>
                 ) : null}
               </div>
               <div className="mt-4 space-y-1.5">
                 <p className="text-lg font-medium leading-snug tracking-tight text-[var(--sf-text)]">
                   {item.name}
                 </p>
-                <p className="text-base text-[var(--sf-text)]/80">{formatMoney(price)}</p>
+                <PriceDisplay
+                  listPriceCents={listed.listPriceCents}
+                  priceCents={listed.priceCents}
+                  onSale={listed.onSale}
+                />
               </div>
             </button>
           </li>

@@ -172,6 +172,27 @@ Every item is made to last. If something needs a repair years from now, bring it
       appearance: 'light',
     },
     ordering: { ...DEFAULT_RETAIL_ORDERING },
+    loyalty: {
+      enabled: true,
+      pointsPerDollar: 2,
+      rewards: [
+        {
+          id: 'rew_hh_15',
+          type: 'percent_off',
+          label: '15% off your order',
+          pointsCost: 200,
+          percentOff: 15,
+          maxDiscountCents: 5000,
+        },
+        {
+          id: 'rew_hh_25',
+          type: 'amount_off',
+          label: '$25 store credit',
+          pointsCost: 400,
+          amountOffCents: 2500,
+        },
+      ],
+    },
     overlapBehavior: 'show_both',
     isDemo: true,
     createdAt: ts,
@@ -314,6 +335,8 @@ Every item is made to last. If something needs a repair years from now, bring it
       featured: true,
       availability: 'available',
       isCombo: false,
+      trackInventory: true,
+      stockQty: 12,
       createdAt: ts,
       updatedAt: ts,
     },
@@ -332,6 +355,8 @@ Every item is made to last. If something needs a repair years from now, bring it
       featured: false,
       availability: 'available',
       isCombo: false,
+      trackInventory: true,
+      stockQty: 8,
       createdAt: ts,
       updatedAt: ts,
     },
@@ -386,6 +411,8 @@ Every item is made to last. If something needs a repair years from now, bring it
       featured: false,
       availability: 'available',
       isCombo: false,
+      trackInventory: true,
+      stockQty: 2,
       createdAt: ts,
       updatedAt: ts,
     },
@@ -683,6 +710,7 @@ Every item is made to last. If something needs a repair years from now, bring it
       ],
       pricing: {
         subtotalCents: 26300,
+        discountCents: 0,
         taxRatePercent: 8.25,
         taxCents: 2170,
         deliveryFeeCents: 0,
@@ -707,6 +735,74 @@ Every item is made to last. If something needs a repair years from now, bring it
     },
   ]
 
+  const coupons = [
+    {
+      id: 'cpn_hh_welcome',
+      restaurantId,
+      code: 'WELCOME10',
+      type: 'percent_off' as const,
+      percentOff: 10,
+      minSubtotalCents: 5000,
+      maxDiscountCents: 4000,
+      active: true,
+      usedCount: 0,
+      createdAt: ts,
+      updatedAt: ts,
+    },
+    {
+      id: 'cpn_hh_leather',
+      restaurantId,
+      code: 'LEATHER25',
+      type: 'amount_off' as const,
+      amountOffCents: 2500,
+      itemIds: ['item_hh_tote', 'item_hh_crossbody', 'item_hh_wallet', 'item_hh_belt'],
+      active: true,
+      usedCount: 1,
+      createdAt: ts,
+      updatedAt: ts,
+    },
+  ]
+
+  const sales = [
+    {
+      id: 'sale_hh_accessories',
+      restaurantId,
+      name: 'Accessories spring sale',
+      percentOff: 20,
+      itemIds: ['item_hh_wallet', 'item_hh_belt', 'item_hh_deskpad'],
+      active: true,
+      createdAt: ts,
+      updatedAt: ts,
+    },
+  ]
+
+  const loyaltyAccounts = [
+    {
+      id: 'loyal_hh_demo',
+      restaurantId,
+      email: 'jamie@example.com',
+      phone: '5550103001',
+      name: 'Jamie Chen',
+      pointsBalance: 220,
+      lifetimePoints: 460,
+      createdAt: ts,
+      updatedAt: ts,
+    },
+  ]
+
+  const loyaltyLedger = [
+    {
+      id: 'llg_hh_1',
+      restaurantId,
+      accountId: 'loyal_hh_demo',
+      orderId: 'ord_hh_demo_1',
+      delta: 220,
+      reason: 'Points earned on order',
+      balanceAfter: 220,
+      createdAt: minutesAgo(90),
+    },
+  ]
+
   return {
     restaurant,
     membership: {
@@ -726,6 +822,10 @@ Every item is made to last. If something needs a repair years from now, bring it
     dietaryLabels: labels,
     qrCodes,
     orders,
+    coupons,
+    sales,
+    loyaltyAccounts,
+    loyaltyLedger,
     analyticsEvents: [
       {
         id: createId('evt'),
