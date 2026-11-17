@@ -1,12 +1,14 @@
 import { useMemo } from 'react'
+import { Monitor, Smartphone } from 'lucide-react'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { usePreviewStore } from '@/stores/previewStore'
 import { useDb } from '@/hooks/useDb'
 import { getAvailableMenus, isAcceptingOrders, isRestaurantOpen } from '@/lib/scheduling'
 import { formatScheduleSummary } from '@/lib/scheduling'
-import { Field, Input, Select } from '@/components/ui/Input'
+import { Field, Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { cn } from '@/lib/utils'
 
 function toLocalInputValue(date: Date): { date: string; time: string } {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -75,7 +77,7 @@ export function PreviewPage() {
 
       <section className="rounded-2xl border border-stone-200 bg-white p-5">
         <h2 className="font-display text-xl">Preview controls</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Date">
             <Input
               type="date"
@@ -89,15 +91,6 @@ export function PreviewPage() {
               value={local.time}
               onChange={(e) => applyDateTime(local.date, e.target.value)}
             />
-          </Field>
-          <Field label="Device">
-            <Select
-              value={device}
-              onChange={(e) => setDevice(e.target.value as 'mobile' | 'desktop')}
-            >
-              <option value="mobile">Mobile</option>
-              <option value="desktop">Desktop</option>
-            </Select>
           </Field>
           <div className="flex items-end gap-2">
             <label className="flex h-10 items-center gap-2 text-sm">
@@ -162,24 +155,76 @@ export function PreviewPage() {
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-xl">Embedded storefront</h2>
-          <Badge>{device}</Badge>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl">Embedded storefront</h2>
+            <p className="mt-0.5 text-sm text-stone-500">
+              Switch viewport to check mobile vs desktop layout.
+            </p>
+          </div>
+          <div
+            className="inline-flex rounded-xl border border-stone-200 bg-stone-50 p-1"
+            role="group"
+            aria-label="Preview viewport"
+          >
+            <button
+              type="button"
+              onClick={() => setDevice('mobile')}
+              aria-pressed={device === 'mobile'}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                device === 'mobile'
+                  ? 'bg-white text-stone-900 shadow-sm'
+                  : 'text-stone-500 hover:text-stone-800',
+              )}
+            >
+              <Smartphone className="h-4 w-4" />
+              Mobile
+            </button>
+            <button
+              type="button"
+              onClick={() => setDevice('desktop')}
+              aria-pressed={device === 'desktop'}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                device === 'desktop'
+                  ? 'bg-white text-stone-900 shadow-sm'
+                  : 'text-stone-500 hover:text-stone-800',
+              )}
+            >
+              <Monitor className="h-4 w-4" />
+              Desktop
+            </button>
+          </div>
         </div>
-        <div
-          className={`mx-auto overflow-hidden rounded-2xl border border-stone-300 bg-stone-100 ${
-            device === 'mobile' ? 'max-w-[390px]' : 'w-full'
-          }`}
-        >
-          <iframe
-            title={`${current.name} preview`}
-            src={iframeSrc}
-            className={`w-full bg-white ${device === 'mobile' ? 'h-[720px]' : 'h-[780px]'}`}
-          />
+        <div className="rounded-2xl bg-stone-100 p-3 sm:p-5">
+          <div
+            className={cn(
+              'mx-auto overflow-hidden rounded-2xl border border-stone-300 bg-white shadow-sm transition-[max-width] duration-300',
+              device === 'mobile' ? 'max-w-[390px]' : 'max-w-6xl w-full',
+            )}
+          >
+            <div className="flex items-center gap-1.5 border-b border-stone-200 bg-stone-50 px-3 py-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-stone-300" />
+              <span className="h-2.5 w-2.5 rounded-full bg-stone-300" />
+              <span className="h-2.5 w-2.5 rounded-full bg-stone-300" />
+              <span className="ml-2 truncate text-xs text-stone-400">
+                {device === 'mobile' ? '390 × 844' : 'Desktop'} · /r/{current.slug}
+              </span>
+            </div>
+            <iframe
+              title={`${current.name} preview`}
+              src={iframeSrc}
+              className={cn(
+                'w-full bg-white',
+                device === 'mobile' ? 'h-[760px]' : 'h-[820px]',
+              )}
+            />
+          </div>
         </div>
         <p className="mt-3 text-xs text-stone-500">
-          The iframe loads <code>{iframeSrc}</code>. If the storefront reads the preview store /
-          localStorage clock, it will reflect the simulated time above.
+          The iframe width drives responsive layout, so desktop mode shows the wide storefront
+          chrome and mobile mode shows the narrow phone layout.
         </p>
       </section>
     </div>
