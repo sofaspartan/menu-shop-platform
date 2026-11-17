@@ -57,6 +57,9 @@ export function RetailBagFab({
             {copy.bagNounTitle}
             {bagCount > 0 ? ` · ${bagCount}` : ''}
           </span>
+          {bagCount > 0 ? (
+            <span className="text-sm opacity-90">{formatMoney(bagSubtotal)}</span>
+          ) : null}
         </button>
       )}
 
