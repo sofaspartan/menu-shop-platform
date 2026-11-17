@@ -65,6 +65,15 @@ export function buildHavenHideSeed(userId: string, orgId: string, ts: string) {
         subtitle: 'A small SoHo workshop making leather goods and lounge pieces to last.',
         heroImageUrl:
           'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=1400&q=80',
+        hero: {
+          height: 'short',
+          align: 'left',
+          showTitle: true,
+          showSubtitle: true,
+          showButton: false,
+          buttonLabel: '',
+          buttonHref: '',
+        },
         body: `Haven & Hide began as a small leather workshop in SoHo — one bench, a handful of knives, and a belief that everyday objects should feel better with time.
 
 We cut and stitch full-grain leather in short runs: bags that carry a laptop and a weekend, wallets that soften instead of crack, and lounge pieces upholstered to order.
@@ -76,6 +85,15 @@ Every item is made to last. If something needs a repair years from now, bring it
         headerStyle: 'simple',
         title: 'Visit & contact',
         intro: 'Come by the Mercer Street showroom, or write us about custom work and wholesale.',
+        hero: {
+          height: 'short',
+          align: 'left',
+          showTitle: true,
+          showSubtitle: true,
+          showButton: false,
+          buttonLabel: '',
+          buttonHref: '',
+        },
         showPhone: true,
         showEmail: true,
         showAddress: true,

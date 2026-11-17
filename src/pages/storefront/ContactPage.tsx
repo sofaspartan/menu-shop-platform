@@ -142,6 +142,7 @@ export function ContactPage() {
           subtitle={contact.intro}
           headerStyle={contact.headerStyle}
           heroImageUrl={contact.heroImageUrl}
+          hero={contact.hero}
           storefrontWidth={restaurant.storefrontWidth}
         />
 

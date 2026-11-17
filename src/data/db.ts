@@ -30,7 +30,7 @@ export async function getDb(): Promise<AppDatabase> {
     const adapter = getPersistenceAdapter()
     const existing = await adapter.load()
     // Bump when seed assets/schema change so demos refresh cleanly.
-    if (existing && existing.version === 8) {
+    if (existing && existing.version === 9) {
       if (!existing.brandThemes) existing.brandThemes = []
       for (const r of existing.restaurants) {
         if (!r.storeKind) r.storeKind = 'restaurant'

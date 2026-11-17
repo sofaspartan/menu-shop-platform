@@ -17,9 +17,114 @@ import {
   normalizeAboutPage,
   normalizeContactPage,
   normalizeCoverIntro,
+  normalizePageHero,
   normalizeStoreFooter,
 } from '@/types'
 import { cn } from '@/lib/utils'
+
+function HeroLayoutControls({
+  hero,
+  onChange,
+  idPrefix,
+}: {
+  hero: StorePages['about']['hero']
+  onChange: (hero: StorePages['about']['hero']) => void
+  idPrefix: string
+}) {
+  const options = normalizePageHero(hero)
+  return (
+    <div className="space-y-4 rounded-xl border border-stone-100 bg-stone-50/80 p-4">
+      <p className="text-sm font-medium text-stone-700">Hero layout</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {(
+          [
+            ['short', 'Short', 'Same compact height as the shop cover.'],
+            ['tall', 'Tall', 'Taller hero matching the shop tall option.'],
+          ] as Array<[CoverHeroHeight, string, string]>
+        ).map(([value, label, hint]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onChange(normalizePageHero({ ...options, height: value }))}
+            className={cn(
+              'rounded-2xl border px-4 py-3 text-left',
+              options.height === value
+                ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                : 'border-stone-200 bg-white hover:bg-stone-50',
+            )}
+          >
+            <div className="font-medium">{label}</div>
+            <p className="mt-1 text-xs text-stone-500">{hint}</p>
+          </button>
+        ))}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {(
+          [
+            ['left', 'Left', 'Bottom-left overlay.'],
+            ['centerBottom', 'Centered bottom', 'Centered on the bottom.'],
+            ['centerMiddle', 'Centered middle', 'True vertical + horizontal center.'],
+          ] as Array<[CoverHeroAlign, string, string]>
+        ).map(([value, label, hint]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onChange(normalizePageHero({ ...options, align: value }))}
+            className={cn(
+              'rounded-2xl border px-4 py-3 text-left',
+              options.align === value
+                ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)]'
+                : 'border-stone-200 bg-white hover:bg-stone-50',
+            )}
+          >
+            <div className="font-medium">{label}</div>
+            <p className="mt-1 text-xs text-stone-500">{hint}</p>
+          </button>
+        ))}
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {(
+          [
+            ['showTitle', 'Show title'],
+            ['showSubtitle', 'Show subtitle'],
+            ['showButton', 'Show button'],
+          ] as const
+        ).map(([key, label]) => (
+          <label key={key} className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(options[key])}
+              onChange={(e) =>
+                onChange(normalizePageHero({ ...options, [key]: e.target.checked }))
+              }
+            />
+            {label}
+          </label>
+        ))}
+      </div>
+      <Field label="Button label" htmlFor={`${idPrefix}-btn-label`}>
+        <Input
+          id={`${idPrefix}-btn-label`}
+          value={options.buttonLabel ?? ''}
+          onChange={(e) =>
+            onChange(normalizePageHero({ ...options, buttonLabel: e.target.value }))
+          }
+          placeholder="e.g. Shop the collection"
+        />
+      </Field>
+      <Field label="Button link" htmlFor={`${idPrefix}-btn-href`}>
+        <Input
+          id={`${idPrefix}-btn-href`}
+          value={options.buttonHref ?? ''}
+          onChange={(e) =>
+            onChange(normalizePageHero({ ...options, buttonHref: e.target.value }))
+          }
+          placeholder="#section-featured, /r/slug, or https://…"
+        />
+      </Field>
+    </div>
+  )
+}
 
 export function PagesPage() {
   const user = useAuthStore((s) => s.user)
@@ -450,6 +555,16 @@ export function PagesPage() {
             placeholder="Required when using Cover image style"
           />
         </Field>
+        <HeroLayoutControls
+          idPrefix="about"
+          hero={pages.about.hero}
+          onChange={(hero) =>
+            setPages((p) => ({
+              ...p,
+              about: normalizeAboutPage({ ...p.about, hero }),
+            }))
+          }
+        />
         <Field label="Body" htmlFor="about-body">
           <Textarea
             id="about-body"
@@ -557,6 +672,16 @@ export function PagesPage() {
             placeholder="Used when Cover image style is selected"
           />
         </Field>
+        <HeroLayoutControls
+          idPrefix="contact"
+          hero={pages.contact.hero}
+          onChange={(hero) =>
+            setPages((p) => ({
+              ...p,
+              contact: normalizeContactPage({ ...p.contact, hero }),
+            }))
+          }
+        />
         <div className="grid gap-3 sm:grid-cols-2">
           {(
             [

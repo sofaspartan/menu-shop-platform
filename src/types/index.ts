@@ -25,6 +25,21 @@ export type StorefrontWidth = 'margined' | 'full'
 /** Page top: cover image band, or simple title + subtitle (no image). */
 export type PageHeaderStyle = 'cover' | 'simple'
 
+export type CoverHeroHeight = 'short' | 'tall'
+/** left = bottom-left; centerBottom = centered on bottom; centerMiddle = true center of hero */
+export type CoverHeroAlign = 'left' | 'centerBottom' | 'centerMiddle'
+
+/** Shared hero overlay controls for About / Contact (mirrors shop cover). */
+export interface PageHeroOptions {
+  height: CoverHeroHeight
+  align: CoverHeroAlign
+  showTitle: boolean
+  showSubtitle: boolean
+  showButton: boolean
+  buttonLabel?: string
+  buttonHref?: string
+}
+
 export interface StoreAboutPage {
   enabled: boolean
   headerStyle: PageHeaderStyle
@@ -32,6 +47,7 @@ export interface StoreAboutPage {
   /** Supporting line under the title (simple header) or under cover title. */
   subtitle?: string
   heroImageUrl?: string
+  hero: PageHeroOptions
   /** Plain text; blank lines become paragraphs. */
   body: string
 }
@@ -42,6 +58,7 @@ export interface StoreContactPage {
   title: string
   intro?: string
   heroImageUrl?: string
+  hero: PageHeroOptions
   showPhone: boolean
   phoneOverride?: string
   showEmail: boolean
@@ -64,10 +81,6 @@ export interface StoreFooter {
   /** Shop / About / Contact links when those pages are enabled. */
   showPageLinks: boolean
 }
-
-export type CoverHeroHeight = 'short' | 'tall'
-/** left = bottom-left; centerBottom = centered on bottom; centerMiddle = true center of hero */
-export type CoverHeroAlign = 'left' | 'centerBottom' | 'centerMiddle'
 
 /** Cover / hero band for retail (and optional restaurant) storefronts. */
 export interface StoreCoverIntro {
@@ -591,6 +604,34 @@ export const DEFAULT_STORE_FOOTER: StoreFooter = {
   showPageLinks: true,
 }
 
+export const DEFAULT_PAGE_HERO: PageHeroOptions = {
+  height: 'short',
+  align: 'left',
+  showTitle: true,
+  showSubtitle: true,
+  showButton: false,
+  buttonLabel: '',
+  buttonHref: '',
+}
+
+export function normalizePageHero(hero?: Partial<PageHeroOptions> | null): PageHeroOptions {
+  const rawAlign = hero?.align as string | undefined
+  return {
+    ...DEFAULT_PAGE_HERO,
+    ...hero,
+    height: hero?.height === 'tall' ? 'tall' : 'short',
+    align:
+      rawAlign === 'centerMiddle'
+        ? 'centerMiddle'
+        : rawAlign === 'centerBottom' || rawAlign === 'center'
+          ? 'centerBottom'
+          : 'left',
+    showTitle: hero?.showTitle ?? true,
+    showSubtitle: hero?.showSubtitle ?? true,
+    showButton: hero?.showButton ?? false,
+  }
+}
+
 export function normalizeCoverIntro(
   intro?: Partial<StoreCoverIntro> | null,
 ): StoreCoverIntro {
@@ -617,6 +658,7 @@ export const DEFAULT_STORE_PAGES: StorePages = {
     headerStyle: 'cover',
     title: 'About',
     subtitle: '',
+    hero: { ...DEFAULT_PAGE_HERO },
     body: '',
   },
   contact: {
@@ -624,6 +666,7 @@ export const DEFAULT_STORE_PAGES: StorePages = {
     headerStyle: 'simple',
     title: 'Contact',
     intro: '',
+    hero: { ...DEFAULT_PAGE_HERO },
     showPhone: true,
     showEmail: true,
     showAddress: true,
@@ -659,6 +702,7 @@ export function normalizeAboutPage(
     headerStyle: about?.headerStyle === 'simple' ? 'simple' : 'cover',
     title: about?.title ?? base.title,
     body: about?.body ?? '',
+    hero: normalizePageHero(about?.hero ?? base.hero),
   }
 }
 
@@ -672,14 +716,15 @@ export function normalizeContactPage(
     enabled: contact?.enabled ?? false,
     headerStyle: contact?.headerStyle === 'cover' ? 'cover' : 'simple',
     title: contact?.title ?? base.title,
+    hero: normalizePageHero(contact?.hero ?? base.hero),
   }
 }
 
 export function defaultStorePagesFor(kind: StoreKind): StorePages {
   if (kind !== 'retail') {
     return {
-      about: { ...DEFAULT_STORE_PAGES.about },
-      contact: { ...DEFAULT_STORE_PAGES.contact },
+      about: { ...DEFAULT_STORE_PAGES.about, hero: { ...DEFAULT_PAGE_HERO } },
+      contact: { ...DEFAULT_STORE_PAGES.contact, hero: { ...DEFAULT_PAGE_HERO } },
       coverIntro: { ...DEFAULT_COVER_INTRO },
       featuredEnabled: true,
       footer: { ...DEFAULT_STORE_FOOTER, enabled: false },
@@ -691,6 +736,7 @@ export function defaultStorePagesFor(kind: StoreKind): StorePages {
       headerStyle: 'cover',
       title: 'About',
       subtitle: 'Our story, materials, and craft.',
+      hero: { ...DEFAULT_PAGE_HERO },
       body: 'Tell your story — craft, materials, and what makes your shop unique.',
     },
     contact: {
@@ -698,6 +744,7 @@ export function defaultStorePagesFor(kind: StoreKind): StorePages {
       enabled: true,
       headerStyle: 'simple',
       intro: 'Questions about an order or a custom piece? Reach out anytime.',
+      hero: { ...DEFAULT_PAGE_HERO },
     },
     coverIntro: {
       ...DEFAULT_COVER_INTRO,

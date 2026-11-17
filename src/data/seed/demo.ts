@@ -99,11 +99,30 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     storefrontLayout: 'restaurant',
     storefrontWidth: 'margined',
     pages: {
-      about: { enabled: false, headerStyle: 'cover', title: 'About', body: '' },
+      about: {
+        enabled: false,
+        headerStyle: 'cover',
+        title: 'About',
+        hero: {
+          height: 'short',
+          align: 'left',
+          showTitle: true,
+          showSubtitle: true,
+          showButton: false,
+        },
+        body: '',
+      },
       contact: {
         enabled: false,
         headerStyle: 'simple',
         title: 'Contact',
+        hero: {
+          height: 'short',
+          align: 'left',
+          showTitle: true,
+          showSubtitle: true,
+          showButton: false,
+        },
         showPhone: true,
         showEmail: true,
         showAddress: true,
@@ -1231,7 +1250,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
   return {
-    version: 8,
+    version: 9,
     users: [
       {
         id: userId,

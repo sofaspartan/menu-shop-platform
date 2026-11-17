@@ -80,6 +80,7 @@ export function AboutPage() {
           subtitle={about.subtitle}
           headerStyle={about.headerStyle}
           heroImageUrl={about.heroImageUrl}
+          hero={about.hero}
           storefrontWidth={restaurant.storefrontWidth}
         />
 
