@@ -323,6 +323,7 @@ export function ItemCustomizer({
             <MenuItemImage
               src={selectedSrc}
               alt=""
+              storeKind={restaurant.storeKind}
               className="aspect-[4/3] w-full object-cover sm:aspect-square"
               fallbackClassName="aspect-[4/3] w-full sm:aspect-square"
             />
@@ -348,6 +349,7 @@ export function ItemCustomizer({
                     <MenuItemImage
                       src={src}
                       alt=""
+                      storeKind={restaurant.storeKind}
                       className="h-full w-full object-cover"
                       fallbackClassName="h-full w-full"
                     />

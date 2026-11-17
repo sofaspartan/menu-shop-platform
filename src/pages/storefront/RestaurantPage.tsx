@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import {
   Clock3,
   MapPin,
@@ -13,8 +13,16 @@ import {
 import type { MenuItem } from '@/types'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
 import { StorefrontNav } from '@/components/storefront/StorefrontNav'
+import { StorefrontFooter } from '@/components/storefront/StorefrontFooter'
 import { RetailShopView } from '@/components/storefront/RetailShopView'
 import { RetailBagFab } from '@/components/storefront/RetailBagFab'
+import {
+  HomeAboutTeaserSection,
+  HomeFeaturedSection,
+  HomeSplashSection,
+  isStoreHomeEnabled,
+  useHomeSections,
+} from '@/components/storefront/StoreHomeSections'
 import { ItemCustomizer } from '@/components/storefront/ItemCustomizer'
 import { BagDrawer } from '@/components/storefront/BagDrawer'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
@@ -33,12 +41,16 @@ import {
   isAcceptingOrders,
   isItemAvailableNow,
 } from '@/lib/scheduling'
+import { resolveListedPrice } from '@/lib/commerce'
 import { storeCopy } from '@/lib/storeCopy'
-import { formatMoney, formatPhone, cn } from '@/lib/utils'
+import { isStorefrontShopPath } from '@/lib/storefrontNav'
+import { formatPhone, cn } from '@/lib/utils'
 import { trackEvent } from '@/services/analyticsService'
+import { PriceDisplay } from '@/components/storefront/PriceDisplay'
 
 export function RestaurantPage() {
   const { slug, menuSlug } = useParams<{ slug: string; menuSlug?: string }>()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const { db, loading } = useDb()
   const previewEnabled = usePreviewStore((s) => s.enabled)
@@ -75,6 +87,14 @@ export function RestaurantPage() {
   const restaurant = useMemo(
     () => db?.restaurants.find((r) => r.slug === slug) ?? null,
     [db, slug],
+  )
+
+  const sales = useMemo(
+    () =>
+      db && restaurant
+        ? db.sales.filter((s) => s.restaurantId === restaurant.id)
+        : [],
+    [db, restaurant],
   )
 
   useEffect(() => {
@@ -197,10 +217,11 @@ export function RestaurantPage() {
   const featured = useMemo(() => {
     if (!db || !selectedMenu) return []
     return db.assignments
-      .filter((a) => a.menuId === selectedMenu.id && a.featured && a.visible)
+      .filter((a) => a.menuId === selectedMenu.id && a.visible)
       .map((a) => {
         const item = itemsById.get(a.itemId)
         if (!item || item.availability === 'hidden') return null
+        if (!(a.featured || item.featured)) return null
         return { assignment: a, item }
       })
       .filter(Boolean) as Array<{
@@ -208,6 +229,13 @@ export function RestaurantPage() {
       item: MenuItem
     }>
   }, [db, selectedMenu, itemsById])
+
+  const homeEnabled = isStoreHomeEnabled(restaurant)
+  const homeSections = useHomeSections(restaurant)
+  const onShopRoute =
+    Boolean(menuSlug) ||
+    (slug ? isStorefrontShopPath(location.pathname, slug) : false)
+  const showHomePage = Boolean(homeEnabled && restaurant && !onShopRoute)
 
   const restaurantLines = restaurant
     ? bagLines.filter((l) => l.restaurantId === restaurant.id)
@@ -279,20 +307,21 @@ export function RestaurantPage() {
           We couldn’t find a storefront at this link. Check the URL or explore a demo.
         </p>
         <Link to="/" className="mt-6">
-          <Button>Back to MenuShop</Button>
+          <Button>Back to home</Button>
         </Link>
       </div>
     )
   }
 
-  const accepting = isAcceptingOrders(restaurant, now)
-  const hoursSummary = formatHoursSummary(restaurant, now)
+  const store = restaurant
+  const accepting = isAcceptingOrders(store, now)
+  const hoursSummary = formatHoursSummary(store, now)
   const activeDietary = dietaryLabels.find((l) => l.id === dietaryFilter)
-  const showCover = restaurant.branding.coverDisplay !== 'none' && restaurant.coverImageUrl
-  const copy = storeCopy(restaurant.storeKind)
+  const showCover = store.branding.coverDisplay !== 'none' && store.coverImageUrl
+  const copy = storeCopy(store.storeKind)
   const isRetailLayout =
-    (restaurant.storefrontLayout ??
-      (restaurant.storeKind === 'retail' ? 'retail' : 'restaurant')) === 'retail'
+    (store.storefrontLayout ??
+      (store.storeKind === 'retail' ? 'retail' : 'restaurant')) === 'retail'
 
   if (isRetailLayout) {
     return (
@@ -308,6 +337,7 @@ export function RestaurantPage() {
           onOpenItem={(item, override) => openItem(item, override)}
           isItemOrderable={(item) => isItemOrderable(item, now)}
           unavailableLabel={unavailableLabel}
+          pageMode={showHomePage ? 'home' : 'shop'}
         />
         <RetailBagFab
           storeKind={restaurant.storeKind}
@@ -343,8 +373,152 @@ export function RestaurantPage() {
     )
   }
 
+  function renderHomeSection(section: (typeof homeSections)[number]) {
+    if (section.kind === 'splash') {
+      return (
+        <HomeSplashSection key={section.id} restaurant={store} section={section} />
+      )
+    }
+    if (section.kind === 'aboutTeaser') {
+      return (
+        <HomeAboutTeaserSection
+          key={section.id}
+          restaurant={store}
+          section={section}
+        />
+      )
+    }
+    if (section.kind === 'featured') {
+      return (
+        <HomeFeaturedSection
+          key={section.id}
+          restaurant={store}
+          section={section}
+          featured={featured}
+          onOpenItem={(item, override) => openItem(item, override)}
+        />
+      )
+    }
+    return null
+  }
+
+  const bagAndModals = (
+    <>
+      {bagCatchExpanded && bagCount > 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 p-4 sm:hidden">
+          <button
+            type="button"
+            data-bag-target
+            onClick={() => setBagOpen(true)}
+            className={cn(
+              'flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--sf-button)] px-5 py-4 text-[var(--sf-button-text)] shadow-lg',
+              bagPulseKey > 0 && 'bag-catch-pulse',
+            )}
+            key={`mobile-bag-full-${bagPulseKey}`}
+          >
+            <ShoppingBag className="h-5 w-5" />
+            <span className="font-medium">{copy.viewBag}</span>
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
+              {bagCount}
+            </span>
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          data-bag-target
+          onClick={() => setBagOpen(true)}
+          className={cn(
+            'fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-4 py-3 text-[var(--sf-button-text)] shadow-lg sm:hidden',
+            bagPulseKey > 0 && 'bag-catch-pulse',
+          )}
+          key={`mobile-bag-fab-${bagPulseKey}`}
+          aria-label={`Open ${copy.bagNoun}`}
+        >
+          <ShoppingBag className="h-5 w-5" />
+          <span className="font-medium">{copy.viewBag}</span>
+          {bagCount > 0 ? (
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
+              {bagCount}
+            </span>
+          ) : null}
+        </button>
+      )}
+
+      <button
+        type="button"
+        data-bag-target
+        onClick={() => setBagOpen(true)}
+        className={cn(
+          'fixed bottom-6 right-6 z-30 hidden items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-4 py-3 text-[var(--sf-button-text)] shadow-lg transition-transform hover:-translate-y-0.5 sm:inline-flex',
+          bagPulseKey > 0 && 'bag-catch-pulse',
+        )}
+        key={`desktop-bag-${bagPulseKey}`}
+        aria-label={`Open ${copy.bagNoun}`}
+      >
+        <ShoppingBag className="h-5 w-5" />
+        <span className="font-medium">{copy.viewBag}</span>
+        {bagCount > 0 ? (
+          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
+            {bagCount}
+          </span>
+        ) : null}
+      </button>
+
+      <FlyToBagOverlay />
+
+      <BagDrawer
+        open={bagOpen}
+        onClose={() => setBagOpen(false)}
+        restaurant={store}
+        onEditLine={(line) => {
+          const item = itemsById.get(line.itemId)
+          if (!item) return
+          setBagOpen(false)
+          openItem(item, undefined, line)
+        }}
+      />
+
+      <ItemCustomizer
+        open={Boolean(customizerItem)}
+        onClose={() => {
+          setCustomizerItem(null)
+          setEditingLine(null)
+        }}
+        restaurant={store}
+        item={customizerItem}
+        priceOverrideCents={priceOverride}
+        editingLine={editingLine}
+      />
+    </>
+  )
+
+  if (showHomePage) {
+    return (
+      <StorefrontShell branding={store.branding}>
+        <div className="sticky top-0 z-30 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 backdrop-blur">
+          <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
+            <StorefrontNav restaurant={store} />
+          </div>
+        </div>
+        {homeSections.map(renderHomeSection)}
+        <StorefrontFooter restaurant={store} />
+        {bagAndModals}
+      </StorefrontShell>
+    )
+  }
+
   return (
-    <StorefrontShell branding={restaurant.branding}>
+    <StorefrontShell branding={store.branding}>
+      {homeEnabled ? (
+        <div className="sticky top-0 z-30 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 backdrop-blur">
+          <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
+            <StorefrontNav restaurant={store} />
+          </div>
+        </div>
+      ) : null}
+
+      {!homeEnabled ? (
       <header className="relative">
         {showCover ? (
           <div
@@ -373,6 +547,7 @@ export function RestaurantPage() {
                   <MenuItemImage
                     src={restaurant.logoUrl}
                     alt=""
+                    storeKind={store.storeKind}
                     className="mt-1 h-16 w-16 shrink-0 rounded-[var(--sf-radius,12px)] border-2 border-white/80 object-cover shadow-lg sm:h-20 sm:w-20"
                     fallbackClassName="mt-1 h-16 w-16 shrink-0 rounded-[var(--sf-radius,12px)] border-2 border-white/80 bg-white/20 sm:h-20 sm:w-20"
                   />
@@ -446,10 +621,17 @@ export function RestaurantPage() {
           </div>
         </div>
       </header>
+      ) : null}
 
-      <div className="sticky top-0 z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur">
+      <div
+        id="section-catalog"
+        className={cn(
+          'sticky z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur',
+          homeEnabled ? 'top-[3.25rem]' : 'top-0',
+        )}
+      >
         <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
-          <StorefrontNav restaurant={restaurant} />
+          {!homeEnabled ? <StorefrontNav restaurant={store} /> : null}
           {menus.length > 1 ? (
             <div className="mb-3 flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {menus.map((menu) => {
@@ -581,7 +763,7 @@ export function RestaurantPage() {
           <EmptyState title={copy.noCatalogTitle} description={copy.noCatalogBody} />
         ) : (
           <>
-            {featured.length > 0 && !search && !dietaryFilter ? (
+            {featured.length > 0 && !homeEnabled && !search && !dietaryFilter ? (
               <section className="mb-10 animate-fade-up">
                 <div className="mb-5 border-b border-[color-mix(in_srgb,var(--sf-text)_14%,transparent)] pb-3">
                   <h2 className="font-display text-2xl font-semibold tracking-tight text-[var(--sf-text)] sm:text-[1.75rem]">
@@ -590,50 +772,78 @@ export function RestaurantPage() {
                 </div>
                 {isRetailLayout ? (
                   <ul className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4">
-                    {featured.map(({ item, assignment }) => (
+                    {featured.map(({ item, assignment }) => {
+                      const listed = resolveListedPrice(
+                        assignment.priceOverrideCents ?? item.basePriceCents,
+                        item.id,
+                        sales,
+                        undefined,
+                        item.salePriceCents,
+                      )
+                      return (
                       <li key={assignment.id}>
                         <button
                           type="button"
-                          onClick={() => openItem(item, assignment.priceOverrideCents)}
+                          onClick={() => openItem(item, listed.priceCents)}
                           className="w-full text-left transition-transform hover:-translate-y-0.5"
                         >
                           <MenuItemImage
                             src={item.imageUrl}
                             alt=""
+                            storeKind={store.storeKind}
                             className="aspect-square w-full rounded-[var(--sf-radius,12px)] object-cover"
                             fallbackClassName="aspect-square w-full rounded-[var(--sf-radius,12px)]"
                           />
                           <p className="mt-2.5 text-sm font-medium leading-snug text-[var(--sf-text)]">
                             {item.name}
                           </p>
-                          <p className="mt-0.5 text-sm font-semibold text-[var(--sf-primary)]">
-                            {formatMoney(assignment.priceOverrideCents ?? item.basePriceCents)}
-                          </p>
+                          <div className="mt-0.5">
+                            <PriceDisplay
+                              listPriceCents={listed.listPriceCents}
+                              priceCents={listed.priceCents}
+                              onSale={listed.onSale}
+                              size="sm"
+                            />
+                          </div>
                         </button>
                       </li>
-                    ))}
+                    )})}
                   </ul>
                 ) : (
                   <div className="flex gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {featured.map(({ item, assignment }) => (
+                    {featured.map(({ item, assignment }) => {
+                      const listed = resolveListedPrice(
+                        assignment.priceOverrideCents ?? item.basePriceCents,
+                        item.id,
+                        sales,
+                        undefined,
+                        item.salePriceCents,
+                      )
+                      return (
                       <button
                         key={assignment.id}
                         type="button"
-                        onClick={() => openItem(item, assignment.priceOverrideCents)}
+                        onClick={() => openItem(item, listed.priceCents)}
                         className="w-60 shrink-0 text-left transition-transform hover:-translate-y-0.5"
                       >
                         <MenuItemImage
                           src={item.imageUrl}
                           alt=""
+                            storeKind={store.storeKind}
                           className="mb-3 h-40 w-full rounded-[var(--sf-radius,12px)] object-cover"
                           fallbackClassName="mb-3 h-40 w-full rounded-[var(--sf-radius,12px)]"
                         />
                         <p className="font-medium text-[var(--sf-text)]">{item.name}</p>
-                        <p className="mt-0.5 text-sm font-semibold text-[var(--sf-primary)]">
-                          {formatMoney(assignment.priceOverrideCents ?? item.basePriceCents)}
-                        </p>
+                        <div className="mt-0.5">
+                          <PriceDisplay
+                            listPriceCents={listed.listPriceCents}
+                            priceCents={listed.priceCents}
+                            onSale={listed.onSale}
+                            size="sm"
+                          />
+                        </div>
                       </button>
-                    ))}
+                    )})}
                   </div>
                 )}
               </section>
@@ -662,13 +872,19 @@ export function RestaurantPage() {
                   <ul className="grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4">
                     {items.map(({ item, assignment }) => {
                       const available = isItemOrderable(item, now)
-                      const price = assignment.priceOverrideCents ?? item.basePriceCents
+                      const listed = resolveListedPrice(
+                        assignment.priceOverrideCents ?? item.basePriceCents,
+                        item.id,
+                        sales,
+                        undefined,
+                        item.salePriceCents,
+                      )
                       return (
                         <li key={assignment.id}>
                           <button
                             type="button"
                             disabled={!available}
-                            onClick={() => openItem(item, assignment.priceOverrideCents)}
+                            onClick={() => openItem(item, listed.priceCents)}
                             className={cn(
                               'w-full text-left transition-transform',
                               available
@@ -680,12 +896,17 @@ export function RestaurantPage() {
                               <MenuItemImage
                                 src={item.imageUrl}
                                 alt=""
+                            storeKind={store.storeKind}
                                 className="aspect-square w-full rounded-[var(--sf-radius,12px)] object-cover"
                                 fallbackClassName="aspect-square w-full rounded-[var(--sf-radius,12px)]"
                               />
                               {!available ? (
                                 <span className="absolute left-2 top-2">
                                   <Badge tone="warning">{unavailableLabel(item)}</Badge>
+                                </span>
+                              ) : listed.onSale ? (
+                                <span className="absolute left-2 top-2">
+                                  <Badge tone="accent">{listed.percentOff}% off</Badge>
                                 </span>
                               ) : null}
                             </div>
@@ -695,9 +916,14 @@ export function RestaurantPage() {
                             <p className="mt-0.5 line-clamp-2 text-xs text-[var(--sf-text)]/55">
                               {item.shortDescription}
                             </p>
-                            <p className="mt-1.5 text-sm font-semibold text-[var(--sf-primary)]">
-                              {formatMoney(price)}
-                            </p>
+                            <div className="mt-1.5">
+                              <PriceDisplay
+                                listPriceCents={listed.listPriceCents}
+                                priceCents={listed.priceCents}
+                                onSale={listed.onSale}
+                                size="sm"
+                              />
+                            </div>
                           </button>
                         </li>
                       )
@@ -707,7 +933,13 @@ export function RestaurantPage() {
                   <ul className="divide-y divide-stone-200/70">
                     {items.map(({ item, assignment }) => {
                       const available = isItemOrderable(item, now)
-                      const price = assignment.priceOverrideCents ?? item.basePriceCents
+                      const listed = resolveListedPrice(
+                        assignment.priceOverrideCents ?? item.basePriceCents,
+                        item.id,
+                        sales,
+                        undefined,
+                        item.salePriceCents,
+                      )
                       const labels = dietaryLabels.filter((l) =>
                         item.dietaryLabelIds.includes(l.id),
                       )
@@ -716,7 +948,7 @@ export function RestaurantPage() {
                           <button
                             type="button"
                             disabled={!available}
-                            onClick={() => openItem(item, assignment.priceOverrideCents)}
+                            onClick={() => openItem(item, listed.priceCents)}
                             className={cn(
                               'flex w-full gap-4 py-5 text-left transition-opacity',
                               available ? 'hover:opacity-90' : 'cursor-not-allowed opacity-55',
@@ -729,6 +961,8 @@ export function RestaurantPage() {
                                 </h3>
                                 {!available ? (
                                   <Badge tone="warning">{unavailableLabel(item)}</Badge>
+                                ) : listed.onSale ? (
+                                  <Badge tone="accent">{listed.percentOff}% off</Badge>
                                 ) : null}
                               </div>
                               <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-[var(--sf-text)]/65">
@@ -746,13 +980,19 @@ export function RestaurantPage() {
                                   ))}
                                 </div>
                               ) : null}
-                              <p className="mt-3 text-sm font-semibold text-[var(--sf-primary)]">
-                                {formatMoney(price)}
-                              </p>
+                              <div className="mt-3">
+                                <PriceDisplay
+                                  listPriceCents={listed.listPriceCents}
+                                  priceCents={listed.priceCents}
+                                  onSale={listed.onSale}
+                                  size="sm"
+                                />
+                              </div>
                             </div>
                             <MenuItemImage
                               src={item.imageUrl}
                               alt=""
+                            storeKind={store.storeKind}
                               className="h-24 w-24 shrink-0 rounded-[var(--sf-radius,12px)] object-cover sm:h-28 sm:w-28"
                               fallbackClassName="h-24 w-24 shrink-0 rounded-[var(--sf-radius,12px)] sm:h-28 sm:w-28"
                             />
@@ -768,92 +1008,8 @@ export function RestaurantPage() {
         )}
       </main>
 
-      {bagCatchExpanded && bagCount > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 z-30 p-4 sm:hidden">
-          <button
-            type="button"
-            data-bag-target
-            onClick={() => setBagOpen(true)}
-            className={cn(
-              'flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--sf-button)] px-5 py-4 text-[var(--sf-button-text)] shadow-lg',
-              bagPulseKey > 0 && 'bag-catch-pulse',
-            )}
-            key={`mobile-bag-full-${bagPulseKey}`}
-          >
-            <ShoppingBag className="h-5 w-5" />
-            <span className="font-medium">{copy.viewBag}</span>
-            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
-              {bagCount}
-            </span>
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          data-bag-target
-          onClick={() => setBagOpen(true)}
-          className={cn(
-            'fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-4 py-3 text-[var(--sf-button-text)] shadow-lg sm:hidden',
-            bagPulseKey > 0 && 'bag-catch-pulse',
-          )}
-          key={`mobile-bag-fab-${bagPulseKey}`}
-          aria-label={`Open ${copy.bagNoun}`}
-        >
-          <ShoppingBag className="h-5 w-5" />
-          <span className="font-medium">{copy.viewBag}</span>
-          {bagCount > 0 ? (
-            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
-              {bagCount}
-            </span>
-          ) : null}
-        </button>
-      )}
-
-      <button
-        type="button"
-        data-bag-target
-        onClick={() => setBagOpen(true)}
-        className={cn(
-          'fixed bottom-6 right-6 z-30 hidden items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-4 py-3 text-[var(--sf-button-text)] shadow-lg transition-transform hover:-translate-y-0.5 sm:inline-flex',
-          bagPulseKey > 0 && 'bag-catch-pulse',
-        )}
-        key={`desktop-bag-${bagPulseKey}`}
-        aria-label={`Open ${copy.bagNoun}`}
-      >
-        <ShoppingBag className="h-5 w-5" />
-        <span className="font-medium">{copy.viewBag}</span>
-        {bagCount > 0 ? (
-          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
-            {bagCount}
-          </span>
-        ) : null}
-      </button>
-
-      <FlyToBagOverlay />
-
-      <BagDrawer
-        open={bagOpen}
-        onClose={() => setBagOpen(false)}
-        restaurant={restaurant}
-        onEditLine={(line) => {
-          const item = itemsById.get(line.itemId)
-          if (!item) return
-          setBagOpen(false)
-          openItem(item, undefined, line)
-        }}
-      />
-
-      <ItemCustomizer
-        open={Boolean(customizerItem)}
-        onClose={() => {
-          setCustomizerItem(null)
-          setEditingLine(null)
-        }}
-        restaurant={restaurant}
-        item={customizerItem}
-        priceOverrideCents={priceOverride}
-        editingLine={editingLine}
-      />
+      <StorefrontFooter restaurant={store} />
+      {bagAndModals}
     </StorefrontShell>
   )
 }
@@ -863,6 +1019,7 @@ function isItemOrderable(item: MenuItem, at: Date) {
 }
 
 function unavailableLabel(item: MenuItem) {
+  if (item.trackInventory && (item.stockQty ?? 0) <= 0) return 'Sold out'
   switch (item.availability) {
     case 'sold_out':
       return 'Sold out'

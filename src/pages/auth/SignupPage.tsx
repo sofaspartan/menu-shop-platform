@@ -26,7 +26,7 @@ export function SignupPage() {
   }
 
   return (
-    <AuthShell title="Create your account" subtitle="Manage multiple restaurants from one place.">
+    <AuthShell title="Create your account" subtitle="Manage restaurants and retail stores from one place.">
       <form onSubmit={onSubmit} className="space-y-4">
         <Field label="Name" htmlFor="name">
           <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />

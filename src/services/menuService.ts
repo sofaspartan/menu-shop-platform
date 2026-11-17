@@ -214,6 +214,10 @@ export async function createItem(
     shortDescription: input.shortDescription || '',
     fullDescription: input.fullDescription,
     basePriceCents: input.basePriceCents,
+    salePriceCents:
+      input.salePriceCents != null && input.salePriceCents < input.basePriceCents
+        ? input.salePriceCents
+        : undefined,
     itemType: input.itemType || 'food',
     sku: input.sku,
     dietaryLabelIds: input.dietaryLabelIds || [],
@@ -225,6 +229,8 @@ export async function createItem(
     schedule: input.schedule,
     notesEnabled: input.notesEnabled,
     isCombo: input.isCombo ?? false,
+    trackInventory: input.trackInventory,
+    stockQty: input.trackInventory ? (input.stockQty ?? 0) : undefined,
     createdAt: ts,
     updatedAt: ts,
   }
@@ -245,6 +251,15 @@ export async function updateItem(
     if (!item) throw new Error('Item not found.')
     const { id: _id, restaurantId: _rid, createdAt: _c, ...rest } = patch
     Object.assign(item, rest, { updatedAt: nowIso() })
+    // Keep menu-assignment featured flags in sync with the catalog item toggle.
+    if (typeof patch.featured === 'boolean') {
+      for (const a of d.assignments) {
+        if (a.itemId === itemId && a.restaurantId === restaurantId) {
+          a.featured = patch.featured
+          a.updatedAt = nowIso()
+        }
+      }
+    }
     updated = item
   })
   return updated!
@@ -399,10 +414,46 @@ export async function saveCombo(
       item.isCombo = true
       item.itemType = 'combo'
       item.basePriceCents = combo.basePriceCents
+      item.salePriceCents =
+        combo.salePriceCents != null && combo.salePriceCents < combo.basePriceCents
+          ? combo.salePriceCents
+          : undefined
       item.updatedAt = nowIso()
     }
   })
   return combo
+}
+
+export async function deleteModifierGroup(
+  userId: string,
+  restaurantId: string,
+  groupId: string,
+) {
+  await assertRestaurantAccess(userId, restaurantId, ['owner', 'administrator'])
+  await saveDb((d) => {
+    d.modifierGroups = d.modifierGroups.filter(
+      (g) => !(g.id === groupId && g.restaurantId === restaurantId),
+    )
+    d.itemModifiers = d.itemModifiers.filter(
+      (m) => !(m.modifierGroupId === groupId && m.restaurantId === restaurantId),
+    )
+  })
+}
+
+export async function deleteCombo(
+  userId: string,
+  restaurantId: string,
+  itemId: string,
+) {
+  await assertRestaurantAccess(userId, restaurantId, ['owner', 'administrator'])
+  await saveDb((d) => {
+    d.combos = d.combos.filter(
+      (c) => !(c.itemId === itemId && c.restaurantId === restaurantId),
+    )
+    d.items = d.items.filter((i) => !(i.id === itemId && i.restaurantId === restaurantId))
+    d.assignments = d.assignments.filter((a) => a.itemId !== itemId)
+    d.itemModifiers = d.itemModifiers.filter((m) => m.itemId !== itemId)
+  })
 }
 
 export async function updateItemAvailability(
@@ -412,6 +463,25 @@ export async function updateItemAvailability(
   availability: MenuItem['availability'],
 ) {
   return updateItem(userId, restaurantId, itemId, { availability })
+}
+
+/** Set absolute stock; re-opens sold-out items when restocked. */
+export async function setItemStock(
+  userId: string,
+  restaurantId: string,
+  itemId: string,
+  stockQty: number,
+  trackInventory = true,
+) {
+  const qty = Math.max(0, Math.floor(stockQty))
+  const patch: Partial<MenuItem> = {
+    trackInventory,
+    stockQty: trackInventory ? qty : undefined,
+  }
+  if (trackInventory) {
+    patch.availability = qty <= 0 ? 'sold_out' : 'available'
+  }
+  return updateItem(userId, restaurantId, itemId, patch)
 }
 
 export async function updateMenuSchedule(

@@ -51,6 +51,7 @@ export function isItemAvailableNow(item: MenuItem, at: Date = new Date()): boole
   if (item.availability === 'hidden') return false
   if (item.availability === 'sold_out') return false
   if (item.availability === 'temporarily_unavailable') return false
+  if (item.trackInventory && (item.stockQty ?? 0) <= 0) return false
   return isWithinSchedule(item.schedule, at)
 }
 

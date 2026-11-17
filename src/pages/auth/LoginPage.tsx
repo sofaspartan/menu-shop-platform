@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { PLATFORM_NAME } from '@/lib/platformBrand'
 import { Button } from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Input'
 import { useAuthStore } from '@/stores/authStore'
@@ -77,7 +78,7 @@ export function AuthShell({
     <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(ellipse_at_top,_#e8efeb_0%,_#f4f1ec_50%)] px-4 py-10">
       <div className="w-full max-w-md rounded-3xl border border-stone-200 bg-white p-8 shadow-sm animate-fade-up">
         <Link to="/" className="font-display text-2xl text-stone-900">
-          MenuShop
+          {PLATFORM_NAME}
         </Link>
         <h1 className="mt-6 font-display text-3xl">{title}</h1>
         <p className="mt-2 text-sm text-stone-500">{subtitle}</p>

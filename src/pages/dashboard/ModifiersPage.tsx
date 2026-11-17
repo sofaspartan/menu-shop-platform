@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { IconAction } from '@/components/ui/IconAction'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -8,7 +9,8 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input, Textarea, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ModalTabs, useModalTab } from '@/components/ui/Modal'
+import { storeCopy } from '@/lib/storeCopy'
 import { createId, formatMoney } from '@/lib/utils'
 import type { ModifierGroup, ModifierOption, ModifierSelectionMode } from '@/types'
 
@@ -62,14 +64,30 @@ export function ModifiersPage() {
   const user = useAuthStore((s) => s.user)
   const { db } = useDb()
   const [modalOpen, setModalOpen] = useState(false)
+  const [query, setQuery] = useState('')
   const [form, setForm] = useState<GroupForm>(emptyForm())
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [modalTab, setModalTab] = useModalTab<'group' | 'options' | 'assign'>(
+    'group',
+    modalOpen,
+  )
 
   const groups = useMemo(() => {
     if (!db || !current) return []
     return db.modifierGroups.filter((g) => g.restaurantId === current.id)
   }, [db, current])
+
+  const filteredGroups = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return groups
+    return groups.filter(
+      (g) =>
+        g.name.toLowerCase().includes(q) ||
+        (g.description || '').toLowerCase().includes(q) ||
+        g.options.some((o) => o.name.toLowerCase().includes(q)),
+    )
+  }, [groups, query])
 
   const items = useMemo(() => {
     if (!db || !current) return []
@@ -84,7 +102,11 @@ export function ModifiersPage() {
   }, [db, current])
 
   if (!current || !user) {
-    return <p className="text-sm text-stone-500">Select a restaurant to manage modifiers.</p>
+    return (
+      <p className="text-sm text-stone-500">
+        {storeCopy(current?.storeKind).selectStoreToManage('modifiers')}
+      </p>
+    )
   }
 
   function openCreate() {
@@ -174,6 +196,26 @@ export function ModifiersPage() {
     }
   }
 
+  async function removeGroup(group: ModifierGroup) {
+    if (!user || !current) return
+    if (
+      !window.confirm(
+        `Delete modifier “${group.name}”? It will be removed from all assigned items.`,
+      )
+    ) {
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await menuService.deleteModifierGroup(user.id, current.id, group.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete modifier')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="space-y-6 animate-fade-up">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -188,16 +230,26 @@ export function ModifiersPage() {
         </Button>
       </div>
 
-      {groups.length === 0 ? (
+      <div className="relative max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+        <Input
+          className="pl-9"
+          placeholder="Search modifiers…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+
+      {filteredGroups.length === 0 ? (
         <EmptyState
-          title="No modifier groups"
+          title={query ? 'No matching modifiers' : 'No modifier groups'}
           description="Create size, add-on, or preparation choices customers can select."
-          actionLabel="Create group"
-          onAction={openCreate}
+          actionLabel={query ? undefined : 'Create group'}
+          onAction={query ? undefined : openCreate}
         />
       ) : (
         <div className="grid gap-3">
-          {groups.map((group) => {
+          {filteredGroups.map((group) => {
             const assigned = itemModifiers.filter((m) => m.modifierGroupId === group.id)
             return (
               <div key={group.id} className="rounded-2xl border border-stone-200 bg-white p-4">
@@ -236,9 +288,19 @@ export function ModifiersPage() {
                         : ''}
                     </p>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => openEdit(group)}>
-                    Edit
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <IconAction label="Edit modifier group" onClick={() => openEdit(group)}>
+                      <Pencil className="h-4 w-4" />
+                    </IconAction>
+                    <IconAction
+                      label="Delete modifier group"
+                      danger
+                      disabled={busy}
+                      onClick={() => void removeGroup(group)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </IconAction>
+                  </div>
                 </div>
               </div>
             )
@@ -251,8 +313,28 @@ export function ModifiersPage() {
         onClose={() => setModalOpen(false)}
         title={form.id ? 'Edit modifier group' : 'Create modifier group'}
         wide
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled={busy} onClick={() => void saveGroup()}>
+              {busy ? 'Saving…' : 'Save group'}
+            </Button>
+          </div>
+        }
       >
+        <ModalTabs
+          tabs={[
+            { id: 'group', label: 'Group' },
+            { id: 'options', label: 'Options' },
+            { id: 'assign', label: 'Assign' },
+          ]}
+          value={modalTab}
+          onChange={setModalTab}
+        />
         <div className="space-y-4">
+          {modalTab === 'group' ? (
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Name" htmlFor="mod-name">
               <Input
@@ -318,7 +400,9 @@ export function ModifiersPage() {
               Required
             </label>
           </div>
+          ) : null}
 
+          {modalTab === 'options' ? (
           <div>
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-sm font-medium">Options</h3>
@@ -402,9 +486,9 @@ export function ModifiersPage() {
                       />
                       Available
                     </label>
-                    <Button
-                      size="sm"
-                      variant="ghost"
+                    <IconAction
+                      label="Remove option"
+                      danger
                       disabled={form.options.length === 1}
                       onClick={() =>
                         setForm((f) => ({
@@ -414,16 +498,18 @@ export function ModifiersPage() {
                       }
                     >
                       <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </IconAction>
                   </div>
                 </div>
               ))}
             </div>
           </div>
+          ) : null}
 
+          {modalTab === 'assign' ? (
           <div>
             <p className="mb-2 text-sm font-medium text-stone-700">Assign to items</p>
-            <div className="grid max-h-48 gap-2 overflow-y-auto sm:grid-cols-2">
+            <div className="grid max-h-64 gap-2 overflow-y-auto sm:grid-cols-2">
               {items.map((item) => {
                 const checked = form.assignedItemIds.includes(item.id)
                 return (
@@ -446,16 +532,9 @@ export function ModifiersPage() {
               })}
             </div>
           </div>
+          ) : null}
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button disabled={busy} onClick={() => void saveGroup()}>
-              {busy ? 'Saving…' : 'Save group'}
-            </Button>
-          </div>
         </div>
       </Modal>
     </div>

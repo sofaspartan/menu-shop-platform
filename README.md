@@ -1,8 +1,8 @@
-# MenuShop
+# Counter
 
-A modern, multi-tenant digital restaurant menu and ordering platform (proof of concept).
+A modern, multi-tenant digital storefront platform for **restaurants and retail shops** (proof of concept).
 
-Restaurant owners manage branded storefronts, menus, reusable item libraries, modifiers, combos, schedules, QR codes, orders, and analytics. Customers browse on mobile, customize items, check out with **simulated payment**, and track order progress.
+Owners manage branded storefronts, catalogs (menus or products), reusable item libraries, modifiers, bundles, schedules, QR codes, loyalty, coupons, stock, orders, displays, and analytics. Customers browse on mobile, customize items, check out with **simulated payment**, and track order progress.
 
 ## Quick start
 
@@ -17,7 +17,8 @@ Open [http://localhost:5173](http://localhost:5173).
 
 - **Email:** `owner@thecornertable.demo`
 - **Password:** `demo1234`
-- **Storefront:** [/r/the-corner-table](http://localhost:5173/r/the-corner-table)
+- **Restaurant demo:** [/r/the-corner-table](http://localhost:5173/r/the-corner-table)
+- **Retail demo:** [/r/haven-and-hide](http://localhost:5173/r/haven-and-hide)
 
 Reset demo data anytime from **Dashboard → Settings**.
 
@@ -41,8 +42,8 @@ Reset demo data anytime from **Dashboard → Settings**.
 
 ## Architecture
 
-- **Customer storefront** — `/r/:slug`, menu URLs, checkout, order tracker
-- **Restaurant dashboard** — menus, items, modifiers, combos, branding, QR, scheduling, orders, analytics
+- **Customer storefront** — `/r/:slug` (home), `/r/:slug/shop` (catalog), checkout, order tracker
+- **Owner dashboard** — catalogs, items, modifiers, combos/bundles, branding, pages, QR, scheduling, loyalty, coupons, stock, displays, orders, analytics
 - **Persistence** — `PersistenceAdapter` interface; default `localStorage` implementation (Netlify-friendly; swap for Blobs/Postgres later)
 - **Auth** — session tokens + Web Crypto password hashing (POC). Replace with Netlify Identity / Clerk / Auth0 for production
 - **Pricing** — order totals recalculated in `orderService` (never trust client totals)

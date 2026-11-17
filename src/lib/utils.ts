@@ -31,12 +31,31 @@ export function formatMoney(cents: number, currency = 'USD'): string {
   }).format(cents / 100)
 }
 
+export function digitsOnly(value: string): string {
+  return value.replace(/\D/g, '')
+}
+
+/** Normalize to a comparable phone key (last 10 digits when longer). */
+export function normalizePhoneKey(phone: string): string {
+  const digits = digitsOnly(phone)
+  if (digits.length > 10) return digits.slice(-10)
+  return digits
+}
+
 export function formatPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '')
+  const digits = normalizePhoneKey(phone)
   if (digits.length === 10) {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
   }
   return phone
+}
+
+export function phoneLoyaltyEmail(phone: string): string {
+  return `phone:${normalizePhoneKey(phone)}`
+}
+
+export function isPhoneLoyaltyEmail(email: string | undefined): boolean {
+  return Boolean(email?.startsWith('phone:'))
 }
 
 export function parseTimeToMinutes(hhmm: string): number {

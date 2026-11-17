@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import {
   CheckCircle2,
   Clock3,
+  Gift,
   MapPin,
   Package,
   Phone,
@@ -12,6 +13,7 @@ import {
 import type { Order, OrderStatus, Restaurant } from '@/types'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
 import { Button } from '@/components/ui/Button'
+import { LiveIndicator } from '@/components/ui/LiveIndicator'
 import { useDb } from '@/hooks/useDb'
 import {
   shortStatusLabel,
@@ -25,7 +27,7 @@ import { DEFAULT_BRANDING } from '@/types'
 export function OrderTrackerPage() {
   const { reference } = useParams<{ reference: string }>()
   const location = useLocation()
-  const { db, loading } = useDb()
+  const { db, loading, revision, lastSyncedAt } = useDb({ pollMs: 2000 })
   const justPlaced = Boolean(
     (location.state as { justPlaced?: boolean } | null)?.justPlaced,
   )
@@ -107,12 +109,17 @@ export function OrderTrackerPage() {
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
             <div>
               <p className="font-medium text-emerald-900">Order placed successfully</p>
-              <p className="text-sm text-emerald-800/80">
-                We’ll update this page as the kitchen progresses your order.
-              </p>
+              <p className="text-sm text-emerald-800/80">{copy.trackerLiveBlurb}</p>
             </div>
           </div>
         ) : null}
+
+        <div className="mb-4 flex justify-center">
+          <LiveIndicator
+            label="Live tracking"
+            pulseKey={`${revision}-${order.status}-${order.statusHistory.length}-${lastSyncedAt ?? 0}`}
+          />
+        </div>
 
         <div className="animate-fade-up text-center">
           <p className="text-sm text-[var(--sf-text)]/55">
@@ -134,6 +141,11 @@ export function OrderTrackerPage() {
           <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-[var(--sf-text)]/65">
             {subtitle}
           </p>
+          {isCancelled && order.cancellationNote ? (
+            <p className="mx-auto mt-4 max-w-sm rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm leading-relaxed text-red-800">
+              {order.cancellationNote}
+            </p>
+          ) : null}
 
           <div
             className="mt-8 flex gap-1.5"
@@ -243,10 +255,21 @@ export function OrderTrackerPage() {
           <h2 className="mb-4 text-lg font-medium">Order summary</h2>
           <ul className="space-y-3">
             {order.items.map((item) => (
-              <li key={item.id} className="flex justify-between gap-3 text-sm">
+              <li
+                key={item.id}
+                className={cn(
+                  'flex justify-between gap-3 text-sm',
+                  item.cancelled && 'opacity-70',
+                )}
+              >
                 <div className="min-w-0">
-                  <p className="font-medium">
+                  <p className={cn('font-medium', item.cancelled && 'line-through')}>
                     {item.quantity}× {item.name}
+                    {item.cancelled ? (
+                      <span className="ml-2 text-xs font-normal text-red-700 no-underline">
+                        Cancelled
+                      </span>
+                    ) : null}
                   </p>
                   {item.modifiers.length ? (
                     <p className="text-xs text-[var(--sf-text)]/55">
@@ -263,8 +286,13 @@ export function OrderTrackerPage() {
                       “{item.specialInstructions}”
                     </p>
                   ) : null}
+                  {item.cancelled && item.cancellationNote ? (
+                    <p className="mt-1 text-xs text-red-700">{item.cancellationNote}</p>
+                  ) : null}
                 </div>
-                <span className="shrink-0">{formatMoney(item.lineTotalCents)}</span>
+                <span className={cn('shrink-0', item.cancelled && 'line-through')}>
+                  {formatMoney(item.lineTotalCents)}
+                </span>
               </li>
             ))}
           </ul>
@@ -273,6 +301,12 @@ export function OrderTrackerPage() {
               <dt className="text-[var(--sf-text)]/60">Subtotal</dt>
               <dd>{formatMoney(order.pricing.subtotalCents)}</dd>
             </div>
+            {(order.pricing.discountCents ?? 0) > 0 ? (
+              <div className="flex justify-between text-emerald-700">
+                <dt>{order.pricing.discountLabel || 'Discount'}</dt>
+                <dd>−{formatMoney(order.pricing.discountCents)}</dd>
+              </div>
+            ) : null}
             <div className="flex justify-between">
               <dt className="text-[var(--sf-text)]/60">Tax</dt>
               <dd>{formatMoney(order.pricing.taxCents)}</dd>
@@ -292,6 +326,51 @@ export function OrderTrackerPage() {
               <dd>{formatMoney(order.pricing.totalCents)}</dd>
             </div>
           </dl>
+          {order.pricing.loyaltyPointsEarned || order.pricing.loyaltyPointsRedeemed ? (
+            <div className="mt-4 rounded-2xl bg-[color-mix(in_srgb,var(--sf-primary)_8%,white)] px-4 py-5 text-center text-[var(--sf-text)]">
+              {order.pricing.loyaltyPointsEarned ? (
+                <div>
+                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--sf-primary)_16%,white)] text-[var(--sf-primary)]">
+                    <Gift className="h-5 w-5" strokeWidth={1.75} />
+                  </div>
+                  <p className="mt-3 font-display text-4xl font-semibold tracking-tight text-[var(--sf-primary)]">
+                    +{order.pricing.loyaltyPointsEarned}
+                  </p>
+                  <p className="mt-1 text-sm font-medium">
+                    {order.pricing.loyaltyPointsEarned === 1
+                      ? 'point earned on this order'
+                      : 'points earned on this order'}
+                  </p>
+                  {order.customer.email || order.customer.phone ? (
+                    <p className="mt-2 text-sm leading-relaxed text-[var(--sf-text)]/70">
+                      Saved
+                      {order.customer.email
+                        ? ` for ${order.customer.email}`
+                        : ` to ${formatPhone(order.customer.phone)}`}
+                      .
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {order.pricing.loyaltyPointsRedeemed ? (
+                <p
+                  className={cn(
+                    'text-sm text-[var(--sf-text)]/75',
+                    order.pricing.loyaltyPointsEarned &&
+                      'mt-3 border-t border-[var(--sf-text)]/10 pt-3',
+                  )}
+                >
+                  Redeemed {order.pricing.loyaltyPointsRedeemed} points on a reward.
+                </p>
+              ) : null}
+              {restaurant?.loyalty?.enabled && order.loyaltyAccountId && db ? (
+                <LoyaltyBalanceNote
+                  accountId={order.loyaltyAccountId}
+                  restaurantId={restaurant.id}
+                />
+              ) : null}
+            </div>
+          ) : null}
           <p className="mt-3 text-xs text-[var(--sf-text)]/50">
             {order.payment.message} · Card ending {order.payment.simulatedCardLast4}
           </p>
@@ -303,12 +382,44 @@ export function OrderTrackerPage() {
               <Button variant="outline">Order again</Button>
             </Link>
             <Link to="/">
-              <Button variant="ghost">MenuShop home</Button>
+              <Button variant="ghost">Home</Button>
             </Link>
           </div>
         ) : null}
       </div>
     </StorefrontShell>
+  )
+}
+
+function LoyaltyBalanceNote({
+  accountId,
+  restaurantId,
+}: {
+  accountId: string
+  restaurantId: string
+}) {
+  const { db } = useDb()
+  const account = db?.loyaltyAccounts.find(
+    (a) => a.id === accountId && a.restaurantId === restaurantId,
+  )
+  if (!account) return null
+  const restaurant = db?.restaurants.find((r) => r.id === restaurantId)
+  const rewards = restaurant?.loyalty?.rewards ?? []
+  const next = [...rewards]
+    .sort((a, b) => a.pointsCost - b.pointsCost)
+    .find((r) => r.pointsCost > account.pointsBalance)
+  return (
+    <p className="mt-3 border-t border-[var(--sf-text)]/10 pt-3 text-sm text-[var(--sf-text)]/70">
+      Balance: <span className="font-semibold text-[var(--sf-text)]">{account.pointsBalance} points</span>
+      {next ? (
+        <>
+          {' '}
+          · {next.pointsCost - account.pointsBalance} more to unlock “{next.label}”
+        </>
+      ) : rewards.length ? (
+        <> · You’re ready to redeem a reward next time</>
+      ) : null}
+    </p>
   )
 }
 

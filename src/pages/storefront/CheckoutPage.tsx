@@ -3,12 +3,21 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, CreditCard } from 'lucide-react'
 import type { OrderType } from '@/types'
+import { normalizeLoyaltySettings } from '@/types'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
 import { PlacingOrderConfirm } from '@/components/storefront/PlacingOrderConfirm'
 import { Button } from '@/components/ui/Button'
-import { Field, Input, Textarea } from '@/components/ui/Input'
+import { Field, Input, Select, Textarea } from '@/components/ui/Input'
 import { useDb } from '@/hooks/useDb'
 import { useBagStore } from '@/stores/bagStore'
+import {
+  computeCouponDiscount,
+  computeLoyaltyDiscount,
+  isCouponActive,
+  nextRewardProgress,
+  normalizeCouponCode,
+  pointsEarnedForSubtotal,
+} from '@/lib/commerce'
 import { calculateOrderPricing } from '@/lib/pricing'
 import { storeCopy } from '@/lib/storeCopy'
 import { formatMoney, cn } from '@/lib/utils'
@@ -50,6 +59,9 @@ export function CheckoutPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [couponCode, setCouponCode] = useState('')
+  const [couponApplied, setCouponApplied] = useState('')
+  const [loyaltyRewardId, setLoyaltyRewardId] = useState('')
   /** Cleared on Go back so a late countdown tick cannot still place the order. */
   const confirmAllowedRef = useRef(false)
 
@@ -73,25 +85,123 @@ export function CheckoutPage() {
     }
   }, [restaurant])
 
+  const loyalty = useMemo(
+    () => normalizeLoyaltySettings(restaurant?.loyalty),
+    [restaurant],
+  )
+
+  const loyaltyAccount = useMemo(() => {
+    if (!db || !restaurant || !email.trim()) return null
+    const normalized = email.trim().toLowerCase()
+    return (
+      db.loyaltyAccounts.find(
+        (a) => a.restaurantId === restaurant.id && a.email === normalized,
+      ) ?? null
+    )
+  }, [db, restaurant, email])
+
+  const discountPreview = useMemo(() => {
+    if (!db || !restaurant) {
+      return { discountCents: 0, label: undefined as string | undefined, couponError: '' }
+    }
+    let discountCents = 0
+    let label: string | undefined
+    let couponError = ''
+
+    if (couponApplied) {
+      const coupon = db.coupons.find(
+        (c) =>
+          c.restaurantId === restaurant.id &&
+          c.code === normalizeCouponCode(couponApplied),
+      )
+      if (!coupon || !isCouponActive(coupon)) {
+        couponError = 'Coupon is invalid or expired.'
+      } else {
+        const result = computeCouponDiscount(
+          coupon,
+          lines.map((l) => ({
+            itemId: l.itemId,
+            lineTotalCents: l.unitPriceCents * l.quantity,
+          })),
+        )
+        if ('error' in result) couponError = result.error
+        else {
+          discountCents += result.discountCents
+          label = result.label
+        }
+      }
+    }
+
+    if (loyaltyRewardId && loyalty.enabled) {
+      const reward = loyalty.rewards.find((r) => r.id === loyaltyRewardId)
+      if (reward) {
+        const freeLine =
+          reward.type === 'free_item' && reward.itemId
+            ? lines.find((l) => l.itemId === reward.itemId)
+            : undefined
+        const result = computeLoyaltyDiscount(
+          reward,
+          Math.max(0, subtotal - discountCents),
+          freeLine ? freeLine.unitPriceCents * freeLine.quantity : undefined,
+        )
+        if (!('error' in result)) {
+          discountCents += result.discountCents
+          label = label ? `${label} + ${result.label}` : result.label
+        }
+      }
+    }
+
+    return { discountCents, label, couponError }
+  }, [db, restaurant, couponApplied, loyaltyRewardId, loyalty, lines, subtotal])
+
   const tipCents = useMemo(() => {
+    const tipBase = Math.max(0, subtotal - discountPreview.discountCents)
     if (tipPreset === 'custom') {
       const dollars = Number.parseFloat(customTip)
       if (Number.isNaN(dollars) || dollars < 0) return 0
       return Math.round(dollars * 100)
     }
     if (tipPreset === 0) return 0
-    return Math.round(subtotal * (tipPreset / 100))
-  }, [tipPreset, customTip, subtotal])
+    return Math.round(tipBase * (tipPreset / 100))
+  }, [tipPreset, customTip, subtotal, discountPreview.discountCents])
 
   const pricing = useMemo(() => {
     if (!restaurant) return null
+    const taxable = Math.max(0, subtotal - discountPreview.discountCents)
+    const earned =
+      loyalty.enabled && email.trim()
+        ? pointsEarnedForSubtotal(loyalty, taxable)
+        : 0
     return calculateOrderPricing(
       subtotal,
       restaurant.ordering,
       orderType,
       tipCents,
+      {
+        discountCents: discountPreview.discountCents,
+        discountLabel: discountPreview.label,
+        couponCode: couponApplied || undefined,
+        loyaltyPointsEarned: earned || undefined,
+        loyaltyRewardId: loyaltyRewardId || undefined,
+      },
     )
-  }, [restaurant, subtotal, orderType, tipCents])
+  }, [
+    restaurant,
+    subtotal,
+    orderType,
+    tipCents,
+    discountPreview,
+    loyalty,
+    email,
+    couponApplied,
+    loyaltyRewardId,
+  ])
+
+  const progress = useMemo(() => {
+    if (!loyalty.enabled) return null
+    const balance = loyaltyAccount?.pointsBalance ?? 0
+    return nextRewardProgress(loyalty, balance)
+  }, [loyalty, loyaltyAccount])
 
   function validateCheckout(): string | null {
     if (!restaurant) return 'Restaurant not found.'
@@ -163,6 +273,8 @@ export function CheckoutPage() {
         },
         tipCents,
         simulatedCardLast4: digits.slice(-4),
+        couponCode: couponApplied || undefined,
+        loyaltyRewardId: loyaltyRewardId || undefined,
         lines: lines.map((l) => ({
           itemId: l.itemId,
           quantity: l.quantity,
@@ -317,7 +429,15 @@ export function CheckoutPage() {
                     autoComplete="tel"
                   />
                 </Field>
-                <Field label="Email (optional)" htmlFor="email">
+                <Field
+                  label={loyalty.enabled ? 'Email (for loyalty points)' : 'Email (optional)'}
+                  htmlFor="email"
+                  hint={
+                    loyalty.enabled
+                      ? 'Use the same email next time to keep earning and redeeming points.'
+                      : undefined
+                  }
+                >
                   <Input
                     id="email"
                     type="email"
@@ -326,7 +446,98 @@ export function CheckoutPage() {
                     autoComplete="email"
                   />
                 </Field>
+                {loyalty.enabled && email.trim() ? (
+                  <div className="rounded-xl border border-stone-200 bg-[var(--sf-surface)] px-3 py-2 text-sm">
+                    {loyaltyAccount ? (
+                      <p>
+                        You have{' '}
+                        <span className="font-semibold">{loyaltyAccount.pointsBalance} points</span>
+                        {progress?.next ? (
+                          <>
+                            {' '}
+                            · {progress.pointsNeeded > 0
+                              ? `${progress.pointsNeeded} more to unlock “${progress.next.label}”`
+                              : `ready to redeem “${progress.next.label}”`}
+                          </>
+                        ) : null}
+                      </p>
+                    ) : (
+                      <p className="text-[var(--sf-text)]/70">
+                        New loyalty account — you’ll earn points on this order.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
               </section>
+
+              <section className="space-y-3">
+                <h2 className="text-lg font-medium">Coupon</h2>
+                <div className="flex gap-2">
+                  <Input
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value)}
+                    placeholder="Enter code"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setCouponApplied(normalizeCouponCode(couponCode))
+                      setError('')
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
+                {couponApplied ? (
+                  <p className="text-xs text-[var(--sf-text)]/60">
+                    Applied: <span className="font-mono font-medium">{couponApplied}</span>{' '}
+                    <button
+                      type="button"
+                      className="underline"
+                      onClick={() => {
+                        setCouponApplied('')
+                        setCouponCode('')
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </p>
+                ) : null}
+                {discountPreview.couponError ? (
+                  <p className="text-xs text-red-600">{discountPreview.couponError}</p>
+                ) : null}
+              </section>
+
+              {loyalty.enabled && loyalty.rewards.length > 0 ? (
+                <section className="space-y-3">
+                  <h2 className="text-lg font-medium">Redeem loyalty</h2>
+                  <Field label="Reward" htmlFor="loyalty-reward">
+                    <Select
+                      id="loyalty-reward"
+                      value={loyaltyRewardId}
+                      onChange={(e) => setLoyaltyRewardId(e.target.value)}
+                    >
+                      <option value="">No reward</option>
+                      {loyalty.rewards.map((reward) => {
+                        const affordable =
+                          (loyaltyAccount?.pointsBalance ?? 0) >= reward.pointsCost
+                        return (
+                          <option
+                            key={reward.id}
+                            value={reward.id}
+                            disabled={!affordable || !email.trim()}
+                          >
+                            {reward.label} · {reward.pointsCost} pts
+                            {!affordable ? ' (need more points)' : ''}
+                          </option>
+                        )
+                      })}
+                    </Select>
+                  </Field>
+                </section>
+              ) : null}
 
               {orderType === 'delivery' ? (
                 <section className="space-y-3">
@@ -548,6 +759,12 @@ export function CheckoutPage() {
                     <dt className="text-[var(--sf-text)]/60">Subtotal</dt>
                     <dd>{formatMoney(pricing.subtotalCents)}</dd>
                   </div>
+                  {pricing.discountCents > 0 ? (
+                    <div className="flex justify-between text-emerald-700">
+                      <dt>{pricing.discountLabel || 'Discount'}</dt>
+                      <dd>−{formatMoney(pricing.discountCents)}</dd>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between">
                     <dt className="text-[var(--sf-text)]/60">
                       Tax ({pricing.taxRatePercent}%)
@@ -564,6 +781,12 @@ export function CheckoutPage() {
                     <dt className="text-[var(--sf-text)]/60">Tip</dt>
                     <dd>{formatMoney(pricing.tipCents)}</dd>
                   </div>
+                  {pricing.loyaltyPointsEarned ? (
+                    <div className="flex justify-between text-[var(--sf-primary)]">
+                      <dt>Points you’ll earn</dt>
+                      <dd>+{pricing.loyaltyPointsEarned}</dd>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between text-base font-semibold">
                     <dt>Total</dt>
                     <dd>{formatMoney(pricing.totalCents)}</dd>

@@ -1,7 +1,8 @@
-# MenuShop — Project Status
+# Counter — Project Status
 
 **Current phase:** Phase 9 (Polish) — proof-of-concept complete  
-**Last updated:** 2026-11-14
+**Last updated:** 2026-11-17
+**Product name:** Counter (restaurants + retail; formerly MenuShop in early scaffolding)
 
 ## Completed features
 

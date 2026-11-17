@@ -17,7 +17,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Plus, EyeOff, Eye, Trash2, Pencil } from 'lucide-react'
+import { GripVertical, Plus, EyeOff, Eye, Trash2, Pencil, Search, Unlink } from 'lucide-react'
+import { IconAction } from '@/components/ui/IconAction'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -28,6 +29,7 @@ import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Modal } from '@/components/ui/Modal'
 import { formatMoney } from '@/lib/utils'
+import { storeCopy } from '@/lib/storeCopy'
 import type { MenuSection } from '@/types'
 
 function SortableSection({
@@ -70,8 +72,10 @@ export function MenusPage() {
   const current = useRestaurantStore((s) => s.current())
   const user = useAuthStore((s) => s.user)
   const { db } = useDb()
+  const copy = storeCopy(current?.storeKind)
 
   const [selectedMenuId, setSelectedMenuId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [menuName, setMenuName] = useState('')
   const [menuDescription, setMenuDescription] = useState('')
@@ -90,7 +94,23 @@ export function MenusPage() {
       .sort((a, b) => a.sortOrder - b.sortOrder)
   }, [db, current])
 
-  const selectedMenu = menus.find((m) => m.id === selectedMenuId) ?? menus[0] ?? null
+  const filteredMenus = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return menus
+    return menus.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.description.toLowerCase().includes(q) ||
+        m.slug.toLowerCase().includes(q),
+    )
+  }, [menus, query])
+
+  const selectedMenu =
+    filteredMenus.find((m) => m.id === selectedMenuId) ??
+    menus.find((m) => m.id === selectedMenuId) ??
+    filteredMenus[0] ??
+    menus[0] ??
+    null
   const activeMenuId = selectedMenu?.id ?? null
 
   const sections = useMemo(() => {
@@ -118,7 +138,11 @@ export function MenusPage() {
   )
 
   if (!current || !user) {
-    return <p className="text-sm text-stone-500">Select a restaurant to manage menus.</p>
+    return (
+      <p className="text-sm text-stone-500">
+        {copy.selectStoreToManage(copy.catalogNounPlural.toLowerCase())}
+      </p>
+    )
   }
 
   async function createMenu() {
@@ -146,6 +170,28 @@ export function MenusPage() {
     await menuService.updateMenu(user.id, current.id, selectedMenu.id, {
       active: !selectedMenu.active,
     })
+  }
+
+  async function removeMenu() {
+    if (!user || !current || !selectedMenu) return
+    if (
+      !window.confirm(
+        `Delete “${selectedMenu.name}”? Sections and assignments for this ${copy.catalogNoun} will be removed.`,
+      )
+    ) {
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      const id = selectedMenu.id
+      await menuService.deleteMenu(user.id, current.id, id)
+      setSelectedMenuId(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Could not delete ${copy.catalogNoun}`)
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function addSection() {
@@ -210,11 +256,15 @@ export function MenusPage() {
   if (menus.length === 0) {
     return (
       <div className="space-y-6 animate-fade-up">
-        <h1 className="font-display text-3xl">Menus</h1>
+        <h1 className="font-display text-3xl">{copy.catalogNounPlural}</h1>
         <EmptyState
-          title="No menus yet"
-          description="Create a breakfast, lunch, dinner, or specialty menu for your restaurant."
-          actionLabel="Create menu"
+          title={`No ${copy.catalogNounPlural.toLowerCase()} yet`}
+          description={
+            copy.isRetail
+              ? `Create a catalog for your ${copy.storeNoun} — seasonal, featured, or everyday products.`
+              : `Create a breakfast, lunch, dinner, or specialty menu for your ${copy.storeNoun}.`
+          }
+          actionLabel={`Create ${copy.catalogNoun}`}
           onAction={() => setCreateOpen(true)}
         />
         <CreateMenuModal
@@ -227,6 +277,7 @@ export function MenusPage() {
           onSubmit={createMenu}
           busy={busy}
           error={error}
+          catalogNoun={copy.catalogNoun}
         />
       </div>
     )
@@ -236,34 +287,51 @@ export function MenusPage() {
     <div className="space-y-6 animate-fade-up">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl">Menus</h1>
+          <h1 className="font-display text-3xl">{copy.catalogNounPlural}</h1>
           <p className="mt-1 text-stone-500">
-            Organize sections and assign items from your library. Schedules are edited separately.
+            Organize sections and assign {copy.itemNounPlural.toLowerCase()} from your library.
+            Schedules are edited separately.
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4" /> New menu
+          <Plus className="h-4 w-4" /> New {copy.catalogNoun}
         </Button>
       </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
+      <div className="relative max-w-md">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+        <Input
+          className="pl-9"
+          placeholder={`Search ${copy.catalogNounPlural.toLowerCase()}…`}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+
       <div className="flex flex-wrap gap-2">
-        {menus.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            onClick={() => setSelectedMenuId(m.id)}
-            className={`rounded-full border px-3 py-1.5 text-sm ${
-              activeMenuId === m.id
-                ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white'
-                : 'border-stone-200 bg-white text-stone-700'
-            }`}
-          >
-            {m.name}
-            {!m.active ? ' (inactive)' : ''}
-          </button>
-        ))}
+        {filteredMenus.length === 0 ? (
+          <p className="text-sm text-stone-500">
+            No {copy.catalogNounPlural.toLowerCase()} match “{query.trim()}”.
+          </p>
+        ) : (
+          filteredMenus.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setSelectedMenuId(m.id)}
+              className={`rounded-full border px-3 py-1.5 text-sm ${
+                activeMenuId === m.id
+                  ? 'border-[var(--color-brand)] bg-[var(--color-brand)] text-white'
+                  : 'border-stone-200 bg-white text-stone-700'
+              }`}
+            >
+              {m.name}
+              {!m.active ? ' (inactive)' : ''}
+            </button>
+          ))
+        )}
       </div>
 
       {selectedMenu ? (
@@ -275,36 +343,45 @@ export function MenusPage() {
                 {selectedMenu.description || 'No description'}
               </p>
               <p className="mt-2 text-xs text-stone-500">
-                Tip: set when this menu appears under{' '}
+                Tip: set when this {copy.catalogNoun} appears under{' '}
                 <Link className="text-[var(--color-brand)] underline" to="/dashboard/scheduling">
                   Scheduling
                 </Link>
                 .
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-1">
               <Badge tone={selectedMenu.active ? 'success' : 'warning'}>
                 {selectedMenu.active ? 'Active' : 'Inactive'}
               </Badge>
               <Button variant="outline" size="sm" onClick={() => void toggleActive()}>
                 {selectedMenu.active ? 'Deactivate' : 'Activate'}
               </Button>
+              <IconAction
+                label={`Delete ${copy.catalogNoun}`}
+                danger
+                onClick={() => void removeMenu()}
+              >
+                <Trash2 className="h-4 w-4" />
+              </IconAction>
             </div>
           </div>
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-end gap-2">
-        <Field label="New section" htmlFor="section-name">
-          <Input
-            id="section-name"
-            value={sectionName}
-            onChange={(e) => setSectionName(e.target.value)}
-            placeholder="e.g. Starters"
-          />
-        </Field>
+      <div className="flex max-w-md flex-wrap items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <Field label="New section" htmlFor="section-name">
+            <Input
+              id="section-name"
+              value={sectionName}
+              onChange={(e) => setSectionName(e.target.value)}
+              placeholder="e.g. Starters"
+            />
+          </Field>
+        </div>
         <Button disabled={busy || !sectionName.trim()} onClick={() => void addSection()}>
-          Add section
+          <Plus className="h-4 w-4" /> Add section
         </Button>
       </div>
 
@@ -345,43 +422,38 @@ export function MenusPage() {
                       )}
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                      <IconAction
+                        label="Rename section"
                         onClick={() => {
                           setRenamingId(section.id)
                           setRenameValue(section.name)
                         }}
-                        aria-label="Rename section"
                       >
                         <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                      </IconAction>
+                      <IconAction
+                        label={section.hidden ? 'Show section' : 'Hide section'}
                         onClick={() =>
                           void menuService.updateSection(user.id, current.id, section.id, {
                             hidden: !section.hidden,
                           })
                         }
-                        aria-label={section.hidden ? 'Show section' : 'Hide section'}
                       >
                         {section.hidden ? (
                           <Eye className="h-4 w-4" />
                         ) : (
                           <EyeOff className="h-4 w-4" />
                         )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                      </IconAction>
+                      <IconAction
+                        label="Delete section"
+                        danger
                         onClick={() =>
                           void menuService.deleteSection(user.id, current.id, section.id)
                         }
-                        aria-label="Delete section"
                       >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
+                        <Trash2 className="h-4 w-4" />
+                      </IconAction>
                       <Button
                         size="sm"
                         variant="soft"
@@ -390,7 +462,7 @@ export function MenusPage() {
                           setAssignItemId('')
                         }}
                       >
-                        Assign item
+                        Assign {copy.itemNoun}
                       </Button>
                     </div>
                   </div>
@@ -410,15 +482,14 @@ export function MenusPage() {
                               {formatMoney(item.basePriceCents)}
                             </span>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
+                          <IconAction
+                            label={`Unassign ${copy.itemNoun}`}
                             onClick={() =>
                               void menuService.unassignItem(user.id, current.id, a.id)
                             }
                           >
-                            Unassign
-                          </Button>
+                            <Unlink className="h-4 w-4" />
+                          </IconAction>
                         </li>
                       )
                     })}
@@ -434,7 +505,9 @@ export function MenusPage() {
       </DndContext>
 
       {sections.length === 0 ? (
-        <p className="text-sm text-stone-500">Add a section to start assigning menu items.</p>
+        <p className="text-sm text-stone-500">
+          Add a section to start assigning {copy.itemNounPlural.toLowerCase()}.
+        </p>
       ) : null}
 
       <CreateMenuModal
@@ -447,22 +520,23 @@ export function MenusPage() {
         onSubmit={createMenu}
         busy={busy}
         error={error}
+        catalogNoun={copy.catalogNoun}
       />
 
       <Modal
         open={!!assignSectionId}
         onClose={() => setAssignSectionId(null)}
-        title="Assign item to section"
+        title={`Assign ${copy.itemNoun} to section`}
       >
         <div className="space-y-4">
-          <Field label="Item" htmlFor="assign-item">
+          <Field label={copy.itemNounTitle} htmlFor="assign-item">
             <Select
               id="assign-item"
               value={assignItemId}
               onChange={(e) => setAssignItemId(e.target.value)}
             >
-              <option value="">Select an item…</option>
-              <optgroup label="Unassigned to this menu">
+              <option value="">Select a {copy.itemNoun}…</option>
+              <optgroup label={`Unassigned to this ${copy.catalogNoun}`}>
                 {items
                   .filter((i) => !assignedItemIds.has(i.id))
                   .map((i) => (
@@ -471,11 +545,13 @@ export function MenusPage() {
                     </option>
                   ))}
               </optgroup>
-              <optgroup label="All items">
+              <optgroup label={`All ${copy.itemNounPlural.toLowerCase()}`}>
                 {items.map((i) => (
                   <option key={`all-${i.id}`} value={i.id}>
                     {i.name}
-                    {assignedItemIds.has(i.id) ? ' (already on menu)' : ''}
+                    {assignedItemIds.has(i.id)
+                      ? ` (already on ${copy.catalogNoun})`
+                      : ''}
                   </option>
                 ))}
               </optgroup>
@@ -505,6 +581,7 @@ function CreateMenuModal({
   onSubmit,
   busy,
   error,
+  catalogNoun,
 }: {
   open: boolean
   onClose: () => void
@@ -515,16 +592,17 @@ function CreateMenuModal({
   onSubmit: () => void
   busy: boolean
   error: string
+  catalogNoun: string
 }) {
   return (
-    <Modal open={open} onClose={onClose} title="Create menu">
+    <Modal open={open} onClose={onClose} title={`Create ${catalogNoun}`}>
       <div className="space-y-4">
         <Field label="Name" htmlFor="menu-name">
           <Input
             id="menu-name"
             value={name}
             onChange={(e) => onName(e.target.value)}
-            placeholder="Dinner"
+            placeholder={catalogNoun === 'catalog' ? 'Featured' : 'Dinner'}
             required
           />
         </Field>
@@ -533,7 +611,11 @@ function CreateMenuModal({
             id="menu-desc"
             value={description}
             onChange={(e) => onDescription(e.target.value)}
-            placeholder="Evening favorites and chef specials"
+            placeholder={
+              catalogNoun === 'catalog'
+                ? 'Seasonal picks and bestsellers'
+                : 'Evening favorites and chef specials'
+            }
           />
         </Field>
         {error ? <p className="text-sm text-red-600">{error}</p> : null}

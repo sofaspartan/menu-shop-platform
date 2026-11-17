@@ -13,6 +13,7 @@ export function storeCopy(kind: StoreKind = 'restaurant') {
     catalogNounTitle: retail ? 'Catalog' : 'Menu',
     catalogNounPlural: retail ? 'Catalogs' : 'Menus',
     itemNoun: retail ? 'product' : 'item',
+    itemNounTitle: retail ? 'Product' : 'Item',
     itemNounPlural: retail ? 'Products' : 'Items',
     itemLibrary: retail ? 'Product library' : 'Item library',
     bagNoun: retail ? 'cart' : 'bag',
@@ -23,14 +24,45 @@ export function storeCopy(kind: StoreKind = 'restaurant') {
     updateBag: retail ? 'Update cart' : 'Update bag',
     emptyBag: retail ? 'Your cart is empty' : 'Your bag is empty',
     comboNoun: retail ? 'bundle' : 'combo',
+    comboNounTitle: retail ? 'Bundle' : 'Combo',
     comboNounPlural: retail ? 'Bundles' : 'Combos',
-    modifiersNoun: 'Options',
+    modifiersNoun: 'Modifiers',
     browseCta: retail ? 'Browse catalog' : 'Browse menu',
     newStoreCta: retail ? '+ New store' : '+ New restaurant',
     createStoreTitle: retail ? 'Create a store' : 'Create a restaurant',
     estimatedReady: retail ? 'Estimated ready' : 'Estimated ready',
     estimatedPrepLabel: retail ? 'Fulfillment time (minutes)' : 'Prep time (minutes)',
     kitchenOrShop: retail ? 'shop' : 'kitchen',
+    bohNoun: retail ? 'Fulfillment display' : 'Kitchen display',
+    bohShort: retail ? 'Fulfillment' : 'Kitchen',
+    bohPrepVerb: retail ? 'Packing' : 'Preparing',
+    bohPrepAction: retail ? 'Start packing' : 'Start preparing',
+    bohReadyAction: retail ? 'Mark ready' : 'Mark ready',
+    bohAreaLabel: retail ? 'Fulfillment floor' : 'Back of house',
+    bohBoardBlurb: retail
+      ? 'Truly live fulfillment board for shop staff — new POS and online orders appear here automatically. Bump forward, move back, or recall completed tickets.'
+      : 'Truly live back-of-house board for kitchen staff — new POS and online orders appear here automatically. Bump forward, move back, or recall completed tickets.',
+    internalNotesPlaceholder: retail
+      ? 'Fulfillment notes, pickup reminders…'
+      : 'Kitchen notes, allergy reminders…',
+    specialInstructionsLabel: retail ? 'Customer note' : 'Special instructions',
+    selectStore: retail ? 'Select a store.' : 'Select a restaurant.',
+    selectStoreToManage: (what: string) =>
+      retail ? `Select a store to manage ${what}.` : `Select a restaurant to manage ${what}.`,
+    ordersSubtitle: retail
+      ? 'Accept, pack, and complete customer orders.'
+      : 'Accept, prepare, and complete customer orders.',
+    overviewToday: retail
+      ? 'Here’s what’s happening with your store today.'
+      : 'Here’s what’s happening with your restaurant today.',
+    trackerLiveBlurb: retail
+      ? 'This page updates live as the shop progresses your order — no refresh needed.'
+      : 'This page updates live as the kitchen progresses your order — no refresh needed.',
+    displayNoun: retail ? 'Store display' : 'Menu board',
+    displayNounPlural: retail ? 'Store displays' : 'Menu boards',
+    displayBoardLabel: retail ? 'Catalog board' : 'Menu board',
+    guestNoun: retail ? 'customer' : 'guest',
+    guestNounTitle: retail ? 'Customer' : 'Guest',
     /** Keep pickup; retail "delivery" is framed as shipping. */
     pickupLabel: retail ? 'Store pickup' : 'Pickup',
     shipOrDeliveryLabel: retail ? 'Shipping' : 'Delivery',
@@ -49,12 +81,14 @@ export function storeCopy(kind: StoreKind = 'restaurant') {
       if (orderType === 'delivery') {
         return retail ? 'Placing shipping order…' : 'Placing delivery order…'
       }
+      if (orderType === 'dine_in') return 'Sending to kitchen…'
       return retail ? 'Placing pickup order…' : 'Placing pickup order…'
     },
     estimatedEtaPrefix: (orderType: OrderType) => {
       if (orderType === 'delivery') {
         return retail ? 'Estimated delivery by' : 'Estimated arrival at'
       }
+      if (orderType === 'dine_in') return 'Estimated ready by'
       return retail ? 'Estimated ready for pickup by' : 'Estimated ready by'
     },
     noCatalogTitle: retail ? 'No catalogs available right now' : 'No menus available right now',
@@ -78,11 +112,16 @@ export function statusHeadlineFor(
     case 'preparing':
       return retail ? 'Packing order' : 'Preparing order'
     case 'ready':
-      return orderType === 'pickup' ? 'Ready for pickup' : 'Ready'
+      return orderType === 'pickup'
+        ? 'Ready for pickup'
+        : orderType === 'dine_in'
+          ? 'Ready to serve'
+          : 'Ready'
     case 'out_for_delivery':
       return retail ? 'Shipped' : 'Out for delivery'
     case 'completed':
       if (orderType === 'delivery') return 'Delivered'
+      if (orderType === 'dine_in') return 'Served'
       return 'Picked up'
     case 'cancelled':
       return 'Order cancelled'
@@ -129,6 +168,39 @@ export function statusSubtitleFor(
     default:
       return 'We’ll update this page as your order progresses.'
   }
+}
+
+/** Button labels when advancing an order from the dashboard. */
+export function statusActionLabel(
+  status: OrderStatus,
+  kind: StoreKind,
+): string {
+  const retail = kind === 'retail'
+  switch (status) {
+    case 'confirmed':
+      return 'Accept'
+    case 'preparing':
+      return retail ? 'Start packing' : 'Start preparing'
+    case 'ready':
+      return 'Mark ready'
+    case 'out_for_delivery':
+      return retail ? 'Mark shipped' : 'Mark out for delivery'
+    case 'completed':
+      return 'Complete'
+    case 'cancelled':
+      return 'Cancel order'
+    case 'received':
+      return 'Mark received'
+  }
+}
+
+/** Tab / badge label for a status in staff lists. */
+export function statusFilterLabel(
+  status: OrderStatus | 'all',
+  kind: StoreKind,
+): string {
+  if (status === 'all') return 'All'
+  return shortStatusLabel(status, kind, 'pickup')
 }
 
 export function shortStatusLabel(

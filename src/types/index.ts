@@ -1,4 +1,4 @@
-/** Core domain types for the MenuShop platform */
+/** Core domain types for the Counter platform */
 
 export type ID = string
 export type ISODateTime = string
@@ -6,13 +6,16 @@ export type CurrencyCents = number
 
 export type MembershipRole = 'owner' | 'administrator' | 'manager' | 'staff'
 
+/** POS floor staff (separate from dashboard account memberships). */
+export type EmployeeRole = 'manager' | 'server' | 'cashier' | 'kitchen' | 'host'
+
 export type ItemAvailability =
   | 'available'
   | 'temporarily_unavailable'
   | 'sold_out'
   | 'hidden'
 
-export type OrderType = 'pickup' | 'delivery'
+export type OrderType = 'pickup' | 'delivery' | 'dine_in'
 
 /** Vertical for a storefront: food service vs general retail. */
 export type StoreKind = 'restaurant' | 'retail'
@@ -78,8 +81,53 @@ export interface StoreFooter {
   companyName?: string
   /** Defaults to “© {year} {company}. All rights reserved.” when blank. */
   copyright?: string
-  /** Shop / About / Contact links when those pages are enabled. */
+  /** Shop / About / Contact / Home links when those pages are enabled. */
   showPageLinks: boolean
+  showLogo?: boolean
+  /** “Powered by Counter” credit. */
+  showPoweredBy?: boolean
+}
+
+/** Reorderable storefront home sections (root `/r/:slug`). */
+export type HomeSectionKind = 'splash' | 'aboutTeaser' | 'featured' | 'catalog'
+
+export type HomeSplashLayout = 'fullBleedCenter' | 'fullBleedBottom'
+export type HomeAboutLayout = 'splitImageRight' | 'splitImageLeft' | 'stacked'
+export type HomeFeaturedLayout = 'carousel' | 'grid'
+
+export interface HomeSection {
+  id: ID
+  kind: HomeSectionKind
+  enabled: boolean
+  sortOrder: number
+  /** Splash */
+  splashLayout?: HomeSplashLayout
+  logoStyle?: LogoStyle
+  showLogo?: boolean
+  showTitle?: boolean
+  showSubtitle?: boolean
+  title?: string
+  subtitle?: string
+  primaryButtonLabel?: string
+  primaryButtonHref?: string
+  secondaryButtonLabel?: string
+  secondaryButtonHref?: string
+  /** About teaser */
+  aboutLayout?: HomeAboutLayout
+  aboutTitle?: string
+  aboutBody?: string
+  aboutButtonLabel?: string
+  aboutImageUrl?: string
+  /** Featured */
+  featuredLayout?: HomeFeaturedLayout
+  /** Grid: how many items to show (carousel always shows one at a time). */
+  featuredCount?: number
+}
+
+export interface StoreHome {
+  /** When true, root storefront uses ordered home sections. */
+  enabled: boolean
+  sections: HomeSection[]
 }
 
 /** Cover / hero band for retail (and optional restaurant) storefronts. */
@@ -109,6 +157,8 @@ export interface StorePages {
   /** Show the featured product hero on retail catalogs. */
   featuredEnabled?: boolean
   footer?: StoreFooter
+  /** Optional reorderable homepage on `/r/:slug`. */
+  home?: StoreHome
 }
 
 export type OrderStatus =
@@ -221,6 +271,206 @@ export interface OrderingSettings {
   itemNotesEnabled: boolean
 }
 
+/** Earn/redeem rules for a store (restaurant or retail). */
+export type LoyaltyRewardType = 'percent_off' | 'amount_off' | 'free_item'
+
+export interface LoyaltyReward {
+  id: ID
+  type: LoyaltyRewardType
+  label: string
+  pointsCost: number
+  /** For percent_off */
+  percentOff?: number
+  maxDiscountCents?: number
+  /** For amount_off */
+  amountOffCents?: number
+  /** For free_item — catalog item id */
+  itemId?: ID
+}
+
+export interface LoyaltySettings {
+  enabled: boolean
+  /** Points earned per $1 of merchandise subtotal (before tax/fees/tip). */
+  pointsPerDollar: number
+  rewards: LoyaltyReward[]
+}
+
+export interface LoyaltyAccount extends Timestamps {
+  id: ID
+  restaurantId: ID
+  /** Lowercased email — guest checkout identity for this store. */
+  email: string
+  phone?: string
+  name?: string
+  pointsBalance: number
+  lifetimePoints: number
+}
+
+export interface LoyaltyLedgerEntry {
+  id: ID
+  restaurantId: ID
+  accountId: ID
+  orderId?: ID
+  delta: number
+  reason: string
+  balanceAfter: number
+  createdAt: ISODateTime
+}
+
+export type CouponType = 'percent_off' | 'amount_off'
+
+/**
+ * always = permanently redeemable while enabled (no auto-expire by date).
+ * fixed = one-time window between startsAt/endsAt (then auto-expires off, not deleted).
+ * weekly = repeats on selected days/times until endsAt campaign bound (then auto-expires).
+ */
+export type PromoScheduleMode = 'always' | 'fixed' | 'weekly'
+/** @deprecated Prefer PromoScheduleMode */
+export type SaleScheduleMode = PromoScheduleMode
+
+export interface Coupon extends Timestamps {
+  id: ID
+  restaurantId: ID
+  code: string
+  type: CouponType
+  percentOff?: number
+  amountOffCents?: number
+  minSubtotalCents?: number
+  maxDiscountCents?: number
+  /** Empty/undefined = entire order; otherwise only matching line items. */
+  itemIds?: ID[]
+  /**
+   * Owner enable switch. Past `endsAt` auto-sets this to false (record kept)
+   * for fixed/weekly. `always` never auto-expires by date.
+   */
+  active: boolean
+  startsAt?: ISODateTime
+  endsAt?: ISODateTime
+  /** Defaults to always when omitted (legacy coupons). */
+  scheduleMode?: PromoScheduleMode
+  daysOfWeek?: DayOfWeek[]
+  startTime?: string
+  endTime?: string
+  expiredAt?: ISODateTime
+  usageLimit?: number
+  usedCount: number
+}
+
+/** Percent-off promotion on specific items or the whole store. */
+export interface Sale extends Timestamps {
+  id: ID
+  restaurantId: ID
+  name: string
+  percentOff: number
+  /** Empty = storewide. */
+  itemIds: ID[]
+  /**
+   * Owner enable switch. Past `endsAt` auto-sets this to false (record kept).
+   * Weekly sales stay true between cycles so they come back next week.
+   */
+  active: boolean
+  /** Campaign / window window start (optional for open-ended weekly). */
+  startsAt?: ISODateTime
+  /** After this instant the sale auto-expires (active → false). */
+  endsAt?: ISODateTime
+  /** Defaults to fixed when omitted (legacy). Prefer always | fixed | weekly. */
+  scheduleMode?: PromoScheduleMode
+  /** For weekly: which days the sale is live (0=Sun … 6=Sat). */
+  daysOfWeek?: DayOfWeek[]
+  /** For weekly: local time window on those days (HH:mm). Defaults 00:00–23:59. */
+  startTime?: string
+  endTime?: string
+  /** Set when auto-expired; cleared if the owner reactivates. */
+  expiredAt?: ISODateTime
+}
+
+/** Sit-down dining: online + walk-in reservations. */
+export interface ReservationSettings {
+  enabled: boolean
+  /** Length of each bookable slot. */
+  slotMinutes: number
+  maxPartySize: number
+  /** How long a booking holds a table. */
+  durationMinutes: number
+  /** Minimum notice before a slot (minutes). */
+  minLeadMinutes: number
+  /** How far ahead guests can book (days). */
+  maxDaysAhead: number
+}
+
+export const DEFAULT_RESERVATION_SETTINGS: ReservationSettings = {
+  enabled: false,
+  slotMinutes: 30,
+  maxPartySize: 8,
+  durationMinutes: 90,
+  minLeadMinutes: 60,
+  maxDaysAhead: 30,
+}
+
+export function normalizeReservationSettings(
+  raw?: Partial<ReservationSettings> | null,
+): ReservationSettings {
+  return {
+    enabled: Boolean(raw?.enabled),
+    slotMinutes: Math.max(
+      15,
+      Math.min(180, raw?.slotMinutes ?? DEFAULT_RESERVATION_SETTINGS.slotMinutes),
+    ),
+    maxPartySize: Math.max(
+      1,
+      Math.min(24, raw?.maxPartySize ?? DEFAULT_RESERVATION_SETTINGS.maxPartySize),
+    ),
+    durationMinutes: Math.max(
+      30,
+      Math.min(240, raw?.durationMinutes ?? DEFAULT_RESERVATION_SETTINGS.durationMinutes),
+    ),
+    minLeadMinutes: Math.max(
+      0,
+      Math.min(24 * 60, raw?.minLeadMinutes ?? DEFAULT_RESERVATION_SETTINGS.minLeadMinutes),
+    ),
+    maxDaysAhead: Math.max(
+      1,
+      Math.min(180, raw?.maxDaysAhead ?? DEFAULT_RESERVATION_SETTINGS.maxDaysAhead),
+    ),
+  }
+}
+
+export interface DiningTable extends Timestamps {
+  id: ID
+  restaurantId: ID
+  name: string
+  seats: number
+  active: boolean
+  sortOrder: number
+}
+
+export type ReservationStatus =
+  | 'booked'
+  | 'seated'
+  | 'completed'
+  | 'cancelled'
+  | 'no_show'
+
+export type ReservationSource = 'online' | 'walk_in' | 'phone'
+
+export interface Reservation extends Timestamps {
+  id: ID
+  restaurantId: ID
+  /** Assigned table when confirmed / seated; may be empty for unassigned bookings. */
+  tableId?: ID
+  guestName: string
+  guestEmail?: string
+  guestPhone?: string
+  partySize: number
+  startAt: ISODateTime
+  endAt: ISODateTime
+  notes?: string
+  status: ReservationStatus
+  source: ReservationSource
+  /** Public confirmation code shown to the guest. */
+  confirmationCode: string
+}
+
 export interface Restaurant extends Timestamps {
   id: ID
   organizationId: ID
@@ -252,6 +502,9 @@ export interface Restaurant extends Timestamps {
   timezone: string
   branding: RestaurantBranding
   ordering: OrderingSettings
+  loyalty: LoyaltySettings
+  /** Table reservations — primarily for restaurant storeKind. */
+  reservations: ReservationSettings
   overlapBehavior: OverlapBehavior
   isDemo?: boolean
 }
@@ -311,6 +564,12 @@ export interface MenuItem extends Timestamps {
   shortDescription: string
   fullDescription?: string
   basePriceCents: CurrencyCents
+  /**
+   * Optional promotional price for this item/bundle.
+   * When set below basePriceCents, storefront shows it on sale
+   * (wins against weaker percent sales if cheaper).
+   */
+  salePriceCents?: CurrencyCents
   itemType: 'food' | 'drink' | 'combo' | 'product' | 'other'
   sku?: string
   dietaryLabelIds: ID[]
@@ -322,6 +581,13 @@ export interface MenuItem extends Timestamps {
   schedule?: ScheduleRule
   notesEnabled?: boolean
   isCombo: boolean
+  /**
+   * When true, `stockQty` is decremented on purchase.
+   * For retail this is units on hand; for restaurants it is typically
+   * prepared portions / servings available today.
+   */
+  trackInventory?: boolean
+  stockQty?: number
 }
 
 /** Assignment of a library item into a menu section (no duplication of the item) */
@@ -382,6 +648,8 @@ export interface ComboConfig {
   itemId: ID
   restaurantId: ID
   basePriceCents: CurrencyCents
+  /** Optional sale price mirrored onto the combo MenuItem. */
+  salePriceCents?: CurrencyCents
   componentGroups: ComboComponentGroup[]
 }
 
@@ -409,6 +677,162 @@ export interface QrCode extends Timestamps {
   scanCount: number
 }
 
+/**
+ * Digital board kinds:
+ * - branding: logo + title on a chosen background image
+ * - graphics: repeating image slideshow (fullscreen or framed with header/footer)
+ * - featured: catalog/product slides (auto from featured items, or manual pages)
+ * - menu: static above-counter ordering board (sections + prices + imagery)
+ * - orderStatus: customer-facing queue board (preparing / ready) — read-only
+ */
+export type DisplayKind =
+  | 'branding'
+  | 'graphics'
+  | 'featured'
+  | 'menu'
+  | 'orderStatus'
+
+/** @deprecated Prefer DisplayKind */
+export type DisplayMode = 'featured' | 'catalog' | 'mixed' | DisplayKind
+
+export type GraphicsChrome = 'fullscreen' | 'framed'
+export type FeaturedSource = 'auto' | 'manual'
+/** Auto featured boards: follow live daypart schedules, or pin specific menus. */
+export type FeaturedCatalogScope = 'daypart' | 'menus'
+/** Ordering menu board presentation. */
+export type MenuBoardLayout = 'cards' | 'columns'
+/**
+ * Ordering menu content scope:
+ * - daypart: sections from menus currently serving by schedule
+ * - custom: operator-picked menus and/or sections
+ */
+export type MenuCatalogScope = 'daypart' | 'custom'
+/** Branding sign presentation. */
+export type BrandingLayout = 'card' | 'fullbleed'
+/** Logo framing on displays / homepage heroes. */
+export type LogoStyle = 'roundedSquare' | 'natural'
+
+export interface DisplayGraphicSlide {
+  id: ID
+  imageUrl: string
+  title?: string
+  subtitle?: string
+  sortOrder: number
+}
+
+/** One page on a featured board — one or many items. */
+export interface DisplayItemSlide {
+  id: ID
+  title?: string
+  itemIds: ID[]
+  sortOrder: number
+}
+
+/** @deprecated Prefer DisplayGraphicSlide / DisplayItemSlide */
+export interface DisplayCustomSlide {
+  id: ID
+  title?: string
+  subtitle?: string
+  imageUrl?: string
+  sortOrder: number
+}
+
+/**
+ * URL-based digital menu board / store display.
+ * Open `/r/{storeSlug}/display/{display.slug}` on a TV; updates live from the DB.
+ */
+export interface Display extends Timestamps {
+  id: ID
+  restaurantId: ID
+  name: string
+  slug: string
+  active: boolean
+  kind: DisplayKind
+  slideDurationSec: number
+  showLogo: boolean
+  showStoreName: boolean
+  /** Header / overlay: Live badge. */
+  showLive: boolean
+  /** Header chrome: show the calendar date beside live + time. */
+  showDate: boolean
+  /** Header / overlay: clock. */
+  showTime: boolean
+  /**
+   * Card / framed layouts: show the top header row (logo, name, live/date/time).
+   * Full-bleed branding still respects showLive/showDate/showTime as an overlay.
+   */
+  showHeader: boolean
+  /** Logo framing: rounded square crop, or natural transparent wide logo. */
+  logoStyle: LogoStyle
+  headline?: string
+  tagline?: string
+
+  /** Customer order-status board: show preparing column. */
+  orderStatusShowPreparing?: boolean
+  /** Customer order-status board: show ready column. */
+  orderStatusShowReady?: boolean
+  /** Prefer guest name on tickets when available. */
+  orderStatusShowGuestName?: boolean
+
+  /** Branding board background (falls back to store cover). */
+  backgroundImageUrl?: string
+  /**
+   * Branding sign layout:
+   * - card: framed panel with title anchored toward the bottom (current look)
+   * - fullbleed: edge-to-edge image with logo + title centered
+   */
+  brandingLayout: BrandingLayout
+
+  /** Graphics slideshow chrome. */
+  graphicsChrome: GraphicsChrome
+  graphicSlides: DisplayGraphicSlide[]
+
+  /** Featured board: auto from catalog featured flags, or manual pages. */
+  featuredSource: FeaturedSource
+  /**
+   * Auto featured: `daypart` follows menus currently serving by schedule;
+   * `menus` pulls from the manually selected menuIds (breakfast, lunch, …).
+   */
+  featuredCatalogScope: FeaturedCatalogScope
+  /**
+   * Limit menu / featured boards to these menus.
+   * Featured + daypart / menu + daypart: ignored (live schedule wins).
+   * Featured + menus / menu + custom: empty = all active menus.
+   */
+  menuIds: ID[]
+  /**
+   * Ordering menu + custom: limit to these sections; empty = every section
+   * on the selected menus (or all active menus when menuIds is also empty).
+   * Ignored when menuCatalogScope is daypart.
+   */
+  sectionIds: ID[]
+  /** Ordering menu: follow live daypart or pick menus/sections manually. */
+  menuCatalogScope: MenuCatalogScope
+  showPrices: boolean
+  showSoldOut: boolean
+  /**
+   * Ordering menu board layout:
+   * - cards: visual section panels with optional imagery
+   * - columns: dense traditional listed menu (no cards)
+   */
+  menuLayout: MenuBoardLayout
+  /** Menu board (cards): show item imagery beside each offering. */
+  showItemImages: boolean
+  /** Auto mode: max items per rotating page. */
+  itemsPerAutoSlide: number
+  /**
+   * Featured board: show the slide title above the item(s)
+   * (e.g. “Featured drink”). Defaults on.
+   */
+  showFeaturedTitle: boolean
+  /** Manual mode pages. */
+  itemSlides: DisplayItemSlide[]
+
+  /** Legacy fields kept for migration from earlier drafts. */
+  mode?: DisplayMode
+  customSlides?: DisplayCustomSlide[]
+}
+
 export interface OrderCustomer {
   name: string
   phone: string
@@ -419,6 +843,9 @@ export interface OrderFulfillment {
   type: OrderType
   instructions?: string
   requestedTime?: ISODateTime
+  /** Set for dine-in POS tickets. */
+  tableId?: ID
+  tableName?: string
   address?: {
     line1: string
     line2?: string
@@ -426,6 +853,35 @@ export interface OrderFulfillment {
     state: string
     postalCode: string
   }
+}
+
+export interface Employee extends Timestamps {
+  id: ID
+  restaurantId: ID
+  name: string
+  email?: string
+  phone?: string
+  role: EmployeeRole
+  /** 4-digit POS clock PIN. */
+  pin: string
+  active: boolean
+  hourlyWageCents?: number
+}
+
+export interface TimeClockEntry extends Timestamps {
+  id: ID
+  restaurantId: ID
+  employeeId: ID
+  clockInAt: ISODateTime
+  clockOutAt?: ISODateTime
+}
+
+export interface CashDrawerEvent extends Timestamps {
+  id: ID
+  restaurantId: ID
+  employeeId?: ID
+  openedAt: ISODateTime
+  note?: string
 }
 
 export interface SelectedModifierSnapshot {
@@ -458,6 +914,9 @@ export interface OrderLineItem {
   modifiers: SelectedModifierSnapshot[]
   isCombo: boolean
   comboSelections?: ComboSelectionSnapshot[]
+  /** Staff cancelled this line; optional note is shown to the customer. */
+  cancelled?: boolean
+  cancellationNote?: string
 }
 
 export interface OrderStatusEvent {
@@ -469,11 +928,18 @@ export interface OrderStatusEvent {
 
 export interface OrderPricing {
   subtotalCents: CurrencyCents
+  /** Absolute discount applied to merchandise (coupons / loyalty). */
+  discountCents: CurrencyCents
+  discountLabel?: string
+  couponCode?: string
   taxCents: CurrencyCents
   deliveryFeeCents: CurrencyCents
   tipCents: CurrencyCents
   totalCents: CurrencyCents
   taxRatePercent: number
+  loyaltyPointsEarned?: number
+  loyaltyPointsRedeemed?: number
+  loyaltyRewardId?: ID
 }
 
 export interface Order extends Timestamps {
@@ -494,8 +960,11 @@ export interface Order extends Timestamps {
   }
   statusHistory: OrderStatusEvent[]
   internalNotes?: string
+  /** Optional reason shared with the customer when the order is cancelled. */
+  cancellationNote?: string
   estimatedReadyAt?: ISODateTime
   demoAutoAdvance?: boolean
+  loyaltyAccountId?: ID
 }
 
 export interface AnalyticsEvent {
@@ -534,8 +1003,18 @@ export interface AppDatabase {
   combos: ComboConfig[]
   dietaryLabels: DietaryLabel[]
   qrCodes: QrCode[]
+  displays: Display[]
   brandThemes: BrandTheme[]
   orders: Order[]
+  diningTables: DiningTable[]
+  reservations: Reservation[]
+  employees: Employee[]
+  timeClockEntries: TimeClockEntry[]
+  cashDrawerEvents: CashDrawerEvent[]
+  coupons: Coupon[]
+  sales: Sale[]
+  loyaltyAccounts: LoyaltyAccount[]
+  loyaltyLedger: LoyaltyLedgerEntry[]
   analyticsEvents: AnalyticsEvent[]
   sessions: AuthSession[]
   passwordResetTokens: Array<{
@@ -588,6 +1067,25 @@ export const DEFAULT_RETAIL_ORDERING: OrderingSettings = {
   tipPresetsPercent: [10, 15, 20],
 }
 
+export const DEFAULT_LOYALTY: LoyaltySettings = {
+  enabled: false,
+  pointsPerDollar: 1,
+  rewards: [],
+}
+
+export function normalizeLoyaltySettings(
+  loyalty?: Partial<LoyaltySettings> | null,
+): LoyaltySettings {
+  return {
+    enabled: loyalty?.enabled ?? DEFAULT_LOYALTY.enabled,
+    pointsPerDollar:
+      typeof loyalty?.pointsPerDollar === 'number' && loyalty.pointsPerDollar >= 0
+        ? loyalty.pointsPerDollar
+        : DEFAULT_LOYALTY.pointsPerDollar,
+    rewards: Array.isArray(loyalty?.rewards) ? loyalty.rewards : [],
+  }
+}
+
 export const DEFAULT_COVER_INTRO: StoreCoverIntro = {
   enabled: true,
   height: 'short',
@@ -605,6 +1103,8 @@ export const DEFAULT_STORE_FOOTER: StoreFooter = {
   companyName: '',
   copyright: '',
   showPageLinks: true,
+  showLogo: true,
+  showPoweredBy: true,
 }
 
 export const DEFAULT_PAGE_HERO: PageHeroOptions = {
@@ -691,6 +1191,112 @@ export function normalizeStoreFooter(footer?: Partial<StoreFooter> | null): Stor
     ...footer,
     enabled: footer?.enabled ?? DEFAULT_STORE_FOOTER.enabled,
     showPageLinks: footer?.showPageLinks ?? true,
+    showLogo: footer?.showLogo ?? true,
+    showPoweredBy: footer?.showPoweredBy ?? true,
+  }
+}
+
+export function defaultHomeSectionsFor(kind: StoreKind): HomeSection[] {
+  const retail = kind === 'retail'
+  return [
+    {
+      id: 'home_splash',
+      kind: 'splash',
+      enabled: true,
+      sortOrder: 0,
+      splashLayout: 'fullBleedCenter',
+      logoStyle: 'natural',
+      showLogo: true,
+      showTitle: true,
+      showSubtitle: true,
+      title: retail ? 'Welcome in' : 'Tonight’s table',
+      subtitle: retail
+        ? 'New arrivals and everyday essentials, curated for you.'
+        : 'Seasonal plates, craft drinks, and a warm welcome.',
+      primaryButtonLabel: retail ? 'Shop catalog' : 'View menu',
+      primaryButtonHref: 'shop',
+      secondaryButtonLabel: retail ? 'About us' : 'Reserve a table',
+      secondaryButtonHref: retail ? 'about' : 'reserve',
+    },
+    {
+      id: 'home_about',
+      kind: 'aboutTeaser',
+      enabled: true,
+      sortOrder: 1,
+      aboutLayout: retail ? 'splitImageRight' : 'splitImageLeft',
+      aboutTitle: retail ? 'Our craft' : 'Our kitchen',
+      aboutBody: retail
+        ? 'Materials, makers, and the story behind the shop.'
+        : 'From the pass to your table — our story, season by season.',
+      aboutButtonLabel: 'Read more',
+    },
+    {
+      id: 'home_featured',
+      kind: 'featured',
+      enabled: true,
+      sortOrder: 2,
+      featuredLayout: retail ? 'grid' : 'carousel',
+      featuredCount: retail ? 4 : 1,
+    },
+  ]
+}
+
+export function normalizeHomeSection(
+  section: Partial<HomeSection> & Pick<HomeSection, 'id' | 'kind'>,
+  index: number,
+): HomeSection {
+  return {
+    id: section.id,
+    kind: section.kind,
+    enabled: section.enabled !== false,
+    sortOrder: section.sortOrder ?? index,
+    splashLayout:
+      section.splashLayout === 'fullBleedBottom' ? 'fullBleedBottom' : 'fullBleedCenter',
+    logoStyle: section.logoStyle === 'roundedSquare' ? 'roundedSquare' : 'natural',
+    showLogo: section.showLogo !== false,
+    showTitle: section.showTitle !== false,
+    showSubtitle: section.showSubtitle !== false,
+    title: section.title,
+    subtitle: section.subtitle,
+    primaryButtonLabel: section.primaryButtonLabel,
+    primaryButtonHref: section.primaryButtonHref,
+    secondaryButtonLabel: section.secondaryButtonLabel,
+    secondaryButtonHref: section.secondaryButtonHref,
+    aboutLayout:
+      section.aboutLayout === 'splitImageLeft'
+        ? 'splitImageLeft'
+        : section.aboutLayout === 'stacked'
+          ? 'stacked'
+          : 'splitImageRight',
+    aboutTitle: section.aboutTitle,
+    aboutBody: section.aboutBody,
+    aboutButtonLabel: section.aboutButtonLabel,
+    aboutImageUrl: section.aboutImageUrl,
+    featuredLayout: section.featuredLayout === 'grid' ? 'grid' : 'carousel',
+    featuredCount: Math.max(1, Math.min(8, section.featuredCount ?? 4)),
+  }
+}
+
+export function normalizeStoreHome(
+  home: Partial<StoreHome> | null | undefined,
+  kind: StoreKind,
+): StoreHome {
+  const defaults = defaultHomeSectionsFor(kind)
+  if (!home?.sections?.length) {
+    return {
+      enabled: home?.enabled ?? false,
+      sections: defaults,
+    }
+  }
+  const sections = home.sections
+    .filter((s) => s && s.id && s.kind)
+    // Catalog lives on /shop now — drop legacy home catalog blocks.
+    .filter((s) => s.kind !== 'catalog')
+    .map((s, i) => normalizeHomeSection(s as HomeSection, i))
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  return {
+    enabled: home.enabled === true,
+    sections,
   }
 }
 
@@ -730,7 +1336,13 @@ export function defaultStorePagesFor(kind: StoreKind): StorePages {
       contact: { ...DEFAULT_STORE_PAGES.contact, hero: { ...DEFAULT_PAGE_HERO } },
       coverIntro: { ...DEFAULT_COVER_INTRO },
       featuredEnabled: true,
-      footer: { ...DEFAULT_STORE_FOOTER, enabled: false },
+      footer: {
+        ...DEFAULT_STORE_FOOTER,
+        enabled: true,
+        showLogo: true,
+        showPoweredBy: true,
+      },
+      home: { enabled: true, sections: defaultHomeSectionsFor('restaurant') },
     }
   }
   return {
@@ -760,7 +1372,10 @@ export function defaultStorePagesFor(kind: StoreKind): StorePages {
       ...DEFAULT_STORE_FOOTER,
       enabled: true,
       showPageLinks: true,
+      showLogo: true,
+      showPoweredBy: true,
     },
+    home: { enabled: true, sections: defaultHomeSectionsFor('retail') },
   }
 }
 

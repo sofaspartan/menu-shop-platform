@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Check, Pencil, Save, Trash2 } from 'lucide-react'
+import { IconAction } from '@/components/ui/IconAction'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { brandingStyleVars } from '@/lib/brandingCss'
+import { storeCopy } from '@/lib/storeCopy'
 import { cn } from '@/lib/utils'
 import { FONT_OPTIONS, type BrandTheme, type RestaurantBranding } from '@/types'
 
@@ -28,6 +30,7 @@ export function BrandingPage() {
   const load = useRestaurantStore((s) => s.load)
   const user = useAuthStore((s) => s.user)
   const { db } = useDb()
+  const copy = storeCopy(current?.storeKind)
   const [branding, setBranding] = useState<RestaurantBranding | null>(null)
   const [logoUrl, setLogoUrl] = useState('')
   const [coverImageUrl, setCoverImageUrl] = useState('')
@@ -59,7 +62,11 @@ export function BrandingPage() {
   }, [current])
 
   if (!current || !user || !branding) {
-    return <p className="text-sm text-stone-500">Select a restaurant to edit branding.</p>
+    return (
+      <p className="text-sm text-stone-500">
+        {copy.selectStoreToManage('branding').replace('manage ', 'edit ')}
+      </p>
+    )
   }
 
   function patch<K extends keyof RestaurantBranding>(key: K, value: RestaurantBranding[K]) {
@@ -243,34 +250,30 @@ export function BrandingPage() {
                 actionLabel="Apply"
                 onApply={() => applyBranding(theme.branding, null)}
                 footer={
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1">
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="soft"
                       disabled={busy}
                       onClick={() => void overwriteCustomLook(theme)}
                     >
                       Update
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
+                    <IconAction
+                      label={`Rename ${theme.name}`}
                       disabled={busy}
                       onClick={() => openSaveCustom(theme)}
-                      aria-label={`Rename ${theme.name}`}
                     >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-red-600 hover:bg-red-50"
+                      <Pencil className="h-4 w-4" />
+                    </IconAction>
+                    <IconAction
+                      label={`Delete ${theme.name}`}
+                      danger
                       disabled={busy}
                       onClick={() => void removeCustomLook(theme)}
-                      aria-label={`Delete ${theme.name}`}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                      <Trash2 className="h-4 w-4" />
+                    </IconAction>
                   </div>
                 }
               />
@@ -498,9 +501,11 @@ export function BrandingPage() {
                 }}
               >
                 <div style={{ fontFamily: 'var(--brand-heading)' }} className="font-semibold">
-                  Signature dish
+                  {copy.isRetail ? 'Featured product' : 'Signature dish'}
                 </div>
-                <p className="mt-1 text-sm opacity-70">A sample menu card with your styles.</p>
+                <p className="mt-1 text-sm opacity-70">
+                  A sample {copy.catalogNoun} card with your styles.
+                </p>
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-sm font-medium" style={{ color: 'var(--brand-accent)' }}>
                     $14.00
@@ -654,7 +659,9 @@ function ThemeCard({
           <div className="text-sm font-semibold" style={{ fontFamily: 'var(--brand-heading)' }}>
             Tonight’s special
           </div>
-          <p className="mt-1 text-xs opacity-70">Sample menu text in this theme’s type and color.</p>
+          <p className="mt-1 text-xs opacity-70">
+            Sample storefront text in this theme’s type and color.
+          </p>
           <div className="mt-3 flex items-center justify-between gap-2">
             <span className="text-sm font-semibold" style={{ color: 'var(--brand-accent)' }}>
               $18.00

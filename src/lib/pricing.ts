@@ -115,21 +115,40 @@ export function calculateLineUnitPrice(
 export function calculateOrderPricing(
   subtotalCents: CurrencyCents,
   settings: OrderingSettings,
-  orderType: 'pickup' | 'delivery',
+  orderType: 'pickup' | 'delivery' | 'dine_in',
   tipCents: CurrencyCents,
+  extras?: {
+    discountCents?: CurrencyCents
+    discountLabel?: string
+    couponCode?: string
+    loyaltyPointsEarned?: number
+    loyaltyPointsRedeemed?: number
+    loyaltyRewardId?: string
+  },
 ): OrderPricing {
-  const taxCents = Math.round(subtotalCents * (settings.taxRatePercent / 100))
+  const discountCents = Math.max(
+    0,
+    Math.min(extras?.discountCents ?? 0, subtotalCents),
+  )
+  const taxable = Math.max(0, subtotalCents - discountCents)
+  const taxCents = Math.round(taxable * (settings.taxRatePercent / 100))
   const deliveryFeeCents =
     orderType === 'delivery' ? settings.deliveryFeeCents : 0
-  const totalCents = subtotalCents + taxCents + deliveryFeeCents + tipCents
+  const totalCents = taxable + taxCents + deliveryFeeCents + tipCents
 
   return {
     subtotalCents,
+    discountCents,
+    discountLabel: extras?.discountLabel,
+    couponCode: extras?.couponCode,
     taxCents,
     deliveryFeeCents,
     tipCents,
     totalCents,
     taxRatePercent: settings.taxRatePercent,
+    loyaltyPointsEarned: extras?.loyaltyPointsEarned,
+    loyaltyPointsRedeemed: extras?.loyaltyPointsRedeemed,
+    loyaltyRewardId: extras?.loyaltyRewardId,
   }
 }
 
