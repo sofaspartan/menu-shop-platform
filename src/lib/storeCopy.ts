@@ -24,7 +24,7 @@ export function storeCopy(kind: StoreKind = 'restaurant') {
     emptyBag: retail ? 'Your cart is empty' : 'Your bag is empty',
     comboNoun: retail ? 'bundle' : 'combo',
     comboNounPlural: retail ? 'Bundles' : 'Combos',
-    modifiersNoun: 'Options',
+    modifiersNoun: 'Modifiers',
     browseCta: retail ? 'Browse catalog' : 'Browse menu',
     newStoreCta: retail ? '+ New store' : '+ New restaurant',
     createStoreTitle: retail ? 'Create a store' : 'Create a restaurant',

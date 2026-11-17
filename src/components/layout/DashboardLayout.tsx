@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
   ClipboardList,
@@ -36,7 +36,31 @@ type NavItem = {
 type NavGroup = {
   id: string
   label?: string
+  /** When true, section can expand/collapse in the sidebar. */
+  collapsible?: boolean
   items: NavItem[]
+}
+
+const NAV_OPEN_KEY = 'menushop:nav-open'
+
+type OpenSections = Record<string, boolean>
+
+function loadOpenSections(): OpenSections {
+  try {
+    const raw = localStorage.getItem(NAV_OPEN_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as OpenSections
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function pathInGroup(pathname: string, group: NavGroup): boolean {
+  return group.items.some((item) => {
+    if (item.end) return pathname === item.to
+    return pathname === item.to || pathname.startsWith(`${item.to}/`)
+  })
 }
 
 export function DashboardLayout() {
@@ -46,8 +70,10 @@ export function DashboardLayout() {
   const current = restaurants.find((r) => r.id === currentId) ?? null
   const copy = storeCopy(current?.storeKind)
   const navigate = useNavigate()
+  const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [switcherOpen, setSwitcherOpen] = useState(false)
+  const [openSections, setOpenSections] = useState<OpenSections>(() => loadOpenSections())
 
   const navGroups: NavGroup[] = useMemo(
     () => [
@@ -61,6 +87,7 @@ export function DashboardLayout() {
       {
         id: 'catalog',
         label: copy.catalogNounTitle,
+        collapsible: true,
         items: [
           { to: '/dashboard/menus', label: copy.catalogNounPlural, icon: Menu },
           { to: '/dashboard/items', label: copy.itemLibrary, icon: UtensilsCrossed },
@@ -72,6 +99,7 @@ export function DashboardLayout() {
       {
         id: 'marketing',
         label: 'Marketing',
+        collapsible: true,
         items: [
           { to: '/dashboard/promotions', label: 'Coupons & sales', icon: Percent },
           { to: '/dashboard/loyalty', label: 'Loyalty', icon: Gift },
@@ -82,6 +110,7 @@ export function DashboardLayout() {
       {
         id: 'storefront',
         label: 'Storefront',
+        collapsible: true,
         items: [
           { to: '/dashboard/branding', label: 'Branding', icon: Palette },
           { to: '/dashboard/pages', label: 'Pages & layout', icon: FileText },
@@ -97,9 +126,52 @@ export function DashboardLayout() {
     [copy],
   )
 
+  // Keep the section that owns the current route expanded.
+  useEffect(() => {
+    const active = navGroups.find(
+      (g) => g.collapsible && pathInGroup(location.pathname, g),
+    )
+    if (!active) return
+    setOpenSections((prev) => {
+      if (prev[active.id] === true) return prev
+      const next = { ...prev, [active.id]: true }
+      try {
+        localStorage.setItem(NAV_OPEN_KEY, JSON.stringify(next))
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }, [location.pathname, navGroups])
+
   useEffect(() => {
     if (user) void load(user.id)
   }, [user, load])
+
+  function isSectionOpen(group: NavGroup): boolean {
+    if (!group.collapsible) return true
+    if (openSections[group.id] !== undefined) return openSections[group.id]
+    // Default: open when the current route lives in this section.
+    return pathInGroup(location.pathname, group)
+  }
+
+  function toggleSection(groupId: string) {
+    setOpenSections((prev) => {
+      const currently =
+        prev[groupId] ??
+        pathInGroup(
+          location.pathname,
+          navGroups.find((g) => g.id === groupId) ?? { id: groupId, items: [] },
+        )
+      const next = { ...prev, [groupId]: !currently }
+      try {
+        localStorage.setItem(NAV_OPEN_KEY, JSON.stringify(next))
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }
 
   if (!user) return null
 
@@ -174,36 +246,59 @@ export function DashboardLayout() {
           ) : null}
         </div>
 
-        <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto pb-2">
-          {navGroups.map((group) => (
-            <div key={group.id}>
-              {group.label ? (
-                <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-400">
-                  {group.label}
-                </p>
-              ) : null}
-              <div className="space-y-0.5">
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    onClick={() => setMobileOpen(false)}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50',
-                        isActive &&
-                          'bg-[var(--color-brand-soft)] text-[var(--color-brand)]',
-                      )
-                    }
+        <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-2">
+          {navGroups.map((group) => {
+            const open = isSectionOpen(group)
+            return (
+              <div key={group.id}>
+                {group.collapsible && group.label ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(group.id)}
+                    aria-expanded={open}
+                    className="mb-1 flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left hover:bg-stone-50"
                   >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {item.label}
-                  </NavLink>
-                ))}
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-400">
+                      {group.label}
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        'h-3.5 w-3.5 text-stone-400 transition-transform duration-200',
+                        open ? 'rotate-0' : '-rotate-90',
+                      )}
+                    />
+                  </button>
+                ) : group.label ? (
+                  <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-400">
+                    {group.label}
+                  </p>
+                ) : null}
+
+                {open ? (
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        end={item.end}
+                        onClick={() => setMobileOpen(false)}
+                        className={({ isActive }) =>
+                          cn(
+                            'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-50',
+                            isActive &&
+                              'bg-[var(--color-brand-soft)] text-[var(--color-brand)]',
+                          )
+                        }
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {item.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </nav>
 
         <div className="mt-4 shrink-0 border-t border-stone-100 pt-4">
