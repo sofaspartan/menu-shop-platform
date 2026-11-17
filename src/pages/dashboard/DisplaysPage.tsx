@@ -8,6 +8,7 @@ import type {
   FeaturedCatalogScope,
   FeaturedSource,
   GraphicsChrome,
+  MenuBoardLayout,
 } from '@/types'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -112,15 +113,13 @@ export function DisplaysPage() {
       const created = await displayService.createDisplay(user.id, current.id, {
         name: name.trim(),
         kind: createKind,
-        headline: current.name,
+        headline: createKind === 'menu' ? 'Menu' : current.name,
         tagline:
           createKind === 'branding'
             ? `Welcome to ${current.name}`
             : createKind === 'featured'
               ? `Featured ${copy.itemNounPlural.toLowerCase()}`
-              : createKind === 'menu'
-                ? 'Order here'
-                : undefined,
+              : undefined,
         backgroundImageUrl: current.coverImageUrl,
       })
       setSelectedId(created.id)
@@ -367,12 +366,21 @@ export function DisplaysPage() {
                     ))}
                   </Select>
                 </Field>
-                <Field label="Headline" htmlFor="disp-headline">
+                <Field
+                  label={
+                    selected.kind === 'menu'
+                      ? 'Board title'
+                      : 'Headline'
+                  }
+                  htmlFor="disp-headline"
+                >
                   <Input
                     id="disp-headline"
                     value={selected.headline ?? ''}
                     onChange={(e) => void patchSelected({ headline: e.target.value })}
-                    placeholder={current.name}
+                    placeholder={
+                      selected.kind === 'menu' ? 'Menu' : current.name
+                    }
                   />
                 </Field>
                 <Field label="Tagline" htmlFor="disp-tagline">
@@ -435,11 +443,30 @@ export function DisplaysPage() {
                       Ordering {copy.catalogNoun.toLowerCase()} board
                     </h3>
                     <p className="mt-1 text-xs text-stone-500">
-                      Static above-counter layout with sections, prices, and item imagery —
-                      show everything, or pick specific {copy.catalogNounPlural.toLowerCase()}{' '}
-                      and sections (mains, drinks, etc.).
+                      Static above-counter board (no scrolling). Use visual cards when you
+                      have room, or a dense columned list for longer menus. Store name stays
+                      in the header — board title defaults to “Menu”.
                     </p>
                   </div>
+
+                  <Field label="Layout" htmlFor="disp-menu-layout">
+                    <Select
+                      id="disp-menu-layout"
+                      value={selected.menuLayout}
+                      onChange={(e) =>
+                        void patchSelected({
+                          menuLayout: e.target.value as MenuBoardLayout,
+                        })
+                      }
+                    >
+                      <option value="cards">
+                        Visual cards — imagery-friendly section panels
+                      </option>
+                      <option value="columns">
+                        Traditional columns — dense listed categories (no cards)
+                      </option>
+                    </Select>
+                  </Field>
 
                   <div className="flex flex-wrap gap-4">
                     <label className="flex items-center gap-2 text-sm text-stone-700">
@@ -452,16 +479,18 @@ export function DisplaysPage() {
                       />
                       Show prices
                     </label>
-                    <label className="flex items-center gap-2 text-sm text-stone-700">
-                      <input
-                        type="checkbox"
-                        checked={selected.showItemImages}
-                        onChange={(e) =>
-                          void patchSelected({ showItemImages: e.target.checked })
-                        }
-                      />
-                      Show imagery
-                    </label>
+                    {selected.menuLayout === 'cards' ? (
+                      <label className="flex items-center gap-2 text-sm text-stone-700">
+                        <input
+                          type="checkbox"
+                          checked={selected.showItemImages}
+                          onChange={(e) =>
+                            void patchSelected({ showItemImages: e.target.checked })
+                          }
+                        />
+                        Show imagery
+                      </label>
+                    ) : null}
                     <label className="flex items-center gap-2 text-sm text-stone-700">
                       <input
                         type="checkbox"

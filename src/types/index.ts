@@ -546,6 +546,8 @@ export type GraphicsChrome = 'fullscreen' | 'framed'
 export type FeaturedSource = 'auto' | 'manual'
 /** Auto featured boards: follow live daypart schedules, or pin specific menus. */
 export type FeaturedCatalogScope = 'daypart' | 'menus'
+/** Ordering menu board presentation. */
+export type MenuBoardLayout = 'cards' | 'columns'
 
 export interface DisplayGraphicSlide {
   id: ID
@@ -616,7 +618,13 @@ export interface Display extends Timestamps {
   sectionIds: ID[]
   showPrices: boolean
   showSoldOut: boolean
-  /** Menu board: show item imagery beside each offering. */
+  /**
+   * Ordering menu board layout:
+   * - cards: visual section panels with optional imagery
+   * - columns: dense traditional listed menu (no cards)
+   */
+  menuLayout: MenuBoardLayout
+  /** Menu board (cards): show item imagery beside each offering. */
   showItemImages: boolean
   /** Auto mode: max items per rotating page. */
   itemsPerAutoSlide: number

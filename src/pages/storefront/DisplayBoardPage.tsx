@@ -20,6 +20,20 @@ export function DisplayBoardPage() {
     return () => window.clearInterval(id)
   }, [])
 
+  // TV boards are fixed to the viewport — never scroll.
+  useEffect(() => {
+    const html = document.documentElement
+    const body = document.body
+    const prevHtml = html.style.overflow
+    const prevBody = body.style.overflow
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    return () => {
+      html.style.overflow = prevHtml
+      body.style.overflow = prevBody
+    }
+  }, [])
+
   const restaurant = useMemo(() => {
     if (!db || !slug) return null
     return db.restaurants.find((r) => r.slug === slug) ?? null
@@ -66,7 +80,7 @@ export function DisplayBoardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-stone-900 text-stone-300">
+      <div className="flex h-screen items-center justify-center overflow-hidden bg-stone-900 text-stone-300">
         Loading display…
       </div>
     )
@@ -74,7 +88,7 @@ export function DisplayBoardPage() {
 
   if (!restaurant || !display) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-2 bg-stone-900 px-6 text-center text-stone-200">
+      <div className="flex h-screen flex-col items-center justify-center gap-2 overflow-hidden bg-stone-900 px-6 text-center text-stone-200">
         <h1 className="font-display text-3xl">Display unavailable</h1>
         <p className="max-w-md text-stone-400">
           This board link is inactive or doesn’t exist. Check the URL in the dashboard
@@ -95,7 +109,7 @@ export function DisplayBoardPage() {
 
   return (
     <div
-      className="relative min-h-screen overflow-hidden text-[var(--brand-text)]"
+      className="relative flex h-screen max-h-screen flex-col overflow-hidden text-[var(--brand-text)]"
       style={{
         ...style,
         background:
@@ -106,7 +120,7 @@ export function DisplayBoardPage() {
       }}
     >
       {showChrome ? (
-        <header className="relative z-10 flex items-center justify-between gap-4 px-8 py-5">
+        <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 px-8 py-4">
           <div className="flex min-w-0 items-center gap-4">
             {display.showLogo && restaurant.logoUrl ? (
               <img
@@ -143,12 +157,12 @@ export function DisplayBoardPage() {
 
       <main
         className={cn(
-          'relative z-10 flex items-stretch',
+          'relative z-10 flex min-h-0 flex-1 items-stretch overflow-hidden',
           showChrome
             ? framedGraphics
-              ? 'min-h-[calc(100vh-8.5rem)] px-8 pb-3'
-              : 'min-h-[calc(100vh-6.5rem)] px-8 pb-8'
-            : 'min-h-screen',
+              ? 'px-8 pb-3'
+              : 'px-8 pb-6'
+            : '',
         )}
       >
         {slide ? (
@@ -157,6 +171,7 @@ export function DisplayBoardPage() {
             slide={slide}
             showPrices={display.showPrices}
             showItemImages={display.showItemImages}
+            menuLayout={display.menuLayout}
             surface={restaurant.branding.surfaceColor}
             fullscreenGraphic={!showChrome}
           />
@@ -226,12 +241,14 @@ function SlideView({
   slide,
   showPrices,
   showItemImages,
+  menuLayout,
   surface,
   fullscreenGraphic,
 }: {
   slide: BoardSlide
   showPrices: boolean
   showItemImages: boolean
+  menuLayout: 'cards' | 'columns'
   surface: string
   fullscreenGraphic: boolean
 }) {
@@ -241,6 +258,7 @@ function SlideView({
         slide={slide}
         showPrices={showPrices}
         showItemImages={showItemImages}
+        menuLayout={menuLayout}
         surface={surface}
       />
     )
@@ -436,86 +454,186 @@ function SlideView({
   )
 }
 
-/** Above-counter ordering board — sections with offerings, prices, and imagery. */
+/** Above-counter ordering board — visual cards or dense traditional columns. */
 function MenuBoardView({
   slide,
   showPrices,
   showItemImages,
+  menuLayout,
   surface,
 }: {
   slide: Extract<BoardSlide, { kind: 'menu' }>
   showPrices: boolean
   showItemImages: boolean
+  menuLayout: 'cards' | 'columns'
   surface: string
 }) {
   const sectionCount = slide.sections.length
+  const itemCount = slide.sections.reduce((n, s) => n + s.items.length, 0)
+  const dense = menuLayout === 'columns' || itemCount > 18
   const cols =
     sectionCount <= 1
       ? 'grid-cols-1 max-w-3xl mx-auto'
       : sectionCount === 2
-        ? 'grid-cols-1 lg:grid-cols-2'
+        ? 'grid-cols-2'
         : sectionCount === 3
-          ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
-          : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+          ? 'grid-cols-2 xl:grid-cols-3'
+          : 'grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+
+  if (menuLayout === 'columns') {
+    return (
+      <section
+        className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.5rem] px-5 py-4 animate-fade-up sm:px-7 sm:py-5"
+        style={{ backgroundColor: surface }}
+      >
+        {slide.title ? (
+          <h2
+            className="mb-3 shrink-0 text-2xl font-semibold tracking-tight sm:text-3xl"
+            style={{
+              fontFamily: 'var(--brand-heading)',
+              color: 'var(--brand-primary)',
+            }}
+          >
+            {slide.title}
+          </h2>
+        ) : null}
+        <div
+          className={cn(
+            'grid min-h-0 flex-1 content-start gap-x-8 gap-y-5 overflow-hidden',
+            cols,
+          )}
+        >
+          {slide.sections.map((section) => (
+            <div key={section.id} className="min-w-0 overflow-hidden">
+              <h3
+                className="mb-2 border-b pb-1.5 text-sm font-semibold uppercase tracking-[0.14em]"
+                style={{
+                  fontFamily: 'var(--brand-heading)',
+                  borderColor:
+                    'color-mix(in srgb, var(--brand-primary) 45%, transparent)',
+                  color: 'var(--brand-primary)',
+                }}
+              >
+                {section.name}
+              </h3>
+              <ul className="space-y-1.5">
+                {section.items.map((item) => (
+                  <li
+                    key={item.id}
+                    className={cn('min-w-0', item.soldOut && 'opacity-45')}
+                  >
+                    <div className="flex items-baseline gap-2">
+                      <span className="shrink-0 text-[15px] font-medium leading-snug">
+                        {item.name}
+                      </span>
+                      <span
+                        className="min-w-[1.5rem] flex-1 border-b border-dotted opacity-30"
+                        style={{
+                          borderColor: 'var(--brand-text)',
+                          marginBottom: '0.35rem',
+                        }}
+                        aria-hidden
+                      />
+                      {showPrices ? (
+                        <span className="shrink-0 text-[15px] font-semibold tabular-nums text-[var(--brand-primary)]">
+                          {formatMoney(item.priceCents)}
+                        </span>
+                      ) : null}
+                    </div>
+                    {item.description ? (
+                      <p className="mt-0.5 line-clamp-1 text-xs leading-snug opacity-55">
+                        {item.description}
+                      </p>
+                    ) : null}
+                    {item.soldOut ? (
+                      <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-700">
+                        Sold out
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section
-      className="flex flex-1 flex-col overflow-hidden rounded-[2rem] p-5 animate-fade-up sm:p-7"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2rem] p-5 animate-fade-up sm:p-6"
       style={{ backgroundColor: surface }}
     >
       {slide.title ? (
         <h2
-          className="mb-5 text-3xl font-semibold tracking-tight sm:text-4xl"
+          className="mb-4 shrink-0 text-3xl font-semibold tracking-tight sm:text-4xl"
           style={{ fontFamily: 'var(--brand-heading)', color: 'var(--brand-primary)' }}
         >
           {slide.title}
         </h2>
       ) : null}
-      <div className={cn('grid flex-1 gap-5 content-start', cols)}>
+      <div
+        className={cn(
+          'grid min-h-0 flex-1 content-start gap-4 overflow-hidden',
+          cols,
+        )}
+      >
         {slide.sections.map((section) => (
           <div
             key={section.id}
             className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-black/5 bg-[var(--brand-bg)]"
           >
             <div
-              className="border-b border-black/5 px-4 py-3"
+              className="shrink-0 border-b border-black/5 px-4 py-2.5"
               style={{
                 background:
                   'color-mix(in srgb, var(--brand-primary) 10%, var(--brand-bg))',
               }}
             >
               <h3
-                className="text-xl font-semibold tracking-tight sm:text-2xl"
+                className="text-lg font-semibold tracking-tight sm:text-xl"
                 style={{ fontFamily: 'var(--brand-heading)' }}
               >
                 {section.name}
               </h3>
             </div>
-            <ul className="flex flex-1 flex-col divide-y divide-black/5 overflow-y-auto">
+            <ul className="flex min-h-0 flex-1 flex-col divide-y divide-black/5 overflow-hidden">
               {section.items.map((item) => (
                 <li
                   key={item.id}
                   className={cn(
-                    'flex items-center gap-3 px-3 py-2.5 sm:px-4 sm:py-3',
+                    'flex min-h-0 items-center gap-3 px-3 py-2 sm:px-4',
+                    dense ? 'py-1.5' : 'py-2.5',
                     item.soldOut && 'opacity-50',
                   )}
                 >
-                  {showItemImages ? (
+                  {showItemImages && !dense ? (
                     <MenuItemImage
                       src={item.imageUrl}
                       alt=""
-                      className="h-14 w-14 shrink-0 rounded-xl object-cover sm:h-16 sm:w-16"
-                      fallbackClassName="h-14 w-14 shrink-0 rounded-xl sm:h-16 sm:w-16"
+                      className="h-12 w-12 shrink-0 rounded-xl object-cover sm:h-14 sm:w-14"
+                      fallbackClassName="h-12 w-12 shrink-0 rounded-xl sm:h-14 sm:w-14"
                     />
                   ) : null}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-3">
-                      <p className="truncate text-base font-semibold sm:text-lg">
+                      <p
+                        className={cn(
+                          'truncate font-semibold',
+                          dense ? 'text-sm sm:text-base' : 'text-base sm:text-lg',
+                        )}
+                      >
                         {item.name}
                       </p>
                       {showPrices ? (
                         <div className="shrink-0 text-right">
-                          <p className="text-base font-semibold tabular-nums text-[var(--brand-primary)] sm:text-lg">
+                          <p
+                            className={cn(
+                              'font-semibold tabular-nums text-[var(--brand-primary)]',
+                              dense ? 'text-sm sm:text-base' : 'text-base sm:text-lg',
+                            )}
+                          >
                             {formatMoney(item.priceCents)}
                           </p>
                           {item.onSale ? (
@@ -526,17 +644,17 @@ function MenuBoardView({
                         </div>
                       ) : null}
                     </div>
-                    {item.description ? (
+                    {item.description && !dense ? (
                       <p className="mt-0.5 line-clamp-1 text-sm opacity-60">
                         {item.description}
                       </p>
                     ) : null}
                     {item.soldOut ? (
-                      <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-red-700">
+                      <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-red-700">
                         Sold out
                       </p>
-                    ) : item.onSale ? (
-                      <p className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--brand-accent)]">
+                    ) : item.onSale && !dense ? (
+                      <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-[var(--brand-accent)]">
                         On sale
                       </p>
                     ) : null}

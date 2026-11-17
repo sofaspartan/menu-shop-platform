@@ -913,7 +913,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       slideDurationSec: 8,
       showLogo: true,
       showStoreName: true,
-      headline: 'Order here',
+      headline: 'Menu',
       tagline: 'Ask about today’s specials',
       graphicsChrome: 'fullscreen' as const,
       graphicSlides: [],
@@ -923,6 +923,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       sectionIds: [],
       showPrices: true,
       showSoldOut: false,
+      menuLayout: 'cards' as const,
       showItemImages: true,
       itemsPerAutoSlide: 4,
       itemSlides: [],
@@ -953,7 +954,8 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       ],
       showPrices: true,
       showSoldOut: false,
-      showItemImages: true,
+      menuLayout: 'columns' as const,
+      showItemImages: false,
       itemsPerAutoSlide: 4,
       itemSlides: [],
       createdAt: ts,
@@ -979,6 +981,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       sectionIds: [],
       showPrices: true,
       showSoldOut: false,
+      menuLayout: 'cards' as const,
       showItemImages: true,
       itemsPerAutoSlide: 1,
       itemSlides: [],
@@ -1006,6 +1009,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
       sectionIds: [],
       showPrices: true,
       showSoldOut: false,
+      menuLayout: 'cards' as const,
       showItemImages: true,
       itemsPerAutoSlide: 4,
       itemSlides: [],
@@ -1388,7 +1392,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
   return {
-    version: 15,
+    version: 16,
     users: [
       {
         id: userId,

@@ -6,6 +6,7 @@ import type {
   FeaturedCatalogScope,
   FeaturedSource,
   GraphicsChrome,
+  MenuBoardLayout,
 } from '@/types'
 import { getDb, saveDb } from '@/data/db'
 import { normalizeDisplay } from '@/lib/normalizeDisplay'
@@ -53,6 +54,7 @@ function defaultsForKind(kind: DisplayKind): Pick<
   | 'sectionIds'
   | 'showPrices'
   | 'showSoldOut'
+  | 'menuLayout'
   | 'showItemImages'
   | 'itemsPerAutoSlide'
   | 'itemSlides'
@@ -67,6 +69,7 @@ function defaultsForKind(kind: DisplayKind): Pick<
     sectionIds: [],
     showPrices: true,
     showSoldOut: false,
+    menuLayout: 'cards',
     showItemImages: true,
     itemsPerAutoSlide: 4,
     itemSlides: [],
@@ -134,6 +137,7 @@ export type DisplayPatch = Partial<
     | 'sectionIds'
     | 'showPrices'
     | 'showSoldOut'
+    | 'menuLayout'
     | 'showItemImages'
     | 'itemsPerAutoSlide'
     | 'itemSlides'
@@ -190,6 +194,9 @@ export async function updateDisplay(
     if (patch.sectionIds !== undefined) next.sectionIds = patch.sectionIds
     if (patch.showPrices !== undefined) next.showPrices = patch.showPrices
     if (patch.showSoldOut !== undefined) next.showSoldOut = patch.showSoldOut
+    if (patch.menuLayout !== undefined) {
+      next.menuLayout = patch.menuLayout as MenuBoardLayout
+    }
     if (patch.showItemImages !== undefined) next.showItemImages = patch.showItemImages
     if (patch.itemsPerAutoSlide !== undefined) {
       next.itemsPerAutoSlide = Math.max(1, Math.min(8, patch.itemsPerAutoSlide))

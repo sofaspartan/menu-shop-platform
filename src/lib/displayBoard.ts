@@ -401,7 +401,8 @@ export function buildDisplaySlides(
     slides.push({
       id: `menu-${display.id}`,
       kind: 'menu',
-      title: display.headline || restaurant.name,
+      // Board title is owner copy (default "Menu") — store name lives in the header chrome.
+      title: display.headline?.trim() || 'Menu',
       sections,
     })
     return slides

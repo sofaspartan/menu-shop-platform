@@ -115,7 +115,8 @@ export async function getDb(): Promise<AppDatabase> {
         existing.version === 12 ||
         existing.version === 13 ||
         existing.version === 14 ||
-        existing.version === 15)
+        existing.version === 15 ||
+        existing.version === 16)
     ) {
       if (!existing.brandThemes) existing.brandThemes = []
       if (!existing.coupons) existing.coupons = []
@@ -163,6 +164,7 @@ export async function getDb(): Promise<AppDatabase> {
           sectionIds: d.sectionIds ?? [],
           showPrices: d.showPrices !== false,
           showSoldOut: Boolean(d.showSoldOut),
+          menuLayout: d.menuLayout === 'columns' ? 'columns' : 'cards',
           showItemImages: d.showItemImages !== false,
           itemsPerAutoSlide: d.itemsPerAutoSlide || 4,
           itemSlides: d.itemSlides ?? [],

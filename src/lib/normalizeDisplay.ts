@@ -6,6 +6,7 @@ import type {
   FeaturedCatalogScope,
   FeaturedSource,
   GraphicsChrome,
+  MenuBoardLayout,
 } from '@/types'
 
 function asKind(display: Display): DisplayKind {
@@ -77,6 +78,7 @@ export function normalizeDisplay(raw: Display): Display {
     sectionIds: raw.sectionIds ?? [],
     showPrices: raw.showPrices !== false,
     showSoldOut: Boolean(raw.showSoldOut),
+    menuLayout: (raw.menuLayout === 'columns' ? 'columns' : 'cards') as MenuBoardLayout,
     showItemImages: raw.showItemImages !== false,
     itemsPerAutoSlide: Math.max(1, Math.min(8, raw.itemsPerAutoSlide || 4)),
     itemSlides,
