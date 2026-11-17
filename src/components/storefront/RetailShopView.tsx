@@ -52,7 +52,6 @@ export function RetailShopView({
         restaurant={restaurant}
         search={search}
         onSearchChange={onSearchChange}
-        sectionLinks={sectionLinks}
       />
 
       {showHero ? (
@@ -78,6 +77,31 @@ export function RetailShopView({
           </p>
         </div>
       )}
+
+      {/* Sits under the cover; sticks under the site header once you scroll past it. */}
+      {sectionLinks ? (
+        <nav
+          aria-label="Product sections"
+          className="sticky top-[4.25rem] z-20 border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] bg-[var(--sf-bg)]/95 backdrop-blur-md sm:top-[4.5rem]"
+        >
+          <div
+            className={cn(
+              contentClass,
+              'flex gap-5 overflow-x-auto py-2.5 sm:gap-6 sm:py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+            )}
+          >
+            {sectionLinks.map((section) => (
+              <a
+                key={section.id}
+                href={`#section-${section.id}`}
+                className="shrink-0 text-base text-[var(--sf-text)]/70 transition-colors hover:text-[var(--sf-text)]"
+              >
+                {section.name}
+              </a>
+            ))}
+          </div>
+        </nav>
+      ) : null}
 
       <main className={cn(contentClass, 'pb-28 pt-8')}>
         {menus.length > 1 ? (
@@ -119,7 +143,7 @@ export function RetailShopView({
               <section
                 key={section.id}
                 id={`section-${section.id}`}
-                className="mb-16 scroll-mt-36"
+                className="mb-16 scroll-mt-40"
               >
                 <div className="mb-6">
                   <h2 className="font-display text-2xl font-semibold tracking-tight text-[var(--sf-text)] sm:text-[1.75rem]">

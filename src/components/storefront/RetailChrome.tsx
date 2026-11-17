@@ -12,13 +12,11 @@ export function RetailChrome({
   search,
   onSearchChange,
   showSearch = true,
-  sectionLinks,
 }: {
   restaurant: Restaurant
   search?: string
   onSearchChange?: (value: string) => void
   showSearch?: boolean
-  sectionLinks?: Array<{ id: string; name: string }>
 }) {
   const location = useLocation()
   const copy = storeCopy(restaurant.storeKind)
@@ -49,8 +47,7 @@ export function RetailChrome({
   }
 
   return (
-    <div className="sticky top-0 z-30 bg-[var(--sf-bg)]/95 backdrop-blur-md">
-      <header className="border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)]">
+    <header className="sticky top-0 z-30 border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] bg-[var(--sf-bg)]/95 backdrop-blur-md">
         <div className={cn(contentClass, 'flex items-center justify-between gap-4 py-3.5')}>
           <Link to={base} className="flex min-w-0 items-center gap-3">
             {restaurant.logoUrl ? (
@@ -168,31 +165,6 @@ export function RetailChrome({
             </div>
           </div>
         ) : null}
-      </header>
-
-      {sectionLinks && sectionLinks.length > 1 ? (
-        <nav
-          aria-label="Product sections"
-          className="border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] bg-[var(--sf-bg)]/95"
-        >
-          <div
-            className={cn(
-              contentClass,
-              'flex gap-5 overflow-x-auto py-2.5 sm:gap-6 sm:py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-            )}
-          >
-            {sectionLinks.map((section) => (
-              <a
-                key={section.id}
-                href={`#section-${section.id}`}
-                className="shrink-0 text-base text-[var(--sf-text)]/70 transition-colors hover:text-[var(--sf-text)]"
-              >
-                {section.name}
-              </a>
-            ))}
-          </div>
-        </nav>
-      ) : null}
-    </div>
+    </header>
   )
 }
