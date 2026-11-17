@@ -133,6 +133,7 @@ export function PagesPage() {
 
   const [layout, setLayout] = useState<StorefrontLayout>('restaurant')
   const [width, setWidth] = useState<StorefrontWidth>('margined')
+  const [coverImageUrl, setCoverImageUrl] = useState('')
   const [pages, setPages] = useState<StorePages>(defaultStorePagesFor('restaurant'))
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -142,6 +143,7 @@ export function PagesPage() {
     if (!current) return
     setLayout(current.storefrontLayout ?? (current.storeKind === 'retail' ? 'retail' : 'restaurant'))
     setWidth(current.storefrontWidth === 'full' ? 'full' : 'margined')
+    setCoverImageUrl(current.coverImageUrl ?? '')
     setPages(
       current.pages
         ? {
@@ -168,6 +170,7 @@ export function PagesPage() {
       await restaurantService.updateRestaurant(user.id, current.id, {
         storefrontLayout: layout,
         storefrontWidth: width,
+        coverImageUrl: coverImageUrl.trim() || undefined,
         pages,
       })
       await load(user.id)
@@ -396,6 +399,14 @@ export function PagesPage() {
           ))}
         </div>
 
+        <Field label="Cover image URL" htmlFor="shop-cover-url">
+          <Input
+            id="shop-cover-url"
+            value={coverImageUrl}
+            onChange={(e) => setCoverImageUrl(e.target.value)}
+            placeholder="https://… — shop home hero background"
+          />
+        </Field>
         <Field label="Title" htmlFor="cover-title">
           <Input
             id="cover-title"
