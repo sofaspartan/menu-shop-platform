@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, Search, Settings2, Trash2, Users } from 'lucide-react'
+import { IconAction } from '@/components/ui/IconAction'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -281,15 +282,13 @@ export function LoyaltyPage() {
                     Edit this reward, then save loyalty to publish changes.
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  variant="danger"
-                  size="sm"
+                <IconAction
+                  label="Delete reward"
+                  danger
                   onClick={() => removeReward(selectedReward.id)}
                 >
                   <Trash2 className="h-4 w-4" />
-                  Delete
-                </Button>
+                </IconAction>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Label" htmlFor={`rew-label-${selectedReward.id}`}>

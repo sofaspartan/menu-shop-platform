@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Plus, Search, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { IconAction } from '@/components/ui/IconAction'
 import { storeCopy } from '@/lib/storeCopy'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -253,9 +254,12 @@ export function CombosPage() {
                       </p>
                     )}
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => openEdit(item)}>
-                    Edit components
-                  </Button>
+                  <IconAction
+                    label={`Edit ${copy.comboNoun} components`}
+                    onClick={() => openEdit(item)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </IconAction>
                 </div>
               </div>
             )
@@ -306,14 +310,14 @@ export function CombosPage() {
               <div key={group.id} className="rounded-xl border border-stone-200 p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <span className="text-sm font-medium">Group {index + 1}</span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
+                  <IconAction
+                    label="Remove group"
+                    danger
                     onClick={() => setGroups((gs) => gs.filter((g) => g.id !== group.id))}
                     disabled={groups.length === 1}
                   >
                     <Trash2 className="h-4 w-4" />
-                  </Button>
+                  </IconAction>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Name">

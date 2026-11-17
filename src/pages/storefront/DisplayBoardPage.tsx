@@ -652,7 +652,7 @@ function MenuBoardView({
           {slide.sections.map((section) => (
             <div
               key={section.id}
-              className="mb-5 min-w-0 break-inside-avoid"
+              className="mb-8 min-w-0 break-inside-avoid"
             >
               <h3
                 className="mb-2 border-b pb-1.5 text-sm font-semibold uppercase tracking-[0.14em]"

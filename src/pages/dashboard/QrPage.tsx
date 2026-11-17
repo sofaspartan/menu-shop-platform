@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { Download, Plus, Search } from 'lucide-react'
+import { Download, Plus, Search, Trash2 } from 'lucide-react'
+import { IconAction } from '@/components/ui/IconAction'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -298,14 +299,15 @@ export function QrPage() {
                     <Button variant="outline" onClick={exportSvg}>
                       <Download className="h-4 w-4" /> Export SVG
                     </Button>
-                    <Button
-                      variant="danger"
+                    <IconAction
+                      label="Delete QR code"
+                      danger
                       onClick={() =>
                         void qrService.deleteQrCode(user.id, current.id, selected.id)
                       }
                     >
-                      Delete
-                    </Button>
+                      <Trash2 className="h-4 w-4" />
+                    </IconAction>
                   </div>
                 </div>
               </div>

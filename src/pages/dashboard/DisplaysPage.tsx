@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Copy, ExternalLink, MonitorPlay, Plus, Search, Trash2 } from 'lucide-react'
+import { IconAction } from '@/components/ui/IconAction'
 import type {
   Display,
   DisplayGraphicSlide,
@@ -362,14 +363,13 @@ export function DisplaysPage() {
                       Open
                     </Button>
                   </a>
-                  <Button
-                    type="button"
-                    variant="danger"
+                  <IconAction
+                    label={`Delete ${copy.displayNoun.toLowerCase()}`}
+                    danger
                     onClick={() => void removeSelected()}
                   >
                     <Trash2 className="h-4 w-4" />
-                    Delete
-                  </Button>
+                  </IconAction>
                 </div>
               </div>
 
@@ -785,13 +785,13 @@ export function DisplaysPage() {
                               placeholder="Optional subtitle"
                             />
                           </div>
-                          <button
-                            type="button"
-                            className="text-xs font-medium text-red-600"
+                          <IconAction
+                            label="Remove slide"
+                            danger
                             onClick={() => removeGraphicSlide(slide.id)}
                           >
-                            Remove slide
-                          </button>
+                            <Trash2 className="h-4 w-4" />
+                          </IconAction>
                         </div>
                       ))
                     )}
@@ -966,13 +966,13 @@ export function DisplaysPage() {
                               <p className="text-xs font-medium text-stone-400">
                                 Slide {index + 1}
                               </p>
-                              <button
-                                type="button"
-                                className="text-xs font-medium text-red-600"
+                              <IconAction
+                                label="Delete slide"
+                                danger
                                 onClick={() => removeItemSlide(slide.id)}
                               >
-                                Delete slide
-                              </button>
+                                <Trash2 className="h-4 w-4" />
+                              </IconAction>
                             </div>
                             <Input
                               value={slide.title ?? ''}

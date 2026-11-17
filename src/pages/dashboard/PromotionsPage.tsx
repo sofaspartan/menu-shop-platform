@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Percent, Plus, Search, Tag, Trash2 } from 'lucide-react'
+import { IconAction } from '@/components/ui/IconAction'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -787,15 +788,13 @@ export function PromotionsPage() {
                 >
                   {selectedCoupon.active ? 'Disable' : 'Enable'}
                 </Button>
-                <Button
-                  type="button"
-                  variant="danger"
-                  size="sm"
+                <IconAction
+                  label="Delete coupon"
+                  danger
                   onClick={() => void removeCoupon(selectedCoupon.id)}
                 >
                   <Trash2 className="h-4 w-4" />
-                  Delete
-                </Button>
+                </IconAction>
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 text-sm">
@@ -852,15 +851,13 @@ export function PromotionsPage() {
                 >
                   {selectedSale.active ? 'Disable' : 'Enable'}
                 </Button>
-                <Button
-                  type="button"
-                  variant="danger"
-                  size="sm"
+                <IconAction
+                  label="Delete sale"
+                  danger
                   onClick={() => void removeSale(selectedSale.id)}
                 >
                   <Trash2 className="h-4 w-4" />
-                  Delete
-                </Button>
+                </IconAction>
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 text-sm">

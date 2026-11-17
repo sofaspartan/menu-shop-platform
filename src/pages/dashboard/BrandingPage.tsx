@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Check, Pencil, Save, Trash2 } from 'lucide-react'
+import { IconAction } from '@/components/ui/IconAction'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -249,34 +250,30 @@ export function BrandingPage() {
                 actionLabel="Apply"
                 onApply={() => applyBranding(theme.branding, null)}
                 footer={
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1">
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="soft"
                       disabled={busy}
                       onClick={() => void overwriteCustomLook(theme)}
                     >
                       Update
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
+                    <IconAction
+                      label={`Rename ${theme.name}`}
                       disabled={busy}
                       onClick={() => openSaveCustom(theme)}
-                      aria-label={`Rename ${theme.name}`}
                     >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-red-600 hover:bg-red-50"
+                      <Pencil className="h-4 w-4" />
+                    </IconAction>
+                    <IconAction
+                      label={`Delete ${theme.name}`}
+                      danger
                       disabled={busy}
                       onClick={() => void removeCustomLook(theme)}
-                      aria-label={`Delete ${theme.name}`}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                      <Trash2 className="h-4 w-4" />
+                    </IconAction>
                   </div>
                 }
               />

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Search } from 'lucide-react'
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { IconAction } from '@/components/ui/IconAction'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -303,7 +304,7 @@ export function ItemsPage() {
                         : `Not assigned to any ${copy.catalogNoun} section`}
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-1">
                     {item.availability === 'sold_out' ? (
                       <Button
                         size="sm"
@@ -321,12 +322,16 @@ export function ItemsPage() {
                         Mark sold out
                       </Button>
                     )}
-                    <Button size="sm" variant="outline" onClick={() => openEdit(item)}>
-                      Edit
-                    </Button>
-                    <Button size="sm" variant="danger" onClick={() => void removeItem(item.id)}>
-                      Delete
-                    </Button>
+                    <IconAction label={`Edit ${copy.itemNoun}`} onClick={() => openEdit(item)}>
+                      <Pencil className="h-4 w-4" />
+                    </IconAction>
+                    <IconAction
+                      label={`Delete ${copy.itemNoun}`}
+                      danger
+                      onClick={() => void removeItem(item.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </IconAction>
                   </div>
                 </div>
               </div>

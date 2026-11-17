@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Plus, Search, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { IconAction } from '@/components/ui/IconAction'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -263,9 +264,9 @@ export function ModifiersPage() {
                         : ''}
                     </p>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => openEdit(group)}>
-                    Edit
-                  </Button>
+                  <IconAction label="Edit modifier group" onClick={() => openEdit(group)}>
+                    <Pencil className="h-4 w-4" />
+                  </IconAction>
                 </div>
               </div>
             )
@@ -429,9 +430,9 @@ export function ModifiersPage() {
                       />
                       Available
                     </label>
-                    <Button
-                      size="sm"
-                      variant="ghost"
+                    <IconAction
+                      label="Remove option"
+                      danger
                       disabled={form.options.length === 1}
                       onClick={() =>
                         setForm((f) => ({
@@ -441,7 +442,7 @@ export function ModifiersPage() {
                       }
                     >
                       <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </IconAction>
                   </div>
                 </div>
               ))}

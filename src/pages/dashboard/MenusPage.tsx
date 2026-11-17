@@ -17,7 +17,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Plus, EyeOff, Eye, Trash2, Pencil, Search } from 'lucide-react'
+import { GripVertical, Plus, EyeOff, Eye, Trash2, Pencil, Search, Unlink } from 'lucide-react'
+import { IconAction } from '@/components/ui/IconAction'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useDb } from '@/hooks/useDb'
@@ -390,43 +391,38 @@ export function MenusPage() {
                       )}
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                      <IconAction
+                        label="Rename section"
                         onClick={() => {
                           setRenamingId(section.id)
                           setRenameValue(section.name)
                         }}
-                        aria-label="Rename section"
                       >
                         <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                      </IconAction>
+                      <IconAction
+                        label={section.hidden ? 'Show section' : 'Hide section'}
                         onClick={() =>
                           void menuService.updateSection(user.id, current.id, section.id, {
                             hidden: !section.hidden,
                           })
                         }
-                        aria-label={section.hidden ? 'Show section' : 'Hide section'}
                       >
                         {section.hidden ? (
                           <Eye className="h-4 w-4" />
                         ) : (
                           <EyeOff className="h-4 w-4" />
                         )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                      </IconAction>
+                      <IconAction
+                        label="Delete section"
+                        danger
                         onClick={() =>
                           void menuService.deleteSection(user.id, current.id, section.id)
                         }
-                        aria-label="Delete section"
                       >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
+                        <Trash2 className="h-4 w-4" />
+                      </IconAction>
                       <Button
                         size="sm"
                         variant="soft"
@@ -435,7 +431,7 @@ export function MenusPage() {
                           setAssignItemId('')
                         }}
                       >
-                        Assign item
+                        Assign {copy.itemNoun}
                       </Button>
                     </div>
                   </div>
@@ -455,15 +451,14 @@ export function MenusPage() {
                               {formatMoney(item.basePriceCents)}
                             </span>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
+                          <IconAction
+                            label={`Unassign ${copy.itemNoun}`}
                             onClick={() =>
                               void menuService.unassignItem(user.id, current.id, a.id)
                             }
                           >
-                            Unassign
-                          </Button>
+                            <Unlink className="h-4 w-4" />
+                          </IconAction>
                         </li>
                       )
                     })}
