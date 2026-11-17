@@ -460,27 +460,32 @@ function SlideView({
     )
   }
 
+  const count = slide.items.length
+  const pair = count === 2
   const cols =
-    slide.items.length <= 2
+    count <= 2
       ? 'grid-cols-1 sm:grid-cols-2'
-      : slide.items.length <= 4
+      : count <= 4
         ? 'grid-cols-2 lg:grid-cols-4'
         : 'grid-cols-2 lg:grid-cols-3'
 
   return (
     <section
-      className="flex flex-1 flex-col overflow-hidden rounded-[2rem] p-6 animate-fade-up sm:p-8"
+      className="flex flex-1 flex-col overflow-hidden rounded-[2rem] p-5 animate-fade-up sm:p-7 lg:p-8"
       style={{ backgroundColor: surface }}
     >
       {showFeaturedTitle && slide.title ? (
         <h2
-          className="mb-5 text-3xl font-semibold tracking-tight sm:text-4xl"
+          className={cn(
+            'mb-4 font-semibold tracking-tight sm:mb-5',
+            pair ? 'text-3xl sm:text-4xl lg:text-5xl' : 'text-2xl sm:text-3xl lg:text-4xl',
+          )}
           style={{ fontFamily: 'var(--brand-heading)', color: 'var(--brand-primary)' }}
         >
           {slide.title}
         </h2>
       ) : null}
-      <div className={cn('grid flex-1 gap-4', cols)}>
+      <div className={cn('grid min-h-0 flex-1', pair ? 'gap-5 sm:gap-6 lg:gap-8' : 'gap-4', cols)}>
         {slide.items.map((item) => (
           <article
             key={item.id}
@@ -489,24 +494,59 @@ function SlideView({
               item.soldOut && 'opacity-55',
             )}
           >
-            <MenuItemImage
-              src={item.imageUrl}
-              alt=""
-              className="aspect-[16/10] w-full object-cover"
-              fallbackClassName="aspect-[16/10] w-full"
-            />
-            <div className="flex flex-1 flex-col gap-1 p-3 sm:p-4">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="text-lg font-semibold leading-snug sm:text-xl">
+            {/* Image fills remaining height; square crop keeps TV boards from looking letterboxed. */}
+            <div
+              className={cn(
+                'relative w-full shrink-0 overflow-hidden',
+                pair
+                  ? 'min-h-0 flex-[1.35] basis-0'
+                  : 'aspect-square max-h-[55%]',
+              )}
+            >
+              <MenuItemImage
+                src={item.imageUrl}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+                fallbackClassName="absolute inset-0 h-full w-full"
+              />
+            </div>
+            <div
+              className={cn(
+                'flex shrink-0 flex-col',
+                pair
+                  ? 'gap-2 px-5 py-5 sm:gap-2.5 sm:px-6 sm:py-6 lg:px-7 lg:py-7'
+                  : 'gap-1.5 p-3 sm:p-4',
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <h3
+                  className={cn(
+                    'min-w-0 font-semibold leading-snug tracking-tight',
+                    pair
+                      ? 'text-2xl sm:text-3xl lg:text-4xl'
+                      : 'text-base sm:text-lg lg:text-xl',
+                  )}
+                  style={pair ? { fontFamily: 'var(--brand-heading)' } : undefined}
+                >
                   {item.name}
                 </h3>
                 {showPrices ? (
                   <div className="shrink-0 text-right">
-                    <p className="text-lg font-semibold text-[var(--brand-primary)]">
+                    <p
+                      className={cn(
+                        'font-semibold tabular-nums text-[var(--brand-primary)]',
+                        pair ? 'text-2xl sm:text-3xl' : 'text-base sm:text-lg',
+                      )}
+                    >
                       {formatMoney(item.priceCents)}
                     </p>
                     {item.onSale ? (
-                      <p className="text-xs opacity-50 line-through">
+                      <p
+                        className={cn(
+                          'opacity-50 line-through',
+                          pair ? 'text-sm sm:text-base' : 'text-xs',
+                        )}
+                      >
                         {formatMoney(item.listPriceCents)}
                       </p>
                     ) : null}
@@ -514,14 +554,33 @@ function SlideView({
                 ) : null}
               </div>
               {item.description ? (
-                <p className="line-clamp-2 text-sm opacity-65">{item.description}</p>
+                <p
+                  className={cn(
+                    'opacity-65',
+                    pair
+                      ? 'line-clamp-3 text-base leading-relaxed sm:text-lg lg:text-xl'
+                      : 'line-clamp-2 text-sm',
+                  )}
+                >
+                  {item.description}
+                </p>
               ) : null}
               {item.soldOut ? (
-                <p className="mt-auto pt-2 text-xs font-semibold uppercase tracking-wider text-red-700">
+                <p
+                  className={cn(
+                    'font-semibold uppercase tracking-wider text-red-700',
+                    pair ? 'pt-1 text-sm sm:text-base' : 'pt-1 text-xs',
+                  )}
+                >
                   Sold out
                 </p>
               ) : item.onSale ? (
-                <p className="mt-auto pt-2 text-xs font-semibold uppercase tracking-wider text-[var(--brand-accent)]">
+                <p
+                  className={cn(
+                    'font-semibold uppercase tracking-wider text-[var(--brand-accent)]',
+                    pair ? 'pt-1 text-sm sm:text-base' : 'pt-1 text-xs',
+                  )}
+                >
                   On sale
                 </p>
               ) : null}
