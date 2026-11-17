@@ -620,6 +620,11 @@ function MenuBoardView({
           : 'grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
 
   if (menuLayout === 'columns') {
+    // CSS multi-column flow (not a grid) so sections pack top-to-bottom
+    // without forcing row-aligned gaps between shorter categories.
+    const columnCount =
+      sectionCount <= 1 ? 1 : sectionCount === 2 ? 2 : sectionCount <= 6 ? 3 : 4
+
     return (
       <section
         className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[1.5rem] px-5 py-4 animate-fade-up sm:px-7 sm:py-5"
@@ -637,13 +642,18 @@ function MenuBoardView({
           </h2>
         ) : null}
         <div
-          className={cn(
-            'grid min-h-0 flex-1 content-start gap-x-8 gap-y-5 overflow-hidden',
-            cols,
-          )}
+          className="min-h-0 flex-1 overflow-hidden"
+          style={{
+            columnCount,
+            columnGap: '2rem',
+            columnFill: 'balance',
+          }}
         >
           {slide.sections.map((section) => (
-            <div key={section.id} className="min-w-0 overflow-hidden">
+            <div
+              key={section.id}
+              className="mb-5 min-w-0 break-inside-avoid"
+            >
               <h3
                 className="mb-2 border-b pb-1.5 text-sm font-semibold uppercase tracking-[0.14em]"
                 style={{
