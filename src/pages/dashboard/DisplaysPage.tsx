@@ -470,6 +470,33 @@ export function DisplaysPage() {
                     />
                     Show store name
                   </label>
+                  {(selected.kind === 'menu' ||
+                    selected.kind === 'featured' ||
+                    (selected.kind === 'branding' &&
+                      selected.brandingLayout === 'card') ||
+                    (selected.kind === 'graphics' &&
+                      selected.graphicsChrome === 'framed')) ? (
+                    <label className="flex items-center gap-2 text-sm text-stone-700">
+                      <input
+                        type="checkbox"
+                        checked={selected.showHeader}
+                        onChange={(e) =>
+                          void patchSelected({ showHeader: e.target.checked })
+                        }
+                      />
+                      Show header row
+                    </label>
+                  ) : null}
+                  <label className="flex items-center gap-2 text-sm text-stone-700">
+                    <input
+                      type="checkbox"
+                      checked={selected.showLive}
+                      onChange={(e) =>
+                        void patchSelected({ showLive: e.target.checked })
+                      }
+                    />
+                    Show Live badge
+                  </label>
                   <label className="flex items-center gap-2 text-sm text-stone-700">
                     <input
                       type="checkbox"
@@ -480,7 +507,33 @@ export function DisplaysPage() {
                     />
                     Show date
                   </label>
+                  <label className="flex items-center gap-2 text-sm text-stone-700">
+                    <input
+                      type="checkbox"
+                      checked={selected.showTime}
+                      onChange={(e) =>
+                        void patchSelected({ showTime: e.target.checked })
+                      }
+                    />
+                    Show time
+                  </label>
                 </div>
+                <Field label="Logo style" htmlFor="disp-logo-style">
+                  <Select
+                    id="disp-logo-style"
+                    value={selected.logoStyle}
+                    onChange={(e) =>
+                      void patchSelected({
+                        logoStyle: e.target.value as 'roundedSquare' | 'natural',
+                      })
+                    }
+                  >
+                    <option value="roundedSquare">Rounded square (cropped)</option>
+                    <option value="natural">
+                      Natural / transparent (height capped, free width)
+                    </option>
+                  </Select>
+                </Field>
               </div>
 
               {selected.kind === 'menu' ? (

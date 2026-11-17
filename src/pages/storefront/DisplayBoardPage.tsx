@@ -8,6 +8,8 @@ import { brandingStyleVars } from '@/lib/brandingCss'
 import { buildDisplaySlides, type BoardSlide } from '@/lib/displayBoard'
 import { normalizeDisplay } from '@/lib/normalizeDisplay'
 import { storeCopy } from '@/lib/storeCopy'
+import { logoImageClass } from '@/lib/logoStyle'
+import type { LogoStyle } from '@/types'
 import { cn, formatMoney } from '@/lib/utils'
 
 export function DisplayBoardPage() {
@@ -62,11 +64,12 @@ export function DisplayBoardPage() {
     display?.kind === 'graphics' && display.graphicsChrome === 'framed'
   const brandingFullBleed =
     display?.kind === 'branding' && display.brandingLayout === 'fullbleed'
-  const showChrome =
+  const chromeCapable =
     (display?.kind === 'branding' && !brandingFullBleed) ||
     display?.kind === 'featured' ||
     display?.kind === 'menu' ||
     framedGraphics
+  const showChrome = Boolean(chromeCapable && display?.showHeader !== false)
 
   useEffect(() => {
     setSlideIndex(0)
@@ -124,24 +127,29 @@ export function DisplayBoardPage() {
         fontFamily: 'var(--brand-body)',
       }}
     >
-      {brandingFullBleed ? (
+      {brandingFullBleed &&
+      (display.showLive || display.showDate || display.showTime) ? (
         <div className="absolute right-5 top-5 z-20 flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-white">
-          <LiveIndicator
-            pulseKey={`${revision}-${lastSyncedAt ?? 0}`}
-            className="!text-white"
-          />
+          {display.showLive ? (
+            <LiveIndicator
+              pulseKey={`${revision}-${lastSyncedAt ?? 0}`}
+              className="!text-white"
+            />
+          ) : null}
           {display.showDate ? (
             <span className="inline-flex items-center gap-1.5 text-sm font-medium text-white/80">
               <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
               <span>{dateLabel}</span>
             </span>
           ) : null}
-          <span className="inline-flex items-center gap-1.5 text-sm font-medium tabular-nums text-white/80">
-            <Clock className="h-4 w-4 shrink-0" aria-hidden />
-            <span>
-              {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+          {display.showTime ? (
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium tabular-nums text-white/80">
+              <Clock className="h-4 w-4 shrink-0" aria-hidden />
+              <span>
+                {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+              </span>
             </span>
-          </span>
+          ) : null}
         </div>
       ) : null}
       {showChrome ? (
@@ -151,7 +159,7 @@ export function DisplayBoardPage() {
               <img
                 src={restaurant.logoUrl}
                 alt=""
-                className="h-12 w-12 rounded-xl object-cover shadow-sm"
+                className={logoImageClass(display.logoStyle, 'header')}
               />
             ) : null}
             {display.showStoreName ? (
@@ -163,24 +171,33 @@ export function DisplayBoardPage() {
               </p>
             ) : null}
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
-            <LiveIndicator
-              pulseKey={`${revision}-${lastSyncedAt ?? 0}-${slideIndex}`}
-              className="!text-[var(--brand-primary)]"
-            />
-            {display.showDate ? (
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium opacity-70">
-                <CalendarDays className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-                <span>{dateLabel}</span>
-              </span>
-            ) : null}
-            <span className="inline-flex items-center gap-1.5 text-sm font-medium tabular-nums opacity-70">
-              <Clock className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
-              <span>
-                {now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-              </span>
-            </span>
-          </div>
+          {(display.showLive || display.showDate || display.showTime) ? (
+            <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+              {display.showLive ? (
+                <LiveIndicator
+                  pulseKey={`${revision}-${lastSyncedAt ?? 0}-${slideIndex}`}
+                  className="!text-[var(--brand-primary)]"
+                />
+              ) : null}
+              {display.showDate ? (
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium opacity-70">
+                  <CalendarDays className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                  <span>{dateLabel}</span>
+                </span>
+              ) : null}
+              {display.showTime ? (
+                <span className="inline-flex items-center gap-1.5 text-sm font-medium tabular-nums opacity-70">
+                  <Clock className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                  <span>
+                    {now.toLocaleTimeString([], {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </header>
       ) : null}
 
@@ -204,6 +221,7 @@ export function DisplayBoardPage() {
             brandingLayout={display.brandingLayout}
             showLogo={display.showLogo}
             logoUrl={restaurant.logoUrl}
+            logoStyle={display.logoStyle}
             surface={restaurant.branding.surfaceColor}
             fullscreenGraphic={!showChrome || brandingFullBleed}
           />
@@ -277,6 +295,7 @@ function SlideView({
   brandingLayout,
   showLogo,
   logoUrl,
+  logoStyle,
   surface,
   fullscreenGraphic,
 }: {
@@ -287,6 +306,7 @@ function SlideView({
   brandingLayout: 'card' | 'fullbleed'
   showLogo: boolean
   logoUrl?: string
+  logoStyle: LogoStyle
   surface: string
   fullscreenGraphic: boolean
 }) {
@@ -309,6 +329,7 @@ function SlideView({
         layout={brandingLayout}
         showLogo={showLogo}
         logoUrl={logoUrl}
+        logoStyle={logoStyle}
       />
     )
   }
@@ -509,11 +530,13 @@ function BrandingSignView({
   layout,
   showLogo,
   logoUrl,
+  logoStyle,
 }: {
   slide: Extract<BoardSlide, { kind: 'branding' }>
   layout: 'card' | 'fullbleed'
   showLogo: boolean
   logoUrl?: string
+  logoStyle: LogoStyle
 }) {
   const imageUrl = slide.imageUrl
   const backdrop = imageUrl ? (
@@ -542,7 +565,7 @@ function BrandingSignView({
             <img
               src={logoUrl}
               alt=""
-              className="mb-8 h-28 w-28 rounded-[1.75rem] object-cover shadow-2xl ring-1 ring-white/25 sm:h-36 sm:w-36"
+              className={cn('mb-8', logoImageClass(logoStyle, 'brandingHero'))}
             />
           ) : null}
           {slide.headline ? (
@@ -572,7 +595,7 @@ function BrandingSignView({
           <img
             src={logoUrl}
             alt=""
-            className="mb-5 h-16 w-16 rounded-2xl object-cover shadow-lg ring-1 ring-white/20"
+            className={cn('mb-5', logoImageClass(logoStyle, 'brandingCard'))}
           />
         ) : null}
         {slide.headline ? (

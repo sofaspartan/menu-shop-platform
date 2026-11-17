@@ -13,8 +13,16 @@ import {
 import type { MenuItem } from '@/types'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
 import { StorefrontNav } from '@/components/storefront/StorefrontNav'
+import { StorefrontFooter } from '@/components/storefront/StorefrontFooter'
 import { RetailShopView } from '@/components/storefront/RetailShopView'
 import { RetailBagFab } from '@/components/storefront/RetailBagFab'
+import {
+  HomeAboutTeaserSection,
+  HomeFeaturedSection,
+  HomeSplashSection,
+  isStoreHomeEnabled,
+  useHomeSections,
+} from '@/components/storefront/StoreHomeSections'
 import { ItemCustomizer } from '@/components/storefront/ItemCustomizer'
 import { BagDrawer } from '@/components/storefront/BagDrawer'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
@@ -219,6 +227,9 @@ export function RestaurantPage() {
     }>
   }, [db, selectedMenu, itemsById])
 
+  const homeEnabled = isStoreHomeEnabled(restaurant)
+  const homeSections = useHomeSections(restaurant)
+
   const restaurantLines = restaurant
     ? bagLines.filter((l) => l.restaurantId === restaurant.id)
     : []
@@ -295,14 +306,15 @@ export function RestaurantPage() {
     )
   }
 
-  const accepting = isAcceptingOrders(restaurant, now)
-  const hoursSummary = formatHoursSummary(restaurant, now)
+  const store = restaurant
+  const accepting = isAcceptingOrders(store, now)
+  const hoursSummary = formatHoursSummary(store, now)
   const activeDietary = dietaryLabels.find((l) => l.id === dietaryFilter)
-  const showCover = restaurant.branding.coverDisplay !== 'none' && restaurant.coverImageUrl
-  const copy = storeCopy(restaurant.storeKind)
+  const showCover = store.branding.coverDisplay !== 'none' && store.coverImageUrl
+  const copy = storeCopy(store.storeKind)
   const isRetailLayout =
-    (restaurant.storefrontLayout ??
-      (restaurant.storeKind === 'retail' ? 'retail' : 'restaurant')) === 'retail'
+    (store.storefrontLayout ??
+      (store.storeKind === 'retail' ? 'retail' : 'restaurant')) === 'retail'
 
   if (isRetailLayout) {
     return (
@@ -353,8 +365,62 @@ export function RestaurantPage() {
     )
   }
 
+  const catalogSectionIndex = homeEnabled
+    ? homeSections.findIndex((s) => s.kind === 'catalog')
+    : -1
+  const homeBeforeCatalog =
+    homeEnabled && catalogSectionIndex >= 0
+      ? homeSections.slice(0, catalogSectionIndex)
+      : homeEnabled
+        ? homeSections
+        : []
+  const homeAfterCatalog =
+    homeEnabled && catalogSectionIndex >= 0
+      ? homeSections.slice(catalogSectionIndex + 1)
+      : []
+
+  function renderHomeSection(section: (typeof homeSections)[number]) {
+    if (section.kind === 'splash') {
+      return (
+        <HomeSplashSection key={section.id} restaurant={store} section={section} />
+      )
+    }
+    if (section.kind === 'aboutTeaser') {
+      return (
+        <HomeAboutTeaserSection
+          key={section.id}
+          restaurant={store}
+          section={section}
+        />
+      )
+    }
+    if (section.kind === 'featured') {
+      return (
+        <HomeFeaturedSection
+          key={section.id}
+          restaurant={store}
+          section={section}
+          featured={featured}
+          onOpenItem={(item, override) => openItem(item, override)}
+        />
+      )
+    }
+    return null
+  }
+
   return (
-    <StorefrontShell branding={restaurant.branding}>
+    <StorefrontShell branding={store.branding}>
+      {homeEnabled ? (
+        <div className="sticky top-0 z-30 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 backdrop-blur">
+          <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
+            <StorefrontNav restaurant={store} />
+          </div>
+        </div>
+      ) : null}
+
+      {homeBeforeCatalog.map(renderHomeSection)}
+
+      {!homeEnabled ? (
       <header className="relative">
         {showCover ? (
           <div
@@ -456,10 +522,17 @@ export function RestaurantPage() {
           </div>
         </div>
       </header>
+      ) : null}
 
-      <div className="sticky top-0 z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur">
+      <div
+        id={homeEnabled ? 'section-catalog' : undefined}
+        className={cn(
+          'sticky z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 shadow-[0_1px_0_rgba(0,0,0,0.03)] backdrop-blur',
+          homeEnabled ? 'top-[3.25rem]' : 'top-0',
+        )}
+      >
         <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
-          <StorefrontNav restaurant={restaurant} />
+          {!homeEnabled ? <StorefrontNav restaurant={restaurant} /> : null}
           {menus.length > 1 ? (
             <div className="mb-3 flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {menus.map((menu) => {
@@ -591,7 +664,7 @@ export function RestaurantPage() {
           <EmptyState title={copy.noCatalogTitle} description={copy.noCatalogBody} />
         ) : (
           <>
-            {featured.length > 0 && !search && !dietaryFilter ? (
+            {featured.length > 0 && !homeEnabled && !search && !dietaryFilter ? (
               <section className="mb-10 animate-fade-up">
                 <div className="mb-5 border-b border-[color-mix(in_srgb,var(--sf-text)_14%,transparent)] pb-3">
                   <h2 className="font-display text-2xl font-semibold tracking-tight text-[var(--sf-text)] sm:text-[1.75rem]">
@@ -831,6 +904,10 @@ export function RestaurantPage() {
           </>
         )}
       </main>
+
+      {homeAfterCatalog.map(renderHomeSection)}
+
+      <StorefrontFooter restaurant={restaurant} />
 
       {bagCatchExpanded && bagCount > 0 ? (
         <div className="fixed inset-x-0 bottom-0 z-30 p-4 sm:hidden">

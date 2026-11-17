@@ -7,9 +7,11 @@ import type {
   FeaturedCatalogScope,
   FeaturedSource,
   GraphicsChrome,
+  LogoStyle,
   MenuBoardLayout,
   MenuCatalogScope,
 } from '@/types'
+import { normalizeLogoStyle } from '@/lib/logoStyle'
 
 function asKind(display: Display): DisplayKind {
   if (
@@ -71,7 +73,11 @@ export function normalizeDisplay(raw: Display): Display {
     slideDurationSec: raw.slideDurationSec || 8,
     showLogo: raw.showLogo !== false,
     showStoreName: raw.showStoreName !== false,
+    showLive: raw.showLive !== false,
     showDate: raw.showDate !== false,
+    showTime: raw.showTime !== false,
+    showHeader: raw.showHeader !== false,
+    logoStyle: normalizeLogoStyle(raw.logoStyle) as LogoStyle,
     backgroundImageUrl: raw.backgroundImageUrl,
     brandingLayout: (raw.brandingLayout === 'fullbleed'
       ? 'fullbleed'

@@ -78,8 +78,53 @@ export interface StoreFooter {
   companyName?: string
   /** Defaults to “© {year} {company}. All rights reserved.” when blank. */
   copyright?: string
-  /** Shop / About / Contact links when those pages are enabled. */
+  /** Shop / About / Contact / Home links when those pages are enabled. */
   showPageLinks: boolean
+  showLogo?: boolean
+  /** “Powered by MenuShop” credit. */
+  showPoweredBy?: boolean
+}
+
+/** Reorderable storefront home sections (root `/r/:slug`). */
+export type HomeSectionKind = 'splash' | 'aboutTeaser' | 'featured' | 'catalog'
+
+export type HomeSplashLayout = 'fullBleedCenter' | 'fullBleedBottom'
+export type HomeAboutLayout = 'splitImageRight' | 'splitImageLeft' | 'stacked'
+export type HomeFeaturedLayout = 'carousel' | 'grid'
+
+export interface HomeSection {
+  id: ID
+  kind: HomeSectionKind
+  enabled: boolean
+  sortOrder: number
+  /** Splash */
+  splashLayout?: HomeSplashLayout
+  logoStyle?: LogoStyle
+  showLogo?: boolean
+  showTitle?: boolean
+  showSubtitle?: boolean
+  title?: string
+  subtitle?: string
+  primaryButtonLabel?: string
+  primaryButtonHref?: string
+  secondaryButtonLabel?: string
+  secondaryButtonHref?: string
+  /** About teaser */
+  aboutLayout?: HomeAboutLayout
+  aboutTitle?: string
+  aboutBody?: string
+  aboutButtonLabel?: string
+  aboutImageUrl?: string
+  /** Featured */
+  featuredLayout?: HomeFeaturedLayout
+  /** Grid: how many items to show (carousel always shows one at a time). */
+  featuredCount?: number
+}
+
+export interface StoreHome {
+  /** When true, root storefront uses ordered home sections. */
+  enabled: boolean
+  sections: HomeSection[]
 }
 
 /** Cover / hero band for retail (and optional restaurant) storefronts. */
@@ -109,6 +154,8 @@ export interface StorePages {
   /** Show the featured product hero on retail catalogs. */
   featuredEnabled?: boolean
   footer?: StoreFooter
+  /** Optional reorderable homepage on `/r/:slug`. */
+  home?: StoreHome
 }
 
 export type OrderStatus =
@@ -564,6 +611,8 @@ export type MenuBoardLayout = 'cards' | 'columns'
 export type MenuCatalogScope = 'daypart' | 'custom'
 /** Branding sign presentation. */
 export type BrandingLayout = 'card' | 'fullbleed'
+/** Logo framing on displays / homepage heroes. */
+export type LogoStyle = 'roundedSquare' | 'natural'
 
 export interface DisplayGraphicSlide {
   id: ID
@@ -604,8 +653,19 @@ export interface Display extends Timestamps {
   slideDurationSec: number
   showLogo: boolean
   showStoreName: boolean
+  /** Header / overlay: Live badge. */
+  showLive: boolean
   /** Header chrome: show the calendar date beside live + time. */
   showDate: boolean
+  /** Header / overlay: clock. */
+  showTime: boolean
+  /**
+   * Card / framed layouts: show the top header row (logo, name, live/date/time).
+   * Full-bleed branding still respects showLive/showDate/showTime as an overlay.
+   */
+  showHeader: boolean
+  /** Logo framing: rounded square crop, or natural transparent wide logo. */
+  logoStyle: LogoStyle
   headline?: string
   tagline?: string
 
@@ -896,6 +956,8 @@ export const DEFAULT_STORE_FOOTER: StoreFooter = {
   companyName: '',
   copyright: '',
   showPageLinks: true,
+  showLogo: true,
+  showPoweredBy: true,
 }
 
 export const DEFAULT_PAGE_HERO: PageHeroOptions = {
@@ -982,6 +1044,125 @@ export function normalizeStoreFooter(footer?: Partial<StoreFooter> | null): Stor
     ...footer,
     enabled: footer?.enabled ?? DEFAULT_STORE_FOOTER.enabled,
     showPageLinks: footer?.showPageLinks ?? true,
+    showLogo: footer?.showLogo ?? true,
+    showPoweredBy: footer?.showPoweredBy ?? true,
+  }
+}
+
+export function defaultHomeSectionsFor(kind: StoreKind): HomeSection[] {
+  const retail = kind === 'retail'
+  return [
+    {
+      id: 'home_splash',
+      kind: 'splash',
+      enabled: true,
+      sortOrder: 0,
+      splashLayout: 'fullBleedCenter',
+      logoStyle: 'natural',
+      showLogo: true,
+      showTitle: true,
+      showSubtitle: true,
+      title: retail ? 'Welcome in' : 'Tonight’s table',
+      subtitle: retail
+        ? 'New arrivals and everyday essentials, curated for you.'
+        : 'Seasonal plates, craft drinks, and a warm welcome.',
+      primaryButtonLabel: retail ? 'Shop catalog' : 'View menu',
+      primaryButtonHref: '#section-catalog',
+      secondaryButtonLabel: 'About us',
+      secondaryButtonHref: 'about',
+    },
+    {
+      id: 'home_about',
+      kind: 'aboutTeaser',
+      enabled: true,
+      sortOrder: 1,
+      aboutLayout: retail ? 'splitImageRight' : 'splitImageLeft',
+      aboutTitle: retail ? 'Our craft' : 'Our kitchen',
+      aboutBody: retail
+        ? 'Materials, makers, and the story behind the shop.'
+        : 'From the pass to your table — our story, season by season.',
+      aboutButtonLabel: 'Read more',
+    },
+    {
+      id: 'home_featured',
+      kind: 'featured',
+      enabled: true,
+      sortOrder: 2,
+      featuredLayout: retail ? 'grid' : 'carousel',
+      featuredCount: retail ? 4 : 1,
+    },
+    {
+      id: 'home_catalog',
+      kind: 'catalog',
+      enabled: true,
+      sortOrder: 3,
+    },
+  ]
+}
+
+export function normalizeHomeSection(
+  section: Partial<HomeSection> & Pick<HomeSection, 'id' | 'kind'>,
+  index: number,
+): HomeSection {
+  return {
+    id: section.id,
+    kind: section.kind,
+    enabled: section.enabled !== false,
+    sortOrder: section.sortOrder ?? index,
+    splashLayout:
+      section.splashLayout === 'fullBleedBottom' ? 'fullBleedBottom' : 'fullBleedCenter',
+    logoStyle: section.logoStyle === 'roundedSquare' ? 'roundedSquare' : 'natural',
+    showLogo: section.showLogo !== false,
+    showTitle: section.showTitle !== false,
+    showSubtitle: section.showSubtitle !== false,
+    title: section.title,
+    subtitle: section.subtitle,
+    primaryButtonLabel: section.primaryButtonLabel,
+    primaryButtonHref: section.primaryButtonHref,
+    secondaryButtonLabel: section.secondaryButtonLabel,
+    secondaryButtonHref: section.secondaryButtonHref,
+    aboutLayout:
+      section.aboutLayout === 'splitImageLeft'
+        ? 'splitImageLeft'
+        : section.aboutLayout === 'stacked'
+          ? 'stacked'
+          : 'splitImageRight',
+    aboutTitle: section.aboutTitle,
+    aboutBody: section.aboutBody,
+    aboutButtonLabel: section.aboutButtonLabel,
+    aboutImageUrl: section.aboutImageUrl,
+    featuredLayout: section.featuredLayout === 'grid' ? 'grid' : 'carousel',
+    featuredCount: Math.max(1, Math.min(8, section.featuredCount ?? 4)),
+  }
+}
+
+export function normalizeStoreHome(
+  home: Partial<StoreHome> | null | undefined,
+  kind: StoreKind,
+): StoreHome {
+  const defaults = defaultHomeSectionsFor(kind)
+  if (!home?.sections?.length) {
+    return {
+      enabled: home?.enabled ?? false,
+      sections: defaults,
+    }
+  }
+  const sections = home.sections
+    .filter((s) => s && s.id && s.kind)
+    .map((s, i) => normalizeHomeSection(s as HomeSection, i))
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  // Ensure catalog exists so shop never disappears.
+  if (!sections.some((s) => s.kind === 'catalog')) {
+    sections.push({
+      id: 'home_catalog',
+      kind: 'catalog',
+      enabled: true,
+      sortOrder: sections.length,
+    })
+  }
+  return {
+    enabled: home.enabled === true,
+    sections,
   }
 }
 
@@ -1021,7 +1202,13 @@ export function defaultStorePagesFor(kind: StoreKind): StorePages {
       contact: { ...DEFAULT_STORE_PAGES.contact, hero: { ...DEFAULT_PAGE_HERO } },
       coverIntro: { ...DEFAULT_COVER_INTRO },
       featuredEnabled: true,
-      footer: { ...DEFAULT_STORE_FOOTER, enabled: false },
+      footer: {
+        ...DEFAULT_STORE_FOOTER,
+        enabled: true,
+        showLogo: true,
+        showPoweredBy: true,
+      },
+      home: { enabled: true, sections: defaultHomeSectionsFor('restaurant') },
     }
   }
   return {
@@ -1051,7 +1238,10 @@ export function defaultStorePagesFor(kind: StoreKind): StorePages {
       ...DEFAULT_STORE_FOOTER,
       enabled: true,
       showPageLinks: true,
+      showLogo: true,
+      showPoweredBy: true,
     },
+    home: { enabled: true, sections: defaultHomeSectionsFor('retail') },
   }
 }
 

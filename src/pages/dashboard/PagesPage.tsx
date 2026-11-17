@@ -1,26 +1,41 @@
 import { useEffect, useState } from 'react'
+import { ArrowDown, ArrowUp } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import * as restaurantService from '@/services/restaurantService'
 import { Button } from '@/components/ui/Button'
-import { Field, Input, Textarea } from '@/components/ui/Input'
+import { Field, Input, Select, Textarea } from '@/components/ui/Input'
 import type {
   CoverHeroAlign,
   CoverHeroHeight,
+  HomeAboutLayout,
+  HomeFeaturedLayout,
+  HomeSection,
+  HomeSplashLayout,
   PageHeaderStyle,
   StorefrontLayout,
   StorefrontWidth,
   StorePages,
 } from '@/types'
 import {
+  defaultHomeSectionsFor,
   defaultStorePagesFor,
   normalizeAboutPage,
   normalizeContactPage,
   normalizeCoverIntro,
+  normalizeHomeSection,
   normalizePageHero,
   normalizeStoreFooter,
+  normalizeStoreHome,
 } from '@/types'
 import { cn } from '@/lib/utils'
+
+const HOME_KIND_LABEL: Record<HomeSection['kind'], string> = {
+  splash: 'Splash hero',
+  aboutTeaser: 'About teaser',
+  featured: 'Featured items',
+  catalog: 'Catalog / menu',
+}
 
 function HeroLayoutControls({
   hero,
@@ -152,6 +167,7 @@ export function PagesPage() {
             coverIntro: normalizeCoverIntro(current.pages.coverIntro),
             featuredEnabled: current.pages.featuredEnabled !== false,
             footer: normalizeStoreFooter(current.pages.footer),
+            home: normalizeStoreHome(current.pages.home, current.storeKind),
           }
         : defaultStorePagesFor(current.storeKind),
     )
@@ -161,19 +177,21 @@ export function PagesPage() {
     return <p className="text-sm text-stone-500">Select a store to edit pages and layout.</p>
   }
 
+  const store = current
+  const account = user
+
   async function save() {
-    if (!user || !current) return
     setBusy(true)
     setError('')
     setMessage('')
     try {
-      await restaurantService.updateRestaurant(user.id, current.id, {
+      await restaurantService.updateRestaurant(account.id, store.id, {
         storefrontLayout: layout,
         storefrontWidth: width,
         coverImageUrl: coverImageUrl.trim() || undefined,
         pages,
       })
-      await load(user.id)
+      await load(account.id)
       setMessage('Storefront layout and pages saved.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save.')
@@ -184,6 +202,43 @@ export function PagesPage() {
 
   function toggleContact(key: keyof StorePages['contact'], value: boolean) {
     setPages((p) => ({ ...p, contact: { ...p.contact, [key]: value } }))
+  }
+
+  const home = normalizeStoreHome(pages.home, store.storeKind)
+  const homeSections = [...home.sections].sort((a, b) => a.sortOrder - b.sortOrder)
+
+  function setHome(next: Partial<NonNullable<StorePages['home']>>) {
+    setPages((p) => ({
+      ...p,
+      home: normalizeStoreHome(
+        {
+          ...normalizeStoreHome(p.home, store.storeKind),
+          ...next,
+        },
+        store.storeKind,
+      ),
+    }))
+  }
+
+  function updateHomeSection(id: string, patch: Partial<HomeSection>) {
+    setHome({
+      sections: homeSections.map((s, i) =>
+        s.id === id
+          ? normalizeHomeSection({ ...s, ...patch, id: s.id, kind: s.kind }, i)
+          : s,
+      ),
+    })
+  }
+
+  function moveHomeSection(id: string, dir: -1 | 1) {
+    const idx = homeSections.findIndex((s) => s.id === id)
+    const swap = idx + dir
+    if (idx < 0 || swap < 0 || swap >= homeSections.length) return
+    const next = [...homeSections]
+    ;[next[idx], next[swap]] = [next[swap], next[idx]]
+    setHome({
+      sections: next.map((s, i) => normalizeHomeSection({ ...s, sortOrder: i }, i)),
+    })
   }
 
   return (
@@ -279,9 +334,317 @@ export function PagesPage() {
       <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-5">
         <div className="flex items-start justify-between gap-3">
           <div>
+            <h2 className="font-display text-xl">Homepage</h2>
+            <p className="mt-1 text-sm text-stone-500">
+              Full-bleed splash, about teaser, featured carousel or grid, then catalog —
+              reorder sections and pick layouts. Uses your brand fonts and colors.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={home.enabled}
+              onChange={(e) => {
+                if (e.target.checked && !pages.home?.sections?.length) {
+                  setHome({
+                    enabled: true,
+                    sections: defaultHomeSectionsFor(store.storeKind),
+                  })
+                } else {
+                  setHome({ enabled: e.target.checked })
+                }
+              }}
+            />
+            Enabled
+          </label>
+        </div>
+
+        {home.enabled ? (
+          <div className="space-y-4">
+            {homeSections.map((section, index) => (
+              <div
+                key={section.id}
+                className="space-y-3 rounded-xl border border-stone-200 bg-stone-50/60 p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-stone-400">
+                      {index + 1}
+                    </span>
+                    <p className="font-medium text-stone-800">
+                      {HOME_KIND_LABEL[section.kind]}
+                    </p>
+                    <label className="flex items-center gap-2 text-sm text-stone-600">
+                      <input
+                        type="checkbox"
+                        checked={section.enabled}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, { enabled: e.target.checked })
+                        }
+                      />
+                      On
+                    </label>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      className="rounded-lg border border-stone-200 bg-white p-1.5 hover:bg-stone-50 disabled:opacity-40"
+                      disabled={index === 0}
+                      onClick={() => moveHomeSection(section.id, -1)}
+                      aria-label="Move up"
+                    >
+                      <ArrowUp className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-stone-200 bg-white p-1.5 hover:bg-stone-50 disabled:opacity-40"
+                      disabled={index === homeSections.length - 1}
+                      onClick={() => moveHomeSection(section.id, 1)}
+                      aria-label="Move down"
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {section.kind === 'splash' ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Layout" htmlFor={`splash-layout-${section.id}`}>
+                      <Select
+                        id={`splash-layout-${section.id}`}
+                        value={section.splashLayout ?? 'fullBleedCenter'}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, {
+                            splashLayout: e.target.value as HomeSplashLayout,
+                          })
+                        }
+                      >
+                        <option value="fullBleedCenter">Full-bleed centered</option>
+                        <option value="fullBleedBottom">Full-bleed bottom-left</option>
+                      </Select>
+                    </Field>
+                    <Field label="Logo style" htmlFor={`splash-logo-${section.id}`}>
+                      <Select
+                        id={`splash-logo-${section.id}`}
+                        value={section.logoStyle ?? 'natural'}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, {
+                            logoStyle:
+                              e.target.value === 'roundedSquare'
+                                ? 'roundedSquare'
+                                : 'natural',
+                          })
+                        }
+                      >
+                        <option value="natural">
+                          Natural / transparent (height capped)
+                        </option>
+                        <option value="roundedSquare">Rounded square</option>
+                      </Select>
+                    </Field>
+                    {(
+                      [
+                        ['showLogo', 'Show logo'],
+                        ['showTitle', 'Show title'],
+                        ['showSubtitle', 'Show subtitle'],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <label key={key} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={section[key] !== false}
+                          onChange={(e) =>
+                            updateHomeSection(section.id, { [key]: e.target.checked })
+                          }
+                        />
+                        {label}
+                      </label>
+                    ))}
+                    <Field label="Title" htmlFor={`splash-title-${section.id}`}>
+                      <Input
+                        id={`splash-title-${section.id}`}
+                        value={section.title ?? ''}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, { title: e.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field label="Subtitle" htmlFor={`splash-sub-${section.id}`}>
+                      <Input
+                        id={`splash-sub-${section.id}`}
+                        value={section.subtitle ?? ''}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, { subtitle: e.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field label="Primary button" htmlFor={`splash-pbtn-${section.id}`}>
+                      <Input
+                        id={`splash-pbtn-${section.id}`}
+                        value={section.primaryButtonLabel ?? ''}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, {
+                            primaryButtonLabel: e.target.value,
+                          })
+                        }
+                        placeholder="View menu"
+                      />
+                    </Field>
+                    <Field label="Primary link" htmlFor={`splash-phref-${section.id}`}>
+                      <Input
+                        id={`splash-phref-${section.id}`}
+                        value={section.primaryButtonHref ?? ''}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, {
+                            primaryButtonHref: e.target.value,
+                          })
+                        }
+                        placeholder="#section-catalog or about"
+                      />
+                    </Field>
+                    <Field label="Secondary button" htmlFor={`splash-sbtn-${section.id}`}>
+                      <Input
+                        id={`splash-sbtn-${section.id}`}
+                        value={section.secondaryButtonLabel ?? ''}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, {
+                            secondaryButtonLabel: e.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                    <Field label="Secondary link" htmlFor={`splash-shref-${section.id}`}>
+                      <Input
+                        id={`splash-shref-${section.id}`}
+                        value={section.secondaryButtonHref ?? ''}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, {
+                            secondaryButtonHref: e.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                  </div>
+                ) : null}
+
+                {section.kind === 'aboutTeaser' ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Layout" htmlFor={`about-layout-${section.id}`}>
+                      <Select
+                        id={`about-layout-${section.id}`}
+                        value={section.aboutLayout ?? 'splitImageRight'}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, {
+                            aboutLayout: e.target.value as HomeAboutLayout,
+                          })
+                        }
+                      >
+                        <option value="splitImageRight">Image left, copy right</option>
+                        <option value="splitImageLeft">Copy left, image right</option>
+                        <option value="stacked">Stacked (image above)</option>
+                      </Select>
+                    </Field>
+                    <Field label="Title" htmlFor={`about-t-${section.id}`}>
+                      <Input
+                        id={`about-t-${section.id}`}
+                        value={section.aboutTitle ?? ''}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, { aboutTitle: e.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field label="Body" htmlFor={`about-b-${section.id}`}>
+                      <Textarea
+                        id={`about-b-${section.id}`}
+                        rows={3}
+                        value={section.aboutBody ?? ''}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, { aboutBody: e.target.value })
+                        }
+                      />
+                    </Field>
+                    <Field label="Button label" htmlFor={`about-btn-${section.id}`}>
+                      <Input
+                        id={`about-btn-${section.id}`}
+                        value={section.aboutButtonLabel ?? ''}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, {
+                            aboutButtonLabel: e.target.value,
+                          })
+                        }
+                      />
+                    </Field>
+                    <Field label="Image URL (optional)" htmlFor={`about-img-${section.id}`}>
+                      <Input
+                        id={`about-img-${section.id}`}
+                        value={section.aboutImageUrl ?? ''}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, {
+                            aboutImageUrl: e.target.value || undefined,
+                          })
+                        }
+                        placeholder="Falls back to About hero or cover"
+                      />
+                    </Field>
+                  </div>
+                ) : null}
+
+                {section.kind === 'featured' ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Layout" htmlFor={`feat-layout-${section.id}`}>
+                      <Select
+                        id={`feat-layout-${section.id}`}
+                        value={section.featuredLayout ?? 'carousel'}
+                        onChange={(e) =>
+                          updateHomeSection(section.id, {
+                            featuredLayout: e.target.value as HomeFeaturedLayout,
+                          })
+                        }
+                      >
+                        <option value="carousel">Carousel (one at a time)</option>
+                        <option value="grid">Grid (several)</option>
+                      </Select>
+                    </Field>
+                    {section.featuredLayout === 'grid' ? (
+                      <Field label="Items to show" htmlFor={`feat-count-${section.id}`}>
+                        <Input
+                          id={`feat-count-${section.id}`}
+                          type="number"
+                          min={1}
+                          max={8}
+                          value={section.featuredCount ?? 4}
+                          onChange={(e) =>
+                            updateHomeSection(section.id, {
+                              featuredCount: Number(e.target.value) || 4,
+                            })
+                          }
+                        />
+                      </Field>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {section.kind === 'catalog' ? (
+                  <p className="text-sm text-stone-500">
+                    Your menu / product catalog renders here in the home page order.
+                  </p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-stone-500">
+            When off, the storefront uses the classic cover / featured layout below.
+          </p>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
             <h2 className="font-display text-xl">Cover / hero</h2>
             <p className="mt-1 text-sm text-stone-500">
-              Control the cover image band, overlay copy, and alignment on the retail shop.
+              Classic cover band when Homepage is off (retail-friendly overlay copy).
             </p>
           </div>
           <label className="flex items-center gap-2 text-sm">
@@ -799,22 +1162,56 @@ export function PagesPage() {
             placeholder="Defaults to © {year} {company}. All rights reserved."
           />
         </Field>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={pages.footer?.showPageLinks !== false}
-            onChange={(e) =>
-              setPages((p) => ({
-                ...p,
-                footer: normalizeStoreFooter({
-                  ...p.footer,
-                  showPageLinks: e.target.checked,
-                }),
-              }))
-            }
-          />
-          Show Shop / About / Contact links
-        </label>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={pages.footer?.showPageLinks !== false}
+              onChange={(e) =>
+                setPages((p) => ({
+                  ...p,
+                  footer: normalizeStoreFooter({
+                    ...p.footer,
+                    showPageLinks: e.target.checked,
+                  }),
+                }))
+              }
+            />
+            Show page links
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={pages.footer?.showLogo !== false}
+              onChange={(e) =>
+                setPages((p) => ({
+                  ...p,
+                  footer: normalizeStoreFooter({
+                    ...p.footer,
+                    showLogo: e.target.checked,
+                  }),
+                }))
+              }
+            />
+            Show logo
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={pages.footer?.showPoweredBy !== false}
+              onChange={(e) =>
+                setPages((p) => ({
+                  ...p,
+                  footer: normalizeStoreFooter({
+                    ...p.footer,
+                    showPoweredBy: e.target.checked,
+                  }),
+                }))
+              }
+            />
+            Powered by MenuShop
+          </label>
+        </div>
       </section>
 
       <Button size="lg" disabled={busy} onClick={() => void save()}>

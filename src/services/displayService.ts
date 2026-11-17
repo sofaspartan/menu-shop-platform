@@ -109,7 +109,11 @@ export async function createDisplay(
     slideDurationSec: 8,
     showLogo: true,
     showStoreName: true,
+    showLive: true,
     showDate: true,
+    showTime: true,
+    showHeader: true,
+    logoStyle: 'roundedSquare',
     headline: input.headline?.trim() || undefined,
     tagline: input.tagline?.trim() || undefined,
     backgroundImageUrl: input.backgroundImageUrl?.trim() || undefined,
@@ -133,7 +137,11 @@ export type DisplayPatch = Partial<
     | 'slideDurationSec'
     | 'showLogo'
     | 'showStoreName'
+    | 'showLive'
     | 'showDate'
+    | 'showTime'
+    | 'showHeader'
+    | 'logoStyle'
     | 'headline'
     | 'tagline'
     | 'backgroundImageUrl'
@@ -181,7 +189,11 @@ export async function updateDisplay(
     }
     if (patch.showLogo !== undefined) next.showLogo = patch.showLogo
     if (patch.showStoreName !== undefined) next.showStoreName = patch.showStoreName
+    if (patch.showLive !== undefined) next.showLive = patch.showLive
     if (patch.showDate !== undefined) next.showDate = patch.showDate
+    if (patch.showTime !== undefined) next.showTime = patch.showTime
+    if (patch.showHeader !== undefined) next.showHeader = patch.showHeader
+    if (patch.logoStyle !== undefined) next.logoStyle = patch.logoStyle
     if (patch.headline !== undefined) {
       next.headline = patch.headline.trim() || undefined
     }

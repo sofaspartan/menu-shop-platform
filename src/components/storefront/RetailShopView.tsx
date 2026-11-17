@@ -1,9 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import type { Menu, MenuItem, MenuItemAssignment, MenuSection, Restaurant } from '@/types'
 import { normalizeCoverIntro } from '@/types'
 import { RetailChrome } from '@/components/storefront/RetailChrome'
 import { StorefrontFooter } from '@/components/storefront/StorefrontFooter'
+import {
+  HomeAboutTeaserSection,
+  HomeFeaturedSection,
+  HomeSplashSection,
+  isStoreHomeEnabled,
+  useHomeSections,
+} from '@/components/storefront/StoreHomeSections'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
 import { PriceDisplay } from '@/components/storefront/PriceDisplay'
 import { Badge } from '@/components/ui/Badge'
@@ -49,20 +56,24 @@ export function RetailShopView({
   )
   const copy = storeCopy(restaurant.storeKind)
   const contentClass = storefrontContentClass(restaurant.storefrontWidth)
+  const homeEnabled = isStoreHomeEnabled(restaurant)
+  const homeSections = useHomeSections(restaurant)
   const coverIntro = normalizeCoverIntro(restaurant.pages?.coverIntro)
   const featuredEnabled = restaurant.pages?.featuredEnabled !== false
   const showCover =
+    !homeEnabled &&
     coverIntro.enabled &&
     restaurant.branding.coverDisplay !== 'none' &&
     Boolean(restaurant.coverImageUrl)
-  const featuredHero = !search && featuredEnabled ? (featured[0] ?? null) : null
+  const featuredHero =
+    !homeEnabled && !search && featuredEnabled ? (featured[0] ?? null) : null
   const sectionLinks = !search
     ? [
         ...(featuredHero ? [{ id: 'featured', name: 'Featured' }] : []),
         ...sectionItems.map(({ section }) => ({ id: section.id, name: section.name })),
       ]
     : []
-  const showSectionNav = sectionLinks.length > 1
+  const showSectionNav = !homeEnabled && sectionLinks.length > 1
   const [activeSectionId, setActiveSectionId] = useState<string | null>(
     sectionLinks[0]?.id ?? null,
   )
@@ -97,6 +108,114 @@ export function RetailShopView({
     return () => observer.disconnect()
   }, [sectionIdsKey])
 
+  const catalogBlock = (
+    <div id="section-catalog" className={cn(contentClass, 'pb-28 pt-8')}>
+      {menus.length > 1 ? (
+        <div className="mb-8 flex flex-wrap gap-2">
+          {menus.map((menu) => {
+            const active = selectedMenu?.id === menu.id
+            return (
+              <Link
+                key={menu.id}
+                to={`/r/${restaurant.slug}/menu/${menu.slug}`}
+                className={cn(
+                  'rounded-full px-4 py-2.5 text-base transition-colors',
+                  active
+                    ? 'bg-[var(--sf-text)] font-medium text-[var(--sf-bg)]'
+                    : 'text-[var(--sf-text)]/75 hover:text-[var(--sf-text)]',
+                )}
+              >
+                {menu.name}
+              </Link>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {!selectedMenu ? (
+        <EmptyState title={copy.noCatalogTitle} description={copy.noCatalogBody} />
+      ) : (
+        <>
+          {featuredHero ? (
+            <FeaturedHero
+              entry={featuredHero}
+              sales={sales}
+              onOpenItem={onOpenItem}
+              isItemOrderable={isItemOrderable}
+              unavailableLabel={unavailableLabel}
+            />
+          ) : null}
+
+          {sectionItems.map(({ section, items }) => (
+            <section
+              key={section.id}
+              id={`section-${section.id}`}
+              className="mb-16 scroll-mt-40"
+            >
+              <div className="mb-6">
+                <h2 className="font-display text-2xl font-semibold tracking-tight text-[var(--sf-text)] sm:text-[1.75rem]">
+                  {section.name}
+                </h2>
+                {section.description ? (
+                  <p className="mt-2 max-w-2xl text-base leading-relaxed text-[var(--sf-text)]/75">
+                    {section.description}
+                  </p>
+                ) : null}
+              </div>
+              {items.length === 0 ? (
+                <p className="text-base text-[var(--sf-text)]/65">No products match.</p>
+              ) : (
+                <ProductGrid
+                  items={items}
+                  sales={sales}
+                  onOpenItem={onOpenItem}
+                  isItemOrderable={isItemOrderable}
+                  unavailableLabel={unavailableLabel}
+                />
+              )}
+            </section>
+          ))}
+        </>
+      )}
+    </div>
+  )
+
+  let homeBody: ReactNode = null
+  if (homeEnabled) {
+    const nodes: ReactNode[] = []
+    for (const section of homeSections) {
+      if (section.kind === 'splash') {
+        nodes.push(
+          <HomeSplashSection key={section.id} restaurant={restaurant} section={section} />,
+        )
+      } else if (section.kind === 'aboutTeaser') {
+        nodes.push(
+          <HomeAboutTeaserSection
+            key={section.id}
+            restaurant={restaurant}
+            section={section}
+          />,
+        )
+      } else if (section.kind === 'featured') {
+        nodes.push(
+          <HomeFeaturedSection
+            key={section.id}
+            restaurant={restaurant}
+            section={section}
+            featured={featured}
+            onOpenItem={onOpenItem}
+          />,
+        )
+      } else if (section.kind === 'catalog') {
+        nodes.push(<div key={section.id}>{catalogBlock}</div>)
+      }
+    }
+    if (!homeSections.some((s) => s.kind === 'catalog')) {
+      nodes.push(<div key="catalog-fallback">{catalogBlock}</div>)
+    }
+    homeBody = nodes
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <RetailChrome
@@ -105,171 +224,114 @@ export function RetailShopView({
         onSearchChange={onSearchChange}
       />
 
-      {showCover ? (
-        <div className="relative w-full overflow-hidden">
-          <div
-            className={cn(
-              'relative w-full',
-              coverIntro.height === 'tall'
-                ? 'aspect-[16/11] min-h-[320px] max-h-[640px] sm:min-h-[420px] sm:aspect-[21/10]'
-                : 'aspect-[21/9] min-h-[200px] max-h-[360px] sm:min-h-[260px]',
-            )}
-          >
-            <img
-              src={restaurant.coverImageUrl}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-            {coverIntro.align === 'centerMiddle' ? (
-              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/35 to-black/20" />
-            ) : (
-              <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-            )}
+      {homeEnabled ? (
+        <div className="flex-1">{homeBody}</div>
+      ) : (
+        <>
+          {showCover ? (
+            <div className="relative w-full overflow-hidden">
+              <div
+                className={cn(
+                  'relative w-full',
+                  coverIntro.height === 'tall'
+                    ? 'aspect-[16/11] min-h-[320px] max-h-[640px] sm:min-h-[420px] sm:aspect-[21/10]'
+                    : 'aspect-[21/9] min-h-[200px] max-h-[360px] sm:min-h-[260px]',
+                )}
+              >
+                <img
+                  src={restaurant.coverImageUrl}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+                {coverIntro.align === 'centerMiddle' ? (
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/35 to-black/20" />
+                ) : (
+                  <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                )}
+                <div
+                  className={cn(
+                    contentClass,
+                    coverIntro.align === 'centerMiddle'
+                      ? 'absolute inset-0 flex items-center justify-center py-10 text-center'
+                      : cn(
+                          'absolute inset-x-0 bottom-0 pb-8 pt-16 sm:pb-10',
+                          coverIntro.align === 'centerBottom' &&
+                            'flex justify-center text-center',
+                        ),
+                  )}
+                >
+                  <CoverIntroCopy
+                    title={coverIntro.showTitle ? coverIntro.title : undefined}
+                    description={
+                      coverIntro.showDescription ? restaurant.description : undefined
+                    }
+                    buttonLabel={coverIntro.showButton ? coverIntro.buttonLabel : undefined}
+                    buttonHref={coverIntro.buttonHref}
+                    align={coverIntro.align}
+                    onLight={false}
+                  />
+                </div>
+              </div>
+            </div>
+          ) : coverIntro.enabled ? (
             <div
               className={cn(
                 contentClass,
-                coverIntro.align === 'centerMiddle'
-                  ? 'absolute inset-0 flex items-center justify-center py-10 text-center'
-                  : cn(
-                      'absolute inset-x-0 bottom-0 pb-8 pt-16 sm:pb-10',
-                      coverIntro.align === 'centerBottom' && 'flex justify-center text-center',
-                    ),
+                'pb-2 pt-8',
+                (coverIntro.align === 'centerBottom' ||
+                  coverIntro.align === 'centerMiddle') &&
+                  'flex justify-center text-center',
               )}
             >
               <CoverIntroCopy
                 title={coverIntro.showTitle ? coverIntro.title : undefined}
-                description={coverIntro.showDescription ? restaurant.description : undefined}
+                description={
+                  coverIntro.showDescription ? restaurant.description : undefined
+                }
                 buttonLabel={coverIntro.showButton ? coverIntro.buttonLabel : undefined}
                 buttonHref={coverIntro.buttonHref}
                 align={coverIntro.align}
-                onLight={false}
+                onLight
               />
             </div>
-          </div>
-        </div>
-      ) : coverIntro.enabled ? (
-        <div
-          className={cn(
-            contentClass,
-            'pb-2 pt-8',
-            (coverIntro.align === 'centerBottom' || coverIntro.align === 'centerMiddle') &&
-              'flex justify-center text-center',
-          )}
-        >
-          <CoverIntroCopy
-            title={coverIntro.showTitle ? coverIntro.title : undefined}
-            description={coverIntro.showDescription ? restaurant.description : undefined}
-            buttonLabel={coverIntro.showButton ? coverIntro.buttonLabel : undefined}
-            buttonHref={coverIntro.buttonHref}
-            align={coverIntro.align}
-            onLight
-          />
-        </div>
-      ) : null}
+          ) : null}
 
-      {/* Sits under the cover; sticks under the site header once you scroll past it. */}
-      {showSectionNav ? (
-        <nav
-          aria-label="Product sections"
-          className="sticky top-[4.25rem] z-20 border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] bg-[var(--sf-bg)]/95 backdrop-blur-md sm:top-[4.5rem]"
-        >
-          <div
-            className={cn(
-              contentClass,
-              'flex items-center gap-1 overflow-x-auto py-3.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
-            )}
-          >
-            {sectionLinks.map((section) => {
-              const active = activeSectionId === section.id
-              return (
-                <a
-                  key={section.id}
-                  href={`#section-${section.id}`}
-                  aria-current={active ? 'true' : undefined}
-                  className={cn(
-                    'shrink-0 rounded-md px-3 py-2 text-base transition-colors',
-                    active
-                      ? 'font-semibold text-[var(--sf-text)]'
-                      : 'font-normal text-[var(--sf-text)]/75 hover:text-[var(--sf-text)]',
-                  )}
-                >
-                  {section.name}
-                </a>
-              )
-            })}
-          </div>
-        </nav>
-      ) : null}
-
-      <main className={cn(contentClass, 'flex-1 pb-28 pt-8')}>
-        {menus.length > 1 ? (
-          <div className="mb-8 flex flex-wrap gap-2">
-            {menus.map((menu) => {
-              const active = selectedMenu?.id === menu.id
-              return (
-                <Link
-                  key={menu.id}
-                  to={`/r/${restaurant.slug}/menu/${menu.slug}`}
-                  className={cn(
-                    'rounded-full px-4 py-2.5 text-base transition-colors',
-                    active
-                      ? 'bg-[var(--sf-text)] font-medium text-[var(--sf-bg)]'
-                      : 'text-[var(--sf-text)]/75 hover:text-[var(--sf-text)]',
-                  )}
-                >
-                  {menu.name}
-                </Link>
-              )
-            })}
-          </div>
-        ) : null}
-
-        {!selectedMenu ? (
-          <EmptyState title={copy.noCatalogTitle} description={copy.noCatalogBody} />
-        ) : (
-          <>
-            {featuredHero ? (
-              <FeaturedHero
-                entry={featuredHero}
-                sales={sales}
-                onOpenItem={onOpenItem}
-                isItemOrderable={isItemOrderable}
-                unavailableLabel={unavailableLabel}
-              />
-            ) : null}
-
-            {sectionItems.map(({ section, items }) => (
-              <section
-                key={section.id}
-                id={`section-${section.id}`}
-                className="mb-16 scroll-mt-40"
-              >
-                <div className="mb-6">
-                  <h2 className="font-display text-2xl font-semibold tracking-tight text-[var(--sf-text)] sm:text-[1.75rem]">
-                    {section.name}
-                  </h2>
-                  {section.description ? (
-                    <p className="mt-2 max-w-2xl text-base leading-relaxed text-[var(--sf-text)]/75">
-                      {section.description}
-                    </p>
-                  ) : null}
-                </div>
-                {items.length === 0 ? (
-                  <p className="text-base text-[var(--sf-text)]/65">No products match.</p>
-                ) : (
-                  <ProductGrid
-                    items={items}
-                    sales={sales}
-                    onOpenItem={onOpenItem}
-                    isItemOrderable={isItemOrderable}
-                    unavailableLabel={unavailableLabel}
-                  />
+          {showSectionNav ? (
+            <nav
+              aria-label="Product sections"
+              className="sticky top-[4.25rem] z-20 border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] bg-[var(--sf-bg)]/95 backdrop-blur-md sm:top-[4.5rem]"
+            >
+              <div
+                className={cn(
+                  contentClass,
+                  'flex items-center gap-1 overflow-x-auto py-3.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
                 )}
-              </section>
-            ))}
-          </>
-        )}
-      </main>
+              >
+                {sectionLinks.map((section) => {
+                  const active = activeSectionId === section.id
+                  return (
+                    <a
+                      key={section.id}
+                      href={`#section-${section.id}`}
+                      aria-current={active ? 'true' : undefined}
+                      className={cn(
+                        'shrink-0 rounded-md px-3 py-2 text-base transition-colors',
+                        active
+                          ? 'font-semibold text-[var(--sf-text)]'
+                          : 'font-normal text-[var(--sf-text)]/75 hover:text-[var(--sf-text)]',
+                      )}
+                    >
+                      {section.name}
+                    </a>
+                  )
+                })}
+              </div>
+            </nav>
+          ) : null}
+
+          <main className="flex-1">{catalogBlock}</main>
+        </>
+      )}
 
       <StorefrontFooter restaurant={restaurant} />
     </div>

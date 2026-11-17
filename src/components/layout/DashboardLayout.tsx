@@ -5,9 +5,9 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Settings,
   Palette,
   QrCode,
-  Settings,
   Store,
   UtensilsCrossed,
   Clock3,
@@ -27,7 +27,6 @@ import { useAuthStore } from '@/stores/authStore'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { storeCopy } from '@/lib/storeCopy'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/Button'
 
 type NavItem = {
   to: string
@@ -122,11 +121,6 @@ export function DashboardLayout() {
           { to: '/dashboard/kitchen', label: copy.bohNoun, icon: Monitor },
           { to: '/dashboard/preview', label: 'Preview', icon: Eye },
         ],
-      },
-      {
-        id: 'account',
-        label: 'Account',
-        items: [{ to: '/dashboard/settings', label: 'Settings', icon: Settings }],
       },
     ],
     [copy],
@@ -307,21 +301,18 @@ export function DashboardLayout() {
           })}
         </nav>
 
-        <div className="mt-4 shrink-0 border-t border-stone-100 pt-4">
-          <div className="px-3 text-sm font-medium">{user.name}</div>
-          <div className="px-3 text-xs text-stone-500">{user.email}</div>
-          <Button
-            variant="ghost"
-            className="mt-2 w-full justify-start"
-            onClick={async () => {
-              await signOut()
-              navigate('/')
-            }}
-          >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </Button>
-        </div>
+        <AccountMenu
+          name={user.name}
+          email={user.email}
+          onSettings={() => {
+            setMobileOpen(false)
+            navigate('/dashboard/settings')
+          }}
+          onSignOut={async () => {
+            await signOut()
+            navigate('/')
+          }}
+        />
       </aside>
 
       {mobileOpen ? (
@@ -361,6 +352,74 @@ export function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+    </div>
+  )
+}
+
+function AccountMenu({
+  name,
+  email,
+  onSettings,
+  onSignOut,
+}: {
+  name: string
+  email: string
+  onSettings: () => void
+  onSignOut: () => void | Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .join('') || '?'
+
+  return (
+    <div className="relative mt-4 shrink-0 border-t border-stone-100 pt-4">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-stone-50"
+        aria-expanded={open}
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-xs font-semibold text-[var(--color-brand)]">
+          {initials}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-stone-900">{name}</span>
+          <span className="block truncate text-xs text-stone-500">{email}</span>
+        </span>
+        <ChevronDown
+          className={cn('h-4 w-4 shrink-0 text-stone-400 transition', open && 'rotate-180')}
+        />
+      </button>
+      {open ? (
+        <div className="mt-1 space-y-0.5 rounded-xl border border-stone-200 bg-white p-1 shadow-sm">
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-stone-50"
+            onClick={() => {
+              setOpen(false)
+              onSettings()
+            }}
+          >
+            <Settings className="h-4 w-4" />
+            Account settings
+          </button>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-stone-700 hover:bg-stone-50"
+            onClick={() => {
+              setOpen(false)
+              void onSignOut()
+            }}
+          >
+            <LogOut className="h-4 w-4" />
+            Log out
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }
