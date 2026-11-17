@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -9,6 +9,7 @@ export function Modal({
   onClose,
   title,
   children,
+  footer,
   className,
   wide,
   style,
@@ -19,7 +20,9 @@ export function Modal({
   open: boolean
   onClose: () => void
   title?: string
-  children: React.ReactNode
+  children: ReactNode
+  /** Sticky actions bar pinned under the scrollable body. */
+  footer?: ReactNode
   className?: string
   wide?: boolean
   /** Applied to the portal root so CSS variables survive createPortal(document.body). */
@@ -81,7 +84,7 @@ export function Modal({
             <X className="h-5 w-5" />
           </Button>
         ) : (
-          <div className="flex items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
             <h2 className="font-display text-xl text-stone-900">
               {title || 'Dialog'}
             </h2>
@@ -104,8 +107,65 @@ export function Modal({
         >
           {children}
         </div>
+        {footer ? (
+          <div className="shrink-0 border-t border-stone-100 bg-white px-5 py-4">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,
   )
+}
+
+export function ModalTabs<T extends string>({
+  tabs,
+  value,
+  onChange,
+  className,
+}: {
+  tabs: Array<{ id: T; label: string }>
+  value: T
+  onChange: (id: T) => void
+  className?: string
+}) {
+  return (
+    <div
+      className={cn(
+        'mb-4 flex gap-1 overflow-x-auto border-b border-stone-100 pb-px',
+        className,
+      )}
+      role="tablist"
+    >
+      {tabs.map((tab) => {
+        const active = tab.id === value
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(tab.id)}
+            className={cn(
+              'shrink-0 rounded-t-lg px-3 py-2 text-sm font-medium transition-colors',
+              active
+                ? 'border-b-2 border-[var(--color-brand)] text-[var(--color-brand)]'
+                : 'text-stone-500 hover:text-stone-800',
+            )}
+          >
+            {tab.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Controlled tab state helper for modals that reset when opened. */
+export function useModalTab<T extends string>(defaultTab: T, open: boolean) {
+  const [tab, setTab] = useState<T>(defaultTab)
+  useEffect(() => {
+    if (open) setTab(defaultTab)
+  }, [open, defaultTab])
+  return [tab, setTab] as const
 }

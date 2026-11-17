@@ -363,7 +363,13 @@ function FeaturedHero({
   const { item, assignment } = entry
   const available = isItemOrderable(item)
   const listPrice = assignment.priceOverrideCents ?? item.basePriceCents
-  const listed = resolveListedPrice(listPrice, item.id, sales)
+  const listed = resolveListedPrice(
+    listPrice,
+    item.id,
+    sales,
+    undefined,
+    item.salePriceCents,
+  )
   const blurb = item.shortDescription || item.fullDescription
 
   return (
@@ -441,7 +447,13 @@ function ProductGrid({
       {items.map(({ item, assignment }) => {
         const available = isItemOrderable(item)
         const listPrice = assignment.priceOverrideCents ?? item.basePriceCents
-        const listed = resolveListedPrice(listPrice, item.id, sales)
+        const listed = resolveListedPrice(
+          listPrice,
+          item.id,
+          sales,
+          undefined,
+          item.salePriceCents,
+        )
         return (
           <li key={assignment.id}>
             <button

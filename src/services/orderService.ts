@@ -173,7 +173,13 @@ export async function placeOrder(input: PlaceOrderInput): Promise<Order> {
     const listBase =
       assignment?.priceOverrideCents ??
       (item.isCombo && combo ? combo.basePriceCents : item.basePriceCents)
-    const listed = resolveListedPrice(listBase, item.id, sales, now)
+    const listed = resolveListedPrice(
+      listBase,
+      item.id,
+      sales,
+      now,
+      item.salePriceCents ?? combo?.salePriceCents,
+    )
 
     // Sale applies to the catalog base; modifiers / combo upgrades stay full price.
     const priced = calculateLineUnitPrice(

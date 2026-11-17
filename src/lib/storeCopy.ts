@@ -24,6 +24,7 @@ export function storeCopy(kind: StoreKind = 'restaurant') {
     updateBag: retail ? 'Update cart' : 'Update bag',
     emptyBag: retail ? 'Your cart is empty' : 'Your bag is empty',
     comboNoun: retail ? 'bundle' : 'combo',
+    comboNounTitle: retail ? 'Bundle' : 'Combo',
     comboNounPlural: retail ? 'Bundles' : 'Combos',
     modifiersNoun: 'Modifiers',
     browseCta: retail ? 'Browse catalog' : 'Browse menu',

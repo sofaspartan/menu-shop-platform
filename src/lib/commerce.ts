@@ -243,21 +243,41 @@ export function resolveListedPrice(
   itemId: string,
   sales: Sale[],
   at: Date = new Date(),
+  /** Per-item/bundle sale price (absolute), when set below list. */
+  itemSalePriceCents?: CurrencyCents,
 ): ListedPrice {
   const sale = findBestSale(itemId, sales, at)
-  if (!sale) {
+  const fromPromo = sale
+    ? Math.max(0, Math.round(listPriceCents * (1 - sale.percentOff / 100)))
+    : null
+  const fromItem =
+    itemSalePriceCents != null &&
+    itemSalePriceCents >= 0 &&
+    itemSalePriceCents < listPriceCents
+      ? itemSalePriceCents
+      : null
+
+  if (fromPromo == null && fromItem == null) {
     return { listPriceCents, priceCents: listPriceCents, onSale: false }
   }
-  const priceCents = Math.max(
-    0,
-    Math.round(listPriceCents * (1 - sale.percentOff / 100)),
-  )
+
+  // Prefer the lower customer price when both apply.
+  if (fromItem != null && (fromPromo == null || fromItem <= fromPromo)) {
+    const percentOff = Math.round((1 - fromItem / listPriceCents) * 100)
+    return {
+      listPriceCents,
+      priceCents: fromItem,
+      percentOff,
+      onSale: true,
+    }
+  }
+
   return {
     listPriceCents,
-    priceCents,
+    priceCents: fromPromo!,
     sale,
-    percentOff: sale.percentOff,
-    onSale: priceCents < listPriceCents,
+    percentOff: sale!.percentOff,
+    onSale: fromPromo! < listPriceCents,
   }
 }
 

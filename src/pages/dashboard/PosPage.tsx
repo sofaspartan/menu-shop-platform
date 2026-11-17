@@ -159,7 +159,7 @@ export function PosPage() {
       if (!item.active || !isItemAvailableNow(item)) continue
       seen.add(item.id)
       const list = a.priceOverrideCents ?? item.basePriceCents
-      const listed = resolveListedPrice(list, item.id, sales)
+      const listed = resolveListedPrice(list, item.id, sales, undefined, item.salePriceCents)
       entries.push({
         item,
         listPriceCents: listed.listPriceCents,
@@ -174,7 +174,13 @@ export function PosPage() {
     for (const item of db.items.filter((i) => i.restaurantId === current.id)) {
       if (seen.has(item.id)) continue
       if (!item.active || !isItemAvailableNow(item)) continue
-      const listed = resolveListedPrice(item.basePriceCents, item.id, sales)
+      const listed = resolveListedPrice(
+        item.basePriceCents,
+        item.id,
+        sales,
+        undefined,
+        item.salePriceCents,
+      )
       entries.push({
         item,
         listPriceCents: listed.listPriceCents,

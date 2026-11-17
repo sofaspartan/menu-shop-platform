@@ -214,6 +214,10 @@ export async function createItem(
     shortDescription: input.shortDescription || '',
     fullDescription: input.fullDescription,
     basePriceCents: input.basePriceCents,
+    salePriceCents:
+      input.salePriceCents != null && input.salePriceCents < input.basePriceCents
+        ? input.salePriceCents
+        : undefined,
     itemType: input.itemType || 'food',
     sku: input.sku,
     dietaryLabelIds: input.dietaryLabelIds || [],
@@ -401,10 +405,46 @@ export async function saveCombo(
       item.isCombo = true
       item.itemType = 'combo'
       item.basePriceCents = combo.basePriceCents
+      item.salePriceCents =
+        combo.salePriceCents != null && combo.salePriceCents < combo.basePriceCents
+          ? combo.salePriceCents
+          : undefined
       item.updatedAt = nowIso()
     }
   })
   return combo
+}
+
+export async function deleteModifierGroup(
+  userId: string,
+  restaurantId: string,
+  groupId: string,
+) {
+  await assertRestaurantAccess(userId, restaurantId, ['owner', 'administrator'])
+  await saveDb((d) => {
+    d.modifierGroups = d.modifierGroups.filter(
+      (g) => !(g.id === groupId && g.restaurantId === restaurantId),
+    )
+    d.itemModifiers = d.itemModifiers.filter(
+      (m) => !(m.modifierGroupId === groupId && m.restaurantId === restaurantId),
+    )
+  })
+}
+
+export async function deleteCombo(
+  userId: string,
+  restaurantId: string,
+  itemId: string,
+) {
+  await assertRestaurantAccess(userId, restaurantId, ['owner', 'administrator'])
+  await saveDb((d) => {
+    d.combos = d.combos.filter(
+      (c) => !(c.itemId === itemId && c.restaurantId === restaurantId),
+    )
+    d.items = d.items.filter((i) => !(i.id === itemId && i.restaurantId === restaurantId))
+    d.assignments = d.assignments.filter((a) => a.itemId !== itemId)
+    d.itemModifiers = d.itemModifiers.filter((m) => m.itemId !== itemId)
+  })
 }
 
 export async function updateItemAvailability(

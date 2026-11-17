@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input, Textarea, Select } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ModalTabs, useModalTab } from '@/components/ui/Modal'
 import { formatMoney } from '@/lib/utils'
 import { storeCopy } from '@/lib/storeCopy'
 import type { ItemAvailability, MenuItem } from '@/types'
@@ -91,6 +91,10 @@ export function ItemsPage() {
   const [form, setForm] = useState<ItemForm>(emptyForm())
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [modalTab, setModalTab] = useModalTab<'details' | 'media' | 'inventory' | 'labels'>(
+    'details',
+    modalOpen,
+  )
 
   const items = useMemo(() => {
     if (!db || !current) return []
@@ -343,9 +347,30 @@ export function ItemsPage() {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editingId ? 'Edit item' : 'Create item'}
+        title={editingId ? `Edit ${copy.itemNoun}` : `Create ${copy.itemNoun}`}
         wide
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button disabled={busy || !form.name.trim()} onClick={() => void saveItem()}>
+              {busy ? 'Saving…' : `Save ${copy.itemNoun}`}
+            </Button>
+          </div>
+        }
       >
+        <ModalTabs
+          tabs={[
+            { id: 'details', label: 'Details' },
+            { id: 'media', label: 'Media' },
+            { id: 'inventory', label: 'Inventory' },
+            { id: 'labels', label: 'Labels' },
+          ]}
+          value={modalTab}
+          onChange={setModalTab}
+        />
+        {modalTab === 'details' ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Name" htmlFor="item-name">
             <Input
@@ -372,7 +397,7 @@ export function ItemsPage() {
               onChange={(e) => setForm((f) => ({ ...f, shortDescription: e.target.value }))}
             />
           </Field>
-          <Field label="Item type" htmlFor="item-type">
+          <Field label={`${copy.itemNounTitle} type`} htmlFor="item-type">
             <Select
               id="item-type"
               value={form.itemType}
@@ -387,7 +412,7 @@ export function ItemsPage() {
               <option value="food">Food</option>
               <option value="drink">Drink</option>
               <option value="product">Product</option>
-              <option value="combo">Combo</option>
+              <option value="combo">{copy.comboNounTitle}</option>
               <option value="other">Other</option>
             </Select>
           </Field>
@@ -400,14 +425,6 @@ export function ItemsPage() {
               />
             </Field>
           </div>
-          <Field label="Cover image URL" htmlFor="item-image">
-            <Input
-              id="item-image"
-              value={form.imageUrl}
-              onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
-              placeholder="https://"
-            />
-          </Field>
           <Field label="Availability" htmlFor="item-avail">
             <Select
               id="item-avail"
@@ -425,7 +442,56 @@ export function ItemsPage() {
               <option value="hidden">Hidden</option>
             </Select>
           </Field>
-          <div className="sm:col-span-2">
+          <div className="flex flex-wrap gap-4 sm:col-span-1">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.featured}
+                onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))}
+              />
+              Featured
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.active}
+                onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
+              />
+              Active
+            </label>
+          </div>
+          <label className="flex items-center gap-2 text-sm sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={form.isCombo}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  isCombo: e.target.checked,
+                  itemType: e.target.checked
+                    ? 'combo'
+                    : f.itemType === 'combo'
+                      ? 'food'
+                      : f.itemType,
+                }))
+              }
+            />
+            This is a {copy.comboNoun} (configure components on the{' '}
+            {copy.comboNounPlural} page)
+          </label>
+        </div>
+        ) : null}
+
+        {modalTab === 'media' ? (
+          <div className="space-y-4">
+            <Field label="Cover image URL" htmlFor="item-image">
+              <Input
+                id="item-image"
+                value={form.imageUrl}
+                onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
+                placeholder="https://"
+              />
+            </Field>
             <Field
               label="Gallery image URLs"
               htmlFor="item-gallery"
@@ -436,11 +502,14 @@ export function ItemsPage() {
                 value={form.imageUrls}
                 onChange={(e) => setForm((f) => ({ ...f, imageUrls: e.target.value }))}
                 placeholder={'https://…\nhttps://…'}
-                rows={3}
+                rows={4}
               />
             </Field>
           </div>
-          <div className="sm:col-span-2 space-y-3 rounded-xl border border-stone-200 bg-stone-50/80 p-3">
+        ) : null}
+
+        {modalTab === 'inventory' ? (
+          <div className="space-y-3 rounded-xl border border-stone-200 bg-stone-50/80 p-4">
             <label className="flex items-center gap-2 text-sm font-medium text-stone-700">
               <input
                 type="checkbox"
@@ -458,7 +527,7 @@ export function ItemsPage() {
             </label>
             <p className="text-xs text-stone-500">
               Retail: units on hand. Restaurant: prepared portions / servings. When stock hits
-              zero the item is marked sold out on the storefront automatically.
+              zero the {copy.itemNoun} is marked sold out on the storefront automatically.
             </p>
             {form.trackInventory ? (
               <Field label="Stock quantity" htmlFor="item-stock">
@@ -472,7 +541,10 @@ export function ItemsPage() {
               </Field>
             ) : null}
           </div>
-          <div className="sm:col-span-2">
+        ) : null}
+
+        {modalTab === 'labels' ? (
+          <div className="space-y-4">
             <Field label="Allergens (comma-separated)" htmlFor="item-allergens">
               <Input
                 id="item-allergens"
@@ -481,75 +553,38 @@ export function ItemsPage() {
                 placeholder="gluten, dairy, nuts"
               />
             </Field>
-          </div>
-          <div className="sm:col-span-2">
-            <p className="mb-2 text-sm font-medium text-stone-700">Dietary labels</p>
-            <div className="flex flex-wrap gap-3">
-              {dietaryLabels.map((label) => {
-                const checked = form.dietaryLabelIds.includes(label.id)
-                return (
-                  <label key={label.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() =>
-                        setForm((f) => ({
-                          ...f,
-                          dietaryLabelIds: checked
-                            ? f.dietaryLabelIds.filter((id) => id !== label.id)
-                            : [...f.dietaryLabelIds, label.id],
-                        }))
-                      }
-                    />
-                    {label.name}
-                  </label>
-                )
-              })}
-              {dietaryLabels.length === 0 ? (
-                <span className="text-sm text-stone-500">No dietary labels configured.</span>
-              ) : null}
+            <div>
+              <p className="mb-2 text-sm font-medium text-stone-700">Dietary labels</p>
+              <div className="flex flex-wrap gap-3">
+                {dietaryLabels.map((label) => {
+                  const checked = form.dietaryLabelIds.includes(label.id)
+                  return (
+                    <label key={label.id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setForm((f) => ({
+                            ...f,
+                            dietaryLabelIds: checked
+                              ? f.dietaryLabelIds.filter((id) => id !== label.id)
+                              : [...f.dietaryLabelIds, label.id],
+                          }))
+                        }
+                      />
+                      {label.name}
+                    </label>
+                  )
+                })}
+                {dietaryLabels.length === 0 ? (
+                  <span className="text-sm text-stone-500">No dietary labels configured.</span>
+                ) : null}
+              </div>
             </div>
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.featured}
-              onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))}
-            />
-            Featured
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.active}
-              onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
-            />
-            Active
-          </label>
-          <label className="flex items-center gap-2 text-sm sm:col-span-2">
-            <input
-              type="checkbox"
-              checked={form.isCombo}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  isCombo: e.target.checked,
-                  itemType: e.target.checked ? 'combo' : f.itemType === 'combo' ? 'food' : f.itemType,
-                }))
-              }
-            />
-            This is a combo (configure components on the Combos page)
-          </label>
-        </div>
+        ) : null}
+
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setModalOpen(false)}>
-            Cancel
-          </Button>
-          <Button disabled={busy || !form.name.trim()} onClick={() => void saveItem()}>
-            {busy ? 'Saving…' : 'Save item'}
-          </Button>
-        </div>
       </Modal>
     </div>
   )

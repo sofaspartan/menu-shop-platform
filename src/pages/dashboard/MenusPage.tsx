@@ -172,6 +172,28 @@ export function MenusPage() {
     })
   }
 
+  async function removeMenu() {
+    if (!user || !current || !selectedMenu) return
+    if (
+      !window.confirm(
+        `Delete “${selectedMenu.name}”? Sections and assignments for this ${copy.catalogNoun} will be removed.`,
+      )
+    ) {
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      const id = selectedMenu.id
+      await menuService.deleteMenu(user.id, current.id, id)
+      setSelectedMenuId(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Could not delete ${copy.catalogNoun}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function addSection() {
     if (!user || !current || !activeMenuId || !sectionName.trim()) return
     setBusy(true)
@@ -321,36 +343,45 @@ export function MenusPage() {
                 {selectedMenu.description || 'No description'}
               </p>
               <p className="mt-2 text-xs text-stone-500">
-                Tip: set when this menu appears under{' '}
+                Tip: set when this {copy.catalogNoun} appears under{' '}
                 <Link className="text-[var(--color-brand)] underline" to="/dashboard/scheduling">
                   Scheduling
                 </Link>
                 .
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-1">
               <Badge tone={selectedMenu.active ? 'success' : 'warning'}>
                 {selectedMenu.active ? 'Active' : 'Inactive'}
               </Badge>
               <Button variant="outline" size="sm" onClick={() => void toggleActive()}>
                 {selectedMenu.active ? 'Deactivate' : 'Activate'}
               </Button>
+              <IconAction
+                label={`Delete ${copy.catalogNoun}`}
+                danger
+                onClick={() => void removeMenu()}
+              >
+                <Trash2 className="h-4 w-4" />
+              </IconAction>
             </div>
           </div>
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-end gap-2">
-        <Field label="New section" htmlFor="section-name">
-          <Input
-            id="section-name"
-            value={sectionName}
-            onChange={(e) => setSectionName(e.target.value)}
-            placeholder="e.g. Starters"
-          />
-        </Field>
+      <div className="flex max-w-md flex-wrap items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <Field label="New section" htmlFor="section-name">
+            <Input
+              id="section-name"
+              value={sectionName}
+              onChange={(e) => setSectionName(e.target.value)}
+              placeholder="e.g. Starters"
+            />
+          </Field>
+        </div>
         <Button disabled={busy || !sectionName.trim()} onClick={() => void addSection()}>
-          Add section
+          <Plus className="h-4 w-4" /> Add section
         </Button>
       </div>
 

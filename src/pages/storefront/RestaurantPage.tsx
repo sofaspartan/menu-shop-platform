@@ -605,6 +605,8 @@ export function RestaurantPage() {
                         assignment.priceOverrideCents ?? item.basePriceCents,
                         item.id,
                         sales,
+                        undefined,
+                        item.salePriceCents,
                       )
                       return (
                       <li key={assignment.id}>
@@ -641,6 +643,8 @@ export function RestaurantPage() {
                         assignment.priceOverrideCents ?? item.basePriceCents,
                         item.id,
                         sales,
+                        undefined,
+                        item.salePriceCents,
                       )
                       return (
                       <button
@@ -698,6 +702,8 @@ export function RestaurantPage() {
                         assignment.priceOverrideCents ?? item.basePriceCents,
                         item.id,
                         sales,
+                        undefined,
+                        item.salePriceCents,
                       )
                       return (
                         <li key={assignment.id}>
@@ -756,6 +762,8 @@ export function RestaurantPage() {
                         assignment.priceOverrideCents ?? item.basePriceCents,
                         item.id,
                         sales,
+                        undefined,
+                        item.salePriceCents,
                       )
                       const labels = dietaryLabels.filter((l) =>
                         item.dietaryLabelIds.includes(l.id),

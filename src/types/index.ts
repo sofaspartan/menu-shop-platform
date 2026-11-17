@@ -425,6 +425,12 @@ export interface MenuItem extends Timestamps {
   shortDescription: string
   fullDescription?: string
   basePriceCents: CurrencyCents
+  /**
+   * Optional promotional price for this item/bundle.
+   * When set below basePriceCents, storefront shows it on sale
+   * (wins against weaker percent sales if cheaper).
+   */
+  salePriceCents?: CurrencyCents
   itemType: 'food' | 'drink' | 'combo' | 'product' | 'other'
   sku?: string
   dietaryLabelIds: ID[]
@@ -503,6 +509,8 @@ export interface ComboConfig {
   itemId: ID
   restaurantId: ID
   basePriceCents: CurrencyCents
+  /** Optional sale price mirrored onto the combo MenuItem. */
+  salePriceCents?: CurrencyCents
   componentGroups: ComboComponentGroup[]
 }
 

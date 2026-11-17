@@ -108,7 +108,13 @@ function toCard(
   now: Date,
   meta?: { sectionId?: string; menuName?: string; menuId?: string },
 ): BoardItemCard {
-  const listed = resolveListedPrice(listPriceCents, item.id, sales, now)
+  const listed = resolveListedPrice(
+    listPriceCents,
+    item.id,
+    sales,
+    now,
+    item.salePriceCents,
+  )
   const soldOut =
     item.availability === 'sold_out' ||
     Boolean(item.trackInventory && (item.stockQty ?? 0) <= 0)
