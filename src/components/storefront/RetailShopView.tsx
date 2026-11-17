@@ -182,7 +182,7 @@ function ProductGrid({
   unavailableLabel: (item: MenuItem) => string
 }) {
   return (
-    <ul className="grid grid-cols-2 gap-x-4 gap-y-10 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-3 xl:grid-cols-4">
+    <ul className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-14">
       {items.map(({ item, assignment }) => {
         const available = isItemOrderable(item)
         const price = assignment.priceOverrideCents ?? item.basePriceCents
@@ -210,11 +210,11 @@ function ProductGrid({
                   </span>
                 ) : null}
               </div>
-              <div className="mt-3.5 space-y-1">
-                <p className="text-[15px] font-medium leading-snug tracking-tight text-[var(--sf-text)]">
+              <div className="mt-4 space-y-1">
+                <p className="text-base font-medium leading-snug tracking-tight text-[var(--sf-text)]">
                   {item.name}
                 </p>
-                <p className="text-sm text-[var(--sf-text)]/70">{formatMoney(price)}</p>
+                <p className="text-[15px] text-[var(--sf-text)]/70">{formatMoney(price)}</p>
               </div>
             </button>
           </li>
