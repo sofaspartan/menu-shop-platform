@@ -53,9 +53,9 @@ export function ContactPage() {
   const isRetailLayout =
     (restaurant.storefrontLayout ??
       (restaurant.storeKind === 'retail' ? 'retail' : 'restaurant')) === 'retail'
-  const restaurantLines = bagLines.filter((l) => l.restaurantId === restaurant.id)
-  const bagCount = restaurantLines.reduce((n, l) => n + l.quantity, 0)
-  const bagSubtotal = restaurantLines.reduce((n, l) => n + l.unitPriceCents * l.quantity, 0)
+  const bagCount = bagLines
+    .filter((l) => l.restaurantId === restaurant.id)
+    .reduce((n, l) => n + l.quantity, 0)
   const contentClass = storefrontContentClass(restaurant.storefrontWidth)
 
   const rows: Array<{
@@ -203,7 +203,6 @@ export function ContactPage() {
         <RetailBagFab
           storeKind={restaurant.storeKind}
           bagCount={bagCount}
-          bagSubtotal={bagSubtotal}
           onOpen={() => setBagOpen(true)}
         />
       ) : null}

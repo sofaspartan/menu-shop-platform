@@ -213,10 +213,6 @@ export function RestaurantPage() {
     ? bagLines.filter((l) => l.restaurantId === restaurant.id)
     : []
   const bagCount = restaurantLines.reduce((n, l) => n + l.quantity, 0)
-  const bagSubtotal = restaurantLines.reduce(
-    (sum, l) => sum + l.unitPriceCents * l.quantity,
-    0,
-  )
   const prevBagCountRef = useRef(bagCount)
 
   useLayoutEffect(() => {
@@ -316,7 +312,6 @@ export function RestaurantPage() {
         <RetailBagFab
           storeKind={restaurant.storeKind}
           bagCount={bagCount}
-          bagSubtotal={bagSubtotal}
           bagPulse={bagPulseKey > 0}
           bagCatchExpanded={bagCatchExpanded}
           onOpen={() => setBagOpen(true)}
@@ -780,16 +775,16 @@ export function RestaurantPage() {
             data-bag-target
             onClick={() => setBagOpen(true)}
             className={cn(
-              'flex w-full items-center justify-between rounded-2xl bg-[var(--sf-button)] px-5 py-4 text-[var(--sf-button-text)] shadow-lg',
+              'flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--sf-button)] px-5 py-4 text-[var(--sf-button-text)] shadow-lg',
               bagPulseKey > 0 && 'bag-catch-pulse',
             )}
             key={`mobile-bag-full-${bagPulseKey}`}
           >
-            <span className="flex items-center gap-2 font-medium">
-              <ShoppingBag className="h-5 w-5" />
-              {copy.viewBag} · {bagCount}
+            <ShoppingBag className="h-5 w-5" />
+            <span className="font-medium">{copy.viewBag}</span>
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
+              {bagCount}
             </span>
-            <span className="font-semibold">{formatMoney(bagSubtotal)}</span>
           </button>
         </div>
       ) : (
@@ -805,12 +800,11 @@ export function RestaurantPage() {
           aria-label={`Open ${copy.bagNoun}`}
         >
           <ShoppingBag className="h-5 w-5" />
-          <span className="font-medium">
-            {copy.bagNounTitle}
-            {bagCount > 0 ? ` · ${bagCount}` : ''}
-          </span>
+          <span className="font-medium">{copy.viewBag}</span>
           {bagCount > 0 ? (
-            <span className="text-sm opacity-90">{formatMoney(bagSubtotal)}</span>
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
+              {bagCount}
+            </span>
           ) : null}
         </button>
       )}
@@ -824,14 +818,14 @@ export function RestaurantPage() {
           bagPulseKey > 0 && 'bag-catch-pulse',
         )}
         key={`desktop-bag-${bagPulseKey}`}
+        aria-label={`Open ${copy.bagNoun}`}
       >
         <ShoppingBag className="h-5 w-5" />
-        <span className="font-medium">
-          {copy.bagNounTitle}
-          {bagCount > 0 ? ` · ${bagCount}` : ''}
-        </span>
+        <span className="font-medium">{copy.viewBag}</span>
         {bagCount > 0 ? (
-          <span className="text-sm opacity-90">{formatMoney(bagSubtotal)}</span>
+          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--sf-button-text)]/20 px-1.5 text-sm font-semibold">
+            {bagCount}
+          </span>
         ) : null}
       </button>
 
