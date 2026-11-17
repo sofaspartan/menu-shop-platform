@@ -994,12 +994,15 @@ function OrderStatusBoardView({
   const preparing = orders.filter(
     (o) => o.status === 'confirmed' || o.status === 'preparing',
   )
-  const ready = orders.filter(
-    (o) => o.status === 'ready' || o.status === 'out_for_delivery',
-  )
+  // Newest ready first — latest ticket gets the hero card.
+  const ready = orders
+    .filter((o) => o.status === 'ready' || o.status === 'out_for_delivery')
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
   const showPreparing = display.orderStatusShowPreparing !== false
   const showReady = display.orderStatusShowReady !== false
   const preferName = display.orderStatusShowGuestName !== false
+  const latestReady = ready[0]
+  const otherReady = ready.slice(1)
 
   function labelFor(order: Order): string {
     const name = order.customer?.name?.trim()
@@ -1007,32 +1010,15 @@ function OrderStatusBoardView({
     return order.orderNumber || order.reference
   }
 
-  const columns = [
-    showPreparing
-      ? {
-          id: 'preparing',
-          title: 'In progress',
-          subtitle: display.tagline?.trim() || 'Coming up soon',
-          orders: preparing,
-          tone: 'prep' as const,
-        }
-      : null,
-    showReady
-      ? {
-          id: 'ready',
-          title: 'Ready',
-          subtitle: 'Please come to the counter',
-          orders: ready,
-          tone: 'ready' as const,
-        }
-      : null,
-  ].filter(Boolean) as Array<{
-    id: string
-    title: string
-    subtitle: string
-    orders: Order[]
-    tone: 'prep' | 'ready'
-  }>
+  function metaFor(order: Order): string {
+    const parts = [`#${order.orderNumber || order.reference}`]
+    if (order.fulfillment?.type) {
+      parts.push(order.fulfillment.type.replace('_', ' '))
+    }
+    return parts.join(' · ')
+  }
+
+  const bothColumns = showPreparing && showReady
 
   return (
     <div
@@ -1092,79 +1078,115 @@ function OrderStatusBoardView({
         </header>
       ) : null}
 
-      <main className="relative z-10 grid min-h-0 flex-1 gap-6 overflow-hidden px-8 pb-8 pt-2 md:grid-cols-2">
-        {columns.map((col) => (
-          <section
-            key={col.id}
-            className={cn(
-              'flex min-h-0 flex-col overflow-hidden rounded-[2rem] border p-5 sm:p-6',
-              col.tone === 'ready'
-                ? 'border-[var(--brand-primary)]/30 bg-[var(--brand-primary)] text-[var(--brand-button-text)]'
-                : 'border-[var(--brand-text)]/10 bg-[var(--brand-surface)]',
-            )}
-          >
-            <div className="mb-4 shrink-0">
+      <main
+        className={cn(
+          'relative z-10 grid min-h-0 flex-1 gap-5 overflow-hidden px-6 pb-6 pt-2 sm:gap-6 sm:px-8 sm:pb-8',
+          bothColumns
+            ? 'md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.55fr)]'
+            : 'md:grid-cols-1',
+        )}
+      >
+        {showPreparing ? (
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-[var(--brand-text)]/10 bg-[var(--brand-surface)]/90 p-4 sm:p-5">
+            <div className="mb-3 shrink-0">
               <h2
-                className="font-display text-3xl tracking-tight sm:text-4xl"
+                className="font-display text-2xl tracking-tight text-[var(--brand-text)]/85 sm:text-3xl"
                 style={{ fontFamily: 'var(--brand-heading)' }}
               >
-                {col.title}
+                In progress
               </h2>
-              <p
-                className={cn(
-                  'mt-1 text-sm',
-                  col.tone === 'ready' ? 'opacity-80' : 'opacity-60',
-                )}
-              >
-                {col.subtitle}
+              <p className="mt-1 text-sm text-[var(--brand-text)]/50">
+                {display.tagline?.trim() || 'Coming up soon'}
               </p>
             </div>
-            <ul className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
-              {col.orders.length === 0 ? (
-                <li
-                  className={cn(
-                    'rounded-2xl border border-dashed px-4 py-8 text-center text-sm',
-                    col.tone === 'ready'
-                      ? 'border-white/30 opacity-80'
-                      : 'border-[var(--brand-text)]/15 opacity-50',
-                  )}
-                >
+            <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+              {preparing.length === 0 ? (
+                <li className="rounded-xl border border-dashed border-[var(--brand-text)]/15 px-3 py-6 text-center text-sm text-[var(--brand-text)]/45">
                   No orders here right now
                 </li>
               ) : (
-                col.orders.map((order) => (
+                preparing.map((order) => (
                   <li
                     key={order.id}
-                    className={cn(
-                      'rounded-2xl px-4 py-4 shadow-sm',
-                      col.tone === 'ready'
-                        ? 'bg-white/15 backdrop-blur'
-                        : 'bg-[var(--brand-bg)]',
-                    )}
+                    className="rounded-xl bg-[var(--brand-bg)] px-3.5 py-3"
                   >
                     <p
-                      className="font-display text-2xl tracking-tight sm:text-3xl"
+                      className="font-display text-xl tracking-tight text-[var(--brand-text)]/90 sm:text-2xl"
                       style={{ fontFamily: 'var(--brand-heading)' }}
                     >
                       {labelFor(order)}
                     </p>
-                    <p
-                      className={cn(
-                        'mt-1 text-sm tabular-nums',
-                        col.tone === 'ready' ? 'opacity-75' : 'opacity-55',
-                      )}
-                    >
-                      #{order.orderNumber || order.reference}
-                      {order.fulfillment?.type
-                        ? ` · ${order.fulfillment.type.replace('_', ' ')}`
-                        : ''}
+                    <p className="mt-0.5 text-xs tabular-nums text-[var(--brand-text)]/45">
+                      {metaFor(order)}
                     </p>
                   </li>
                 ))
               )}
             </ul>
           </section>
-        ))}
+        ) : null}
+
+        {showReady ? (
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-[2rem] border border-[var(--brand-primary)]/35 bg-[var(--brand-primary)] p-5 text-[var(--brand-button-text)] shadow-[0_18px_50px_-28px_rgba(0,0,0,0.55)] sm:p-7">
+            <div className="mb-5 shrink-0">
+              <h2
+                className="font-display text-4xl tracking-tight sm:text-5xl"
+                style={{ fontFamily: 'var(--brand-heading)' }}
+              >
+                Ready
+              </h2>
+              <p className="mt-1.5 text-base opacity-80 sm:text-lg">
+                Please come to the counter
+              </p>
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
+              {!latestReady ? (
+                <div className="rounded-[1.5rem] border border-dashed border-white/30 px-5 py-14 text-center text-base opacity-80">
+                  No orders ready yet
+                </div>
+              ) : (
+                <>
+                  <article className="rounded-[1.75rem] bg-white/18 px-6 py-8 shadow-sm backdrop-blur-sm sm:px-8 sm:py-10">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-75">
+                      Now ready
+                    </p>
+                    <p
+                      className="mt-3 font-display text-5xl leading-none tracking-tight sm:text-6xl md:text-7xl"
+                      style={{ fontFamily: 'var(--brand-heading)' }}
+                    >
+                      {labelFor(latestReady)}
+                    </p>
+                    <p className="mt-3 text-base tabular-nums opacity-80 sm:text-lg">
+                      {metaFor(latestReady)}
+                    </p>
+                  </article>
+
+                  {otherReady.length > 0 ? (
+                    <ul className="grid gap-2.5 sm:grid-cols-2">
+                      {otherReady.map((order) => (
+                        <li
+                          key={order.id}
+                          className="rounded-2xl bg-white/12 px-4 py-3.5 backdrop-blur-sm"
+                        >
+                          <p
+                            className="font-display text-2xl tracking-tight sm:text-3xl"
+                            style={{ fontFamily: 'var(--brand-heading)' }}
+                          >
+                            {labelFor(order)}
+                          </p>
+                          <p className="mt-1 text-sm tabular-nums opacity-75">
+                            {metaFor(order)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </>
+              )}
+            </div>
+          </section>
+        ) : null}
       </main>
     </div>
   )
