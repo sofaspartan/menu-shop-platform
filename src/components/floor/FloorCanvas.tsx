@@ -52,15 +52,151 @@ export const STATUS_META: Record<
   },
 }
 
+/** Booths stay rounded rectangles (not pill/circle); others keep their silhouette. */
 export function shapeRadius(shape: DiningTableShape): string {
   if (shape === 'round' || shape === 'bar') return '9999px'
-  if (shape === 'booth') return '18px 18px 10px 10px'
+  if (shape === 'booth') return '22px'
+  if (shape === 'rectangle') return '16px'
   return '14px'
+}
+
+const SEAT_PAD = 18
+const SEAT_W = 16
+const SEAT_H = 11
+
+type SeatSpot = { left: number; top: number; rotate: number }
+
+/** Place chair markers around a table so capacity is visible on the floor. */
+export function seatSpotsForTable(table: DiningTable): SeatSpot[] {
+  const seats = Math.max(1, Math.min(16, Math.round(table.seats) || 1))
+  const w = table.width
+  const h = table.height
+  const spots: SeatSpot[] = []
+
+  if (table.shape === 'round' || table.shape === 'bar') {
+    const rx = w / 2 + 10
+    const ry = h / 2 + 10
+    for (let i = 0; i < seats; i++) {
+      const angle = -Math.PI / 2 + (i * 2 * Math.PI) / seats
+      const cx = w / 2 + Math.cos(angle) * rx
+      const cy = h / 2 + Math.sin(angle) * ry
+      spots.push({
+        left: cx - SEAT_W / 2,
+        top: cy - SEAT_H / 2,
+        rotate: (angle * 180) / Math.PI + 90,
+      })
+    }
+    return spots
+  }
+
+  if (table.shape === 'booth') {
+    // Banquette along the back (top); guest seats along front + sides.
+    const front = Math.max(1, Math.ceil(seats * 0.5))
+    const sides = seats - front
+    const leftCount = Math.floor(sides / 2)
+    const rightCount = sides - leftCount
+
+    for (let i = 0; i < front; i++) {
+      const t = front === 1 ? 0.5 : i / (front - 1)
+      spots.push({
+        left: 8 + t * (w - 16) - SEAT_W / 2,
+        top: h + 4,
+        rotate: 0,
+      })
+    }
+    for (let i = 0; i < leftCount; i++) {
+      const t = leftCount === 1 ? 0.5 : (i + 1) / (leftCount + 1)
+      spots.push({
+        left: -SEAT_H - 2,
+        top: 10 + t * (h - 20) - SEAT_W / 2,
+        rotate: 90,
+      })
+    }
+    for (let i = 0; i < rightCount; i++) {
+      const t = rightCount === 1 ? 0.5 : (i + 1) / (rightCount + 1)
+      spots.push({
+        left: w + 2,
+        top: 10 + t * (h - 20) - SEAT_W / 2,
+        rotate: -90,
+      })
+    }
+    return spots
+  }
+
+  // Square / rectangle: distribute around the perimeter, starting at top.
+  const perim = 2 * (w + h)
+  for (let i = 0; i < seats; i++) {
+    const d = ((i + 0.5) / seats) * perim
+    let x = 0
+    let y = 0
+    let rotate = 0
+    if (d < w) {
+      x = d
+      y = -8
+      rotate = 0
+    } else if (d < w + h) {
+      x = w + 8
+      y = d - w
+      rotate = 90
+    } else if (d < 2 * w + h) {
+      x = w - (d - w - h)
+      y = h + 8
+      rotate = 180
+    } else {
+      x = -8
+      y = h - (d - 2 * w - h)
+      rotate = -90
+    }
+    spots.push({
+      left: x - SEAT_W / 2,
+      top: y - SEAT_H / 2,
+      rotate,
+    })
+  }
+  return spots
 }
 
 function seatedMinutes(check: TableCheck | undefined): number | null {
   if (!check) return null
   return Math.max(0, Math.round((Date.now() - new Date(check.seatedAt).getTime()) / 60_000))
+}
+
+function TableSeatMarkers({
+  table,
+  occupied,
+}: {
+  table: DiningTable
+  occupied: number
+}) {
+  const spots = seatSpotsForTable(table)
+  return (
+    <>
+      {spots.map((spot, i) => {
+        const filled = i < occupied
+        return (
+          <span
+            key={`${table.id}-seat-${i}`}
+            aria-hidden
+            className={cn(
+              'pointer-events-none absolute z-10 block border shadow-sm',
+              filled
+                ? 'border-stone-500 bg-stone-500'
+                : 'border-stone-400 bg-[#d6d3d1]',
+            )}
+            style={{
+              left: SEAT_PAD + spot.left,
+              top: SEAT_PAD + spot.top,
+              width: SEAT_W,
+              height: SEAT_H,
+              borderRadius: '999px 999px 6px 6px',
+              transform: `rotate(${spot.rotate}deg)`,
+            }}
+            title={`Seat ${i + 1}`}
+          />
+        )
+      })}
+    </>
+  )
 }
 
 export function FloorCanvas({
@@ -194,88 +330,106 @@ export function FloorCanvas({
           const totals = check ? computeCheckTotals(check) : null
           const mins = seatedMinutes(check)
           const selected = selectedTableId === table.id
+          const occupiedSeats = check?.partySize ?? 0
 
           return (
-            <button
+            <div
               key={table.id}
-              type="button"
               className={cn(
-                'absolute z-20 flex flex-col items-stretch border-2 p-2 text-left shadow-sm transition',
-                meta.ring,
+                'absolute z-20',
+                selected && 'z-30',
                 designMode && 'cursor-grab active:cursor-grabbing',
-                selected && 'z-30 border-orange-500 ring-4 ring-orange-300',
               )}
               style={{
-                left: table.x,
-                top: table.y,
-                width: table.width,
-                height: table.height,
-                borderRadius: shapeRadius(table.shape),
+                left: table.x - SEAT_PAD,
+                top: table.y - SEAT_PAD,
+                width: table.width + SEAT_PAD * 2,
+                height: table.height + SEAT_PAD * 2,
                 transform: table.rotation ? `rotate(${table.rotation}deg)` : undefined,
-              }}
-              onClick={(e) => {
-                e.stopPropagation()
-                onSelectTable?.(table)
               }}
               onPointerDown={(e) => {
                 if (designMode) startDrag(e, 'table', table.id, table.x, table.y)
               }}
             >
-              {selected ? (
-                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-white shadow">
-                  <Check className="h-3 w-3" />
-                </span>
-              ) : null}
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-xs font-bold text-stone-900">{table.name}</span>
-                {status === 'food_ready' ? (
-                  <Bell className="h-3.5 w-3.5 text-teal-600" />
-                ) : (
-                  <span className={cn('h-2 w-2 rounded-full', meta.dot)} />
+              <TableSeatMarkers table={table} occupied={occupiedSeats} />
+
+              <button
+                type="button"
+                className={cn(
+                  'absolute flex flex-col items-stretch border-2 p-2 text-left shadow-sm transition',
+                  meta.ring,
+                  selected && 'border-orange-500 ring-4 ring-orange-300',
                 )}
-              </div>
-              {!designMode ? (
-                <>
-                  <span
-                    className={cn(
-                      'mt-1 w-fit rounded px-1.5 py-0.5 text-[10px] font-medium',
-                      meta.chip,
-                    )}
-                  >
-                    {meta.label}
+                style={{
+                  left: SEAT_PAD,
+                  top: SEAT_PAD,
+                  width: table.width,
+                  height: table.height,
+                  borderRadius: shapeRadius(table.shape),
+                }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSelectTable?.(table)
+                }}
+              >
+                {selected ? (
+                  <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-white shadow">
+                    <Check className="h-3 w-3" />
                   </span>
-                  {check ? (
-                    <div className="mt-auto space-y-0.5 pt-1 text-[10px] text-stone-600">
-                      {totals && totals.totalCents > 0 ? (
-                        <p className="font-semibold text-stone-800">
-                          {formatMoney(totals.totalCents)}
-                        </p>
-                      ) : check.notes ? (
-                        <p className="truncate italic">{check.notes}</p>
-                      ) : null}
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-0.5">
-                          <Users className="h-3 w-3" />
-                          {check.partySize}
-                        </span>
-                        {mins != null ? (
-                          <span className="inline-flex items-center gap-0.5">
-                            <Clock3 className="h-3 w-3" />
-                            {mins}m
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
+                ) : null}
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-bold text-stone-900">{table.name}</span>
+                  {status === 'food_ready' ? (
+                    <Bell className="h-3.5 w-3.5 text-teal-600" />
                   ) : (
-                    <p className="mt-auto text-[10px] text-stone-400">{table.seats} seats</p>
+                    <span className={cn('h-2 w-2 rounded-full', meta.dot)} />
                   )}
-                </>
-              ) : (
-                <p className="mt-auto text-[10px] text-stone-500">
-                  {table.shape} · {table.seats}
-                </p>
-              )}
-            </button>
+                </div>
+                {!designMode ? (
+                  <>
+                    <span
+                      className={cn(
+                        'mt-1 w-fit rounded px-1.5 py-0.5 text-[10px] font-medium',
+                        meta.chip,
+                      )}
+                    >
+                      {meta.label}
+                    </span>
+                    {check ? (
+                      <div className="mt-auto space-y-0.5 pt-1 text-[10px] text-stone-600">
+                        {totals && totals.totalCents > 0 ? (
+                          <p className="font-semibold text-stone-800">
+                            {formatMoney(totals.totalCents)}
+                          </p>
+                        ) : check.notes ? (
+                          <p className="truncate italic">{check.notes}</p>
+                        ) : null}
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-0.5">
+                            <Users className="h-3 w-3" />
+                            {check.partySize}/{table.seats}
+                          </span>
+                          {mins != null ? (
+                            <span className="inline-flex items-center gap-0.5">
+                              <Clock3 className="h-3 w-3" />
+                              {mins}m
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-auto text-[10px] text-stone-400">
+                        {table.seats} seats
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="mt-auto text-[10px] text-stone-500">
+                    {table.shape} · {table.seats}
+                  </p>
+                )}
+              </button>
+            </div>
           )
         })}
       </div>
