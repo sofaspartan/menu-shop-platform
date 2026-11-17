@@ -18,6 +18,7 @@ import {
   Gift,
   Percent,
   TabletSmartphone,
+  Monitor,
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -84,6 +85,7 @@ export function DashboardLayout() {
           { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
           { to: '/dashboard/orders', label: 'Orders', icon: ClipboardList },
           { to: '/dashboard/pos', label: 'Point of sale', icon: TabletSmartphone },
+          { to: '/dashboard/kitchen', label: copy.bohNoun, icon: Monitor },
         ],
       },
       {

@@ -24,6 +24,7 @@ import { PagesPage } from '@/pages/dashboard/PagesPage'
 import { LoyaltyPage } from '@/pages/dashboard/LoyaltyPage'
 import { PromotionsPage } from '@/pages/dashboard/PromotionsPage'
 import { PosPage } from '@/pages/dashboard/PosPage'
+import { KitchenDisplayPage } from '@/pages/dashboard/KitchenDisplayPage'
 import { RestaurantPage } from '@/pages/storefront/RestaurantPage'
 import { AboutPage } from '@/pages/storefront/AboutPage'
 import { ContactPage } from '@/pages/storefront/ContactPage'
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:orderId" element={<OrderDetailPage />} />
           <Route path="pos" element={<PosPage />} />
+          <Route path="kitchen" element={<KitchenDisplayPage />} />
           <Route path="menus" element={<MenusPage />} />
           <Route path="items" element={<ItemsPage />} />
           <Route path="modifiers" element={<ModifiersPage />} />

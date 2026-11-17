@@ -31,6 +31,11 @@ export function storeCopy(kind: StoreKind = 'restaurant') {
     estimatedReady: retail ? 'Estimated ready' : 'Estimated ready',
     estimatedPrepLabel: retail ? 'Fulfillment time (minutes)' : 'Prep time (minutes)',
     kitchenOrShop: retail ? 'shop' : 'kitchen',
+    bohNoun: retail ? 'Fulfillment display' : 'Kitchen display',
+    bohShort: retail ? 'Fulfillment' : 'Kitchen',
+    bohPrepVerb: retail ? 'Packing' : 'Preparing',
+    bohPrepAction: retail ? 'Start packing' : 'Start preparing',
+    bohReadyAction: retail ? 'Mark ready' : 'Mark ready',
     /** Keep pickup; retail "delivery" is framed as shipping. */
     pickupLabel: retail ? 'Store pickup' : 'Pickup',
     shipOrDeliveryLabel: retail ? 'Shipping' : 'Delivery',
