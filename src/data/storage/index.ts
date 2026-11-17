@@ -1,5 +1,11 @@
 import type { PersistenceAdapter } from './types'
-import { localStorageAdapter } from './localStorageAdapter'
+import {
+  DB_REVISION_KEY,
+  DB_STORAGE_KEY,
+  localStorageAdapter,
+  readDbRevision,
+  writeDbRevision,
+} from './localStorageAdapter'
 
 /**
  * Persistence factory. Local development and the Netlify-friendly POC use
@@ -11,3 +17,4 @@ export function getPersistenceAdapter(): PersistenceAdapter {
 }
 
 export type { PersistenceAdapter }
+export { DB_REVISION_KEY, DB_STORAGE_KEY, readDbRevision, writeDbRevision }

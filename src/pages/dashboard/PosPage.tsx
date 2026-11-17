@@ -111,7 +111,7 @@ function lineConfigKey(
 export function PosPage() {
   const current = useRestaurantStore((s) => s.current())
   const user = useAuthStore((s) => s.user)
-  const { db } = useDb()
+  const { db } = useDb({ pollMs: 3000 })
   const [phase, setPhase] = useState<PosPhase>('staff')
   const [flipping, setFlipping] = useState(false)
   const [query, setQuery] = useState('')

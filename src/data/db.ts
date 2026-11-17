@@ -6,7 +6,12 @@ import {
   normalizeCoverIntro,
   normalizeStoreFooter,
 } from '@/types'
-import { getPersistenceAdapter } from '@/data/storage'
+import {
+  DB_REVISION_KEY,
+  DB_STORAGE_KEY,
+  getPersistenceAdapter,
+  readDbRevision,
+} from '@/data/storage'
 import { buildDemoDatabase } from '@/data/seed/demo'
 import { applyCouponExpirations, applySaleExpirations } from '@/lib/commerce'
 import { nowIso } from '@/lib/utils'
@@ -14,14 +19,86 @@ import { nowIso } from '@/lib/utils'
 let memory: AppDatabase | null = null
 let initPromise: Promise<AppDatabase> | null = null
 const listeners = new Set<() => void>()
+let revision = 0
+let lastSeenDiskRevision = ''
+let syncStarted = false
+let broadcast: BroadcastChannel | null = null
+const BROADCAST_CHANNEL = 'menushop-db'
 
 export function subscribeDb(listener: () => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
 }
 
+export function getDbRevision(): number {
+  return revision
+}
+
 function notify() {
+  revision += 1
   listeners.forEach((l) => l())
+}
+
+/**
+ * Keep dashboard kitchen displays, POS, and customer order trackers in sync
+ * across tabs/windows/iframes that share the same origin storage.
+ */
+export function startDbRealtimeSync(): void {
+  if (syncStarted || typeof window === 'undefined') return
+  syncStarted = true
+  lastSeenDiskRevision = readDbRevision()
+
+  window.addEventListener('storage', (event) => {
+    if (event.key !== DB_STORAGE_KEY && event.key !== DB_REVISION_KEY) return
+    void ingestExternalDbUpdate()
+  })
+
+  try {
+    broadcast = new BroadcastChannel(BROADCAST_CHANNEL)
+    broadcast.onmessage = (event: MessageEvent<{ type?: string }>) => {
+      if (event.data?.type === 'db-updated') {
+        void ingestExternalDbUpdate()
+      }
+    }
+  } catch {
+    broadcast = null
+  }
+}
+
+async function ingestExternalDbUpdate(): Promise<void> {
+  const diskRev = readDbRevision()
+  if (diskRev && diskRev === lastSeenDiskRevision && memory) return
+  const loaded = await getPersistenceAdapter().load()
+  if (!loaded) return
+  memory = loaded
+  lastSeenDiskRevision = diskRev || readDbRevision()
+  notify()
+}
+
+/** Poll-friendly refresh used by live screens as a safety net. */
+export async function syncDbFromDisk(): Promise<AppDatabase> {
+  startDbRealtimeSync()
+  const diskRev = readDbRevision()
+  if (memory && diskRev && diskRev === lastSeenDiskRevision) {
+    return memory
+  }
+  const loaded = await getPersistenceAdapter().load()
+  if (loaded) {
+    memory = loaded
+    lastSeenDiskRevision = diskRev || readDbRevision()
+    notify()
+    return loaded
+  }
+  return getDb()
+}
+
+function publishDbUpdated() {
+  lastSeenDiskRevision = readDbRevision()
+  try {
+    broadcast?.postMessage({ type: 'db-updated', at: Date.now() })
+  } catch {
+    /* channel closed */
+  }
 }
 
 export async function getDb(): Promise<AppDatabase> {
@@ -69,11 +146,13 @@ export async function getDb(): Promise<AppDatabase> {
         }
       }
       memory = existing
+      lastSeenDiskRevision = readDbRevision()
       return existing
     }
     const seeded = await buildDemoDatabase()
     memory = seeded
     await adapter.save(seeded)
+    lastSeenDiskRevision = readDbRevision()
     return seeded
   })()
 
@@ -85,17 +164,21 @@ export async function getDb(): Promise<AppDatabase> {
 }
 
 export async function saveDb(mutator: (db: AppDatabase) => void): Promise<AppDatabase> {
+  startDbRealtimeSync()
   const db = await getDb()
   mutator(db)
   memory = db
   await getPersistenceAdapter().save(db)
+  publishDbUpdated()
   notify()
   return db
 }
 
 export async function replaceDb(db: AppDatabase): Promise<void> {
+  startDbRealtimeSync()
   memory = db
   await getPersistenceAdapter().save(db)
+  publishDbUpdated()
   notify()
 }
 

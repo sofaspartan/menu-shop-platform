@@ -12,6 +12,7 @@ import {
 import type { Order, OrderStatus, Restaurant } from '@/types'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
 import { Button } from '@/components/ui/Button'
+import { LiveIndicator } from '@/components/ui/LiveIndicator'
 import { useDb } from '@/hooks/useDb'
 import {
   shortStatusLabel,
@@ -25,7 +26,7 @@ import { DEFAULT_BRANDING } from '@/types'
 export function OrderTrackerPage() {
   const { reference } = useParams<{ reference: string }>()
   const location = useLocation()
-  const { db, loading } = useDb()
+  const { db, loading, revision, lastSyncedAt } = useDb({ pollMs: 2000 })
   const justPlaced = Boolean(
     (location.state as { justPlaced?: boolean } | null)?.justPlaced,
   )
@@ -108,11 +109,18 @@ export function OrderTrackerPage() {
             <div>
               <p className="font-medium text-emerald-900">Order placed successfully</p>
               <p className="text-sm text-emerald-800/80">
-                We’ll update this page as the kitchen progresses your order.
+                This page updates live as the kitchen progresses your order — no refresh needed.
               </p>
             </div>
           </div>
         ) : null}
+
+        <div className="mb-4 flex justify-center">
+          <LiveIndicator
+            label="Live tracking"
+            pulseKey={`${revision}-${order.status}-${order.statusHistory.length}-${lastSyncedAt ?? 0}`}
+          />
+        </div>
 
         <div className="animate-fade-up text-center">
           <p className="text-sm text-[var(--sf-text)]/55">

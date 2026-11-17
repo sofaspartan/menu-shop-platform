@@ -7,6 +7,7 @@ import { useDb } from '@/hooks/useDb'
 import * as orderService from '@/services/orderService'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { LiveIndicator } from '@/components/ui/LiveIndicator'
 import { brandingStyleVars } from '@/lib/brandingCss'
 import { storeCopy } from '@/lib/storeCopy'
 import { cn, formatMoney } from '@/lib/utils'
@@ -27,7 +28,7 @@ const RECALL_WINDOW_MS = 24 * 60 * 60_000
 export function KitchenDisplayPage() {
   const current = useRestaurantStore((s) => s.current())
   const user = useAuthStore((s) => s.user)
-  const { db } = useDb()
+  const { db, revision, lastSyncedAt } = useDb({ pollMs: 2000 })
   const [now, setNow] = useState(() => Date.now())
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -128,11 +129,13 @@ export function KitchenDisplayPage() {
         <div>
           <h1 className="font-display text-3xl">{copy.bohNoun}</h1>
           <p className="mt-1 max-w-2xl text-stone-500">
-            Live back-of-house board for {copy.kitchenOrShop} staff. Bump forward, send
-            tickets back, or recall completed orders onto the board.
+            Truly live back-of-house board for {copy.kitchenOrShop} staff — new POS and
+            online orders appear here automatically. Bump forward, move back, or recall
+            completed tickets.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <LiveIndicator pulseKey={`${revision}-${lastSyncedAt ?? 0}`} />
           <Badge tone="accent">{orders.length} active</Badge>
           {recallOrders.length ? (
             <Badge tone="neutral">{recallOrders.length} recallable</Badge>
@@ -153,11 +156,15 @@ export function KitchenDisplayPage() {
                 <div>
                   <p className="text-sm font-semibold text-stone-900">{restaurant.name}</p>
                   <p className="text-xs text-stone-500">
-                    {copy.bohNoun} · {boardMode === 'live' ? 'live' : 'recall'}
+                    {copy.bohNoun} · {boardMode === 'live' ? 'board' : 'recall'}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <LiveIndicator
+                  className="hidden sm:inline-flex"
+                  pulseKey={`${revision}-${orders.length}-${recallOrders.length}`}
+                />
                 <div className="flex rounded-lg border border-stone-200 p-0.5">
                   <button
                     type="button"
