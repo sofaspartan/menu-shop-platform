@@ -21,6 +21,8 @@ import {
   Monitor,
   MonitorPlay,
   Armchair,
+  LayoutGrid,
+  Smartphone,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -124,7 +126,11 @@ export function DashboardLayout() {
           { to: '/dashboard/kitchen', label: copy.bohNoun, icon: Monitor },
           ...(copy.isRetail
             ? []
-            : [{ to: '/dashboard/dining', label: 'Dining', icon: Armchair }]),
+            : [
+                { to: '/dashboard/dining', label: 'Dining', icon: Armchair },
+                { to: '/dashboard/tables', label: 'Tables', icon: LayoutGrid },
+                { to: '/dashboard/server', label: 'Server handheld', icon: Smartphone },
+              ]),
           { to: '/dashboard/employees', label: 'Employees', icon: Users },
           { to: '/dashboard/preview', label: 'Preview', icon: Eye },
         ],

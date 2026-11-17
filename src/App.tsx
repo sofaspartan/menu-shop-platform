@@ -27,6 +27,8 @@ import { PosPage } from '@/pages/dashboard/PosPage'
 import { KitchenDisplayPage } from '@/pages/dashboard/KitchenDisplayPage'
 import { DisplaysPage } from '@/pages/dashboard/DisplaysPage'
 import { DiningPage } from '@/pages/dashboard/DiningPage'
+import { TablesPage } from '@/pages/dashboard/TablesPage'
+import { ServerHandheldPage } from '@/pages/dashboard/ServerHandheldPage'
 import { EmployeesPage } from '@/pages/dashboard/EmployeesPage'
 import { DisplayBoardPage } from '@/pages/storefront/DisplayBoardPage'
 import { RestaurantPage } from '@/pages/storefront/RestaurantPage'
@@ -66,6 +68,8 @@ export default function App() {
           <Route path="pos" element={<PosPage />} />
           <Route path="kitchen" element={<KitchenDisplayPage />} />
           <Route path="dining" element={<DiningPage />} />
+          <Route path="tables" element={<TablesPage />} />
+          <Route path="server" element={<ServerHandheldPage />} />
           <Route path="employees" element={<EmployeesPage />} />
           <Route path="menus" element={<MenusPage />} />
           <Route path="items" element={<ItemsPage />} />

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Armchair, CalendarDays, Plus, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Armchair, CalendarDays, LayoutGrid, Plus, Trash2 } from 'lucide-react'
 import type { DiningTable, Reservation } from '@/types'
 import { normalizeReservationSettings } from '@/types'
 import { useAuthStore } from '@/stores/authStore'
@@ -321,11 +322,21 @@ export function DiningPage() {
 
       {tab === 'tables' ? (
         <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-5">
-          <div>
-            <h2 className="font-display text-xl">Floor tables</h2>
-            <p className="mt-1 text-sm text-stone-500">
-              Define tables and seat counts so online bookings and walk-ins can be assigned.
-            </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display text-xl">Floor tables</h2>
+              <p className="mt-1 text-sm text-stone-500">
+                Quick seat counts for bookings. For rooms, shapes, and the live seating map, open
+                Tables.
+              </p>
+            </div>
+            <Link
+              to="/dashboard/tables"
+              className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm font-medium text-stone-800 hover:bg-white"
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Open floor plan
+            </Link>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-[1fr_120px_auto]">

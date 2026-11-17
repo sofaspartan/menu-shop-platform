@@ -1476,7 +1476,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   const staff = buildCornerTableEmployeesSeed(ts)
 
   return {
-    version: 22,
+    version: 23,
     users: [
       {
         id: userId,
@@ -1521,7 +1521,10 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     displays: [...displays, ...haven.displays],
     brandThemes: [],
     orders: [...orders, ...haven.orders],
+    diningRooms: dining.rooms,
     diningTables: dining.tables,
+    floorLabels: dining.floorLabels,
+    tableChecks: dining.tableChecks,
     reservations: dining.reservations,
     employees: staff.employees,
     timeClockEntries: staff.timeClockEntries,

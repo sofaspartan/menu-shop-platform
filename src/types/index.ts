@@ -435,13 +435,126 @@ export function normalizeReservationSettings(
   }
 }
 
-export interface DiningTable extends Timestamps {
+/** Physical shape used on the floor-plan canvas. */
+export type DiningTableShape = 'round' | 'square' | 'rectangle' | 'booth' | 'bar'
+
+/** Live service state for an occupied table (free = no open check). */
+export type TableServiceStatus = 'seated' | 'ordered' | 'food_ready' | 'bill_printed'
+
+export type TableLineItemStatus =
+  | 'queued'
+  | 'preparing'
+  | 'ready'
+  | 'served'
+  | 'held'
+
+export interface DiningRoom extends Timestamps {
   id: ID
   restaurantId: ID
   name: string
+  sortOrder: number
+  /** Logical canvas size for placing tables (px). */
+  canvasWidth: number
+  canvasHeight: number
+}
+
+/** Decorative text on a room canvas (kitchen pass, bar, etc.). */
+export interface FloorLabel extends Timestamps {
+  id: ID
+  restaurantId: ID
+  roomId: ID
+  text: string
+  x: number
+  y: number
+}
+
+export interface DiningTable extends Timestamps {
+  id: ID
+  restaurantId: ID
+  /** Room / space this table belongs to on the floor plan. */
+  roomId?: ID
+  name: string
   seats: number
+  shape: DiningTableShape
+  /** Canvas position (top-left) within the room. */
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation?: number
   active: boolean
   sortOrder: number
+}
+
+export interface TableCheckLine {
+  id: ID
+  menuItemId: ID
+  name: string
+  imageUrl?: string
+  quantity: number
+  unitPriceCents: CurrencyCents
+  lineTotalCents: CurrencyCents
+  modifiersNote?: string
+  status: TableLineItemStatus
+}
+
+/** Open (or recently closed) check for guests seated at a table. */
+export interface TableCheck extends Timestamps {
+  id: ID
+  restaurantId: ID
+  tableId: ID
+  roomId?: ID
+  reservationId?: ID
+  /** Linked paid Order once the check is closed via Pay. */
+  orderId?: ID
+  orderNumber: string
+  guestName: string
+  partySize: number
+  serverName?: string
+  serverEmployeeId?: ID
+  status: TableServiceStatus
+  seatedAt: ISODateTime
+  billPrintedAt?: ISODateTime
+  closedAt?: ISODateTime
+  items: TableCheckLine[]
+  discountCents?: CurrencyCents
+  discountLabel?: string
+  taxRatePercent: number
+  tipCents?: CurrencyCents
+  notes?: string
+}
+
+export function normalizeDiningTable(
+  raw: Partial<DiningTable> & Pick<DiningTable, 'id' | 'restaurantId' | 'name'>,
+): DiningTable {
+  const seats = Math.max(1, Math.min(24, Math.round(raw.seats ?? 2) || 2))
+  const shape = (raw.shape ??
+    (seats >= 6 ? 'rectangle' : seats >= 4 ? 'square' : 'round')) as DiningTableShape
+  const defaults: Record<DiningTableShape, { width: number; height: number }> = {
+    round: { width: 88, height: 88 },
+    square: { width: 92, height: 92 },
+    rectangle: { width: 140, height: 88 },
+    booth: { width: 150, height: 78 },
+    bar: { width: 70, height: 70 },
+  }
+  const size = defaults[shape]
+  return {
+    id: raw.id,
+    restaurantId: raw.restaurantId,
+    roomId: raw.roomId,
+    name: raw.name,
+    seats,
+    shape,
+    x: raw.x ?? 40,
+    y: raw.y ?? 40,
+    width: raw.width ?? size.width,
+    height: raw.height ?? size.height,
+    rotation: raw.rotation ?? 0,
+    active: raw.active ?? true,
+    sortOrder: raw.sortOrder ?? 0,
+    createdAt: raw.createdAt ?? new Date(0).toISOString(),
+    updatedAt: raw.updatedAt ?? new Date(0).toISOString(),
+  }
 }
 
 export type ReservationStatus =
@@ -1006,7 +1119,10 @@ export interface AppDatabase {
   displays: Display[]
   brandThemes: BrandTheme[]
   orders: Order[]
+  diningRooms: DiningRoom[]
   diningTables: DiningTable[]
+  floorLabels: FloorLabel[]
+  tableChecks: TableCheck[]
   reservations: Reservation[]
   employees: Employee[]
   timeClockEntries: TimeClockEntry[]
