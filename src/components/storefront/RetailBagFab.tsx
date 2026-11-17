@@ -47,7 +47,7 @@ export function RetailBagFab({
           data-bag-target
           onClick={onOpen}
           className={cn(
-            'fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-4 py-3 text-[var(--sf-button-text)] shadow-lg sm:hidden',
+            'fixed bottom-6 right-6 z-30 inline-flex items-center gap-2 rounded-2xl bg-[var(--sf-button)] px-3.5 py-3 text-[var(--sf-button-text)] shadow-lg sm:hidden',
             pulse && 'bag-catch-pulse',
           )}
           aria-label={`Open ${copy.bagNoun}`}
@@ -57,9 +57,6 @@ export function RetailBagFab({
             {copy.bagNounTitle}
             {bagCount > 0 ? ` · ${bagCount}` : ''}
           </span>
-          {bagCount > 0 ? (
-            <span className="text-sm opacity-90">{formatMoney(bagSubtotal)}</span>
-          ) : null}
         </button>
       )}
 

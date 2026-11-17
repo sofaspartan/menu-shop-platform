@@ -173,12 +173,12 @@ export function RetailChrome({
       {sectionLinks && sectionLinks.length > 1 ? (
         <nav
           aria-label="Product sections"
-          className="hidden border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] bg-[var(--sf-bg)]/95 md:block"
+          className="border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] bg-[var(--sf-bg)]/95"
         >
           <div
             className={cn(
               contentClass,
-              'flex gap-6 overflow-x-auto py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+              'flex gap-5 overflow-x-auto py-2.5 sm:gap-6 sm:py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
             )}
           >
             {sectionLinks.map((section) => (

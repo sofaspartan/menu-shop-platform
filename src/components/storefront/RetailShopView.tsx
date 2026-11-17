@@ -106,20 +106,6 @@ export function RetailShopView({
           <EmptyState title={copy.noCatalogTitle} description={copy.noCatalogBody} />
         ) : (
           <>
-            {sectionLinks ? (
-              <div className="mb-10 flex gap-6 overflow-x-auto border-b border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] pb-3 md:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {sectionLinks.map((section) => (
-                  <a
-                    key={section.id}
-                    href={`#section-${section.id}`}
-                    className="shrink-0 text-base text-[var(--sf-text)]/70 transition-colors hover:text-[var(--sf-text)]"
-                  >
-                    {section.name}
-                  </a>
-                ))}
-              </div>
-            ) : null}
-
             {featuredHero && !search ? (
               <FeaturedHero
                 entry={featuredHero}

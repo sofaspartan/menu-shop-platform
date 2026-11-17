@@ -60,8 +60,6 @@ export function RestaurantPage() {
     if (pulseToken === 0) return
     setBagPulseKey(pulseToken)
     setBagCatchExpanded(true)
-    const t = window.setTimeout(() => setBagCatchExpanded(false), 2400)
-    return () => window.clearTimeout(t)
   }, [pulseToken])
 
   const [search, setSearch] = useState('')
@@ -230,6 +228,13 @@ export function RestaurantPage() {
     }
     prevBagCountRef.current = bagCount
   }, [bagCount])
+
+  /** Always collapse the catch bar back to the side FAB after a short beat. */
+  useEffect(() => {
+    if (!bagCatchExpanded) return
+    const t = window.setTimeout(() => setBagCatchExpanded(false), 2400)
+    return () => window.clearTimeout(t)
+  }, [bagCatchExpanded, bagCount, pulseToken])
 
   const sectionIdsKey = sections.map((s) => s.id).join(',')
 
