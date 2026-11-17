@@ -187,7 +187,7 @@ export function PagesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 animate-fade-up">
+    <div className="space-y-8 animate-fade-up">
       <div>
         <h1 className="font-display text-3xl">Pages & layout</h1>
         <p className="mt-1 text-stone-500">

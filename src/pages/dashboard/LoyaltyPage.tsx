@@ -94,7 +94,7 @@ export function LoyaltyPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="space-y-8 animate-fade-up">
       <div>
         <h1 className="font-display text-3xl text-stone-900">Loyalty</h1>
         <p className="mt-1 text-sm text-stone-500">

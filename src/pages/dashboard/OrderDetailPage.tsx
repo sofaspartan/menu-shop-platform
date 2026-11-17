@@ -57,7 +57,7 @@ export function OrderDetailPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 animate-fade-up">
+    <div className="space-y-6 animate-fade-up">
       <Link to="/dashboard/orders" className="text-sm text-stone-500 hover:text-stone-800">
         ← Orders
       </Link>

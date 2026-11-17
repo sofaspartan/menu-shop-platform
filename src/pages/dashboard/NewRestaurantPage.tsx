@@ -36,15 +36,17 @@ export function NewRestaurantPage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl animate-fade-up">
-      <h1 className="font-display text-3xl">Create a store</h1>
-      <p className="mt-2 text-stone-500">
-        Choose a restaurant or retail shop. Each store gets its own branding, catalogs, orders,
-        QR codes, and analytics.
-      </p>
+    <div className="space-y-6 animate-fade-up">
+      <div>
+        <h1 className="font-display text-3xl">Create a store</h1>
+        <p className="mt-2 text-stone-500">
+          Choose a restaurant or retail shop. Each store gets its own branding, catalogs, orders,
+          QR codes, and analytics.
+        </p>
+      </div>
       <form
         onSubmit={onSubmit}
-        className="mt-8 space-y-5 rounded-2xl border border-stone-200 bg-white p-6"
+        className="space-y-5 rounded-2xl border border-stone-200 bg-white p-6"
       >
         <fieldset>
           <legend className="mb-3 text-sm font-medium text-stone-800">Store type</legend>
