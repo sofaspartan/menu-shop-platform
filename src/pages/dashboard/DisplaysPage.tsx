@@ -5,6 +5,7 @@ import type {
   DisplayGraphicSlide,
   DisplayItemSlide,
   DisplayKind,
+  FeaturedCatalogScope,
   FeaturedSource,
   GraphicsChrome,
 } from '@/types'
@@ -739,38 +740,73 @@ export function DisplaysPage() {
                           }
                         />
                       </Field>
-                      <div>
-                        <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-400">
-                          Limit to {copy.catalogNounPlural.toLowerCase()}
-                        </h4>
-                        <p className="mt-1 text-xs text-stone-500">
-                          Leave none selected to use every currently available{' '}
-                          {copy.catalogNoun}.
+                      <p className="text-xs text-stone-500">
+                        Set to 1 for a full-bleed image + details layout. Slide titles become
+                        “Featured drink”, “Featured entree”, etc. from the section or menu.
+                      </p>
+
+                      <Field label="Pull featured from" htmlFor="disp-catalog-scope">
+                        <Select
+                          id="disp-catalog-scope"
+                          value={selected.featuredCatalogScope}
+                          onChange={(e) =>
+                            void patchSelected({
+                              featuredCatalogScope: e.target
+                                .value as FeaturedCatalogScope,
+                              ...(e.target.value === 'daypart' ? { menuIds: [] } : {}),
+                            })
+                          }
+                        >
+                          <option value="daypart">
+                            Currently serving — follow today’s schedule (breakfast / lunch /
+                            dinner…)
+                          </option>
+                          <option value="menus">
+                            Selected {copy.catalogNounPlural.toLowerCase()} — pick breakfast,
+                            lunch, dinner, etc.
+                          </option>
+                        </Select>
+                      </Field>
+
+                      {selected.featuredCatalogScope === 'daypart' ? (
+                        <p className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-600">
+                          This board updates with whatever {copy.catalogNounPlural.toLowerCase()}{' '}
+                          are live right now based on their schedules.
                         </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {menus.map((menu) => {
-                            const forced = selected.menuIds.includes(menu.id)
-                            return (
-                              <button
-                                key={menu.id}
-                                type="button"
-                                onClick={() => toggleMenu(menu.id)}
-                                className={cn(
-                                  'rounded-lg border px-3 py-1.5 text-sm',
-                                  forced
-                                    ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
-                                    : selected.menuIds.length === 0
-                                      ? 'border-stone-200 bg-stone-50 text-stone-600'
-                                      : 'border-stone-200 text-stone-400',
-                                )}
-                              >
-                                {menu.name}
-                                {selected.menuIds.length === 0 ? ' · auto' : ''}
-                              </button>
-                            )
-                          })}
+                      ) : (
+                        <div>
+                          <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-400">
+                            {copy.catalogNounPlural}
+                          </h4>
+                          <p className="mt-1 text-xs text-stone-500">
+                            Pick one or more (e.g. Breakfast + Drinks). Leave none selected to
+                            include every active {copy.catalogNoun.toLowerCase()}.
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {menus.map((menu) => {
+                              const forced = selected.menuIds.includes(menu.id)
+                              return (
+                                <button
+                                  key={menu.id}
+                                  type="button"
+                                  onClick={() => toggleMenu(menu.id)}
+                                  className={cn(
+                                    'rounded-lg border px-3 py-1.5 text-sm',
+                                    forced
+                                      ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+                                      : selected.menuIds.length === 0
+                                        ? 'border-stone-200 bg-stone-50 text-stone-600'
+                                        : 'border-stone-200 text-stone-400',
+                                  )}
+                                >
+                                  {menu.name}
+                                  {selected.menuIds.length === 0 ? ' · all' : ''}
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </>
                   ) : (
                     <div className="space-y-3">
@@ -813,7 +849,7 @@ export function DisplaysPage() {
                               onChange={(e) =>
                                 updateItemSlide(slide.id, { title: e.target.value })
                               }
-                              placeholder="Slide title (e.g. Chef’s picks)"
+                              placeholder="Slide title (blank = Featured drink / Featured entree…)"
                             />
                             <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-stone-100 p-2">
                               {catalogItems.map((item) => {

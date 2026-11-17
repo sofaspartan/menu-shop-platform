@@ -298,14 +298,79 @@ function SlideView({
     )
   }
 
+  // Single featured item: image left column, content right.
+  if (slide.items.length === 1) {
+    const item = slide.items[0]!
+    return (
+      <section
+        className="flex flex-1 flex-col overflow-hidden rounded-[2rem] p-6 animate-fade-up sm:p-8"
+        style={{ backgroundColor: surface }}
+      >
+        <h2
+          className="mb-5 text-3xl font-semibold tracking-tight sm:text-4xl"
+          style={{ fontFamily: 'var(--brand-heading)', color: 'var(--brand-primary)' }}
+        >
+          {slide.title}
+        </h2>
+        <article
+          className={cn(
+            'grid min-h-0 flex-1 overflow-hidden rounded-2xl border border-black/5 bg-[var(--brand-bg)] lg:grid-cols-2',
+            item.soldOut && 'opacity-55',
+          )}
+        >
+          <MenuItemImage
+            src={item.imageUrl}
+            alt=""
+            className="h-56 w-full object-cover sm:h-72 lg:h-full lg:min-h-[22rem]"
+            fallbackClassName="h-56 w-full sm:h-72 lg:h-full lg:min-h-[22rem]"
+          />
+          <div className="flex flex-col justify-center gap-3 p-6 sm:p-8 lg:p-10">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h3
+                className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-5xl"
+                style={{ fontFamily: 'var(--brand-heading)' }}
+              >
+                {item.name}
+              </h3>
+              {showPrices ? (
+                <div className="shrink-0 text-right">
+                  <p className="text-2xl font-semibold text-[var(--brand-primary)] sm:text-3xl">
+                    {formatMoney(item.priceCents)}
+                  </p>
+                  {item.onSale ? (
+                    <p className="text-sm opacity-50 line-through">
+                      {formatMoney(item.listPriceCents)}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+            {item.description ? (
+              <p className="max-w-xl text-base opacity-70 sm:text-lg lg:text-xl">
+                {item.description}
+              </p>
+            ) : null}
+            {item.soldOut ? (
+              <p className="pt-2 text-sm font-semibold uppercase tracking-wider text-red-700">
+                Sold out
+              </p>
+            ) : item.onSale ? (
+              <p className="pt-2 text-sm font-semibold uppercase tracking-wider text-[var(--brand-accent)]">
+                On sale
+              </p>
+            ) : null}
+          </div>
+        </article>
+      </section>
+    )
+  }
+
   const cols =
-    slide.items.length <= 1
-      ? 'grid-cols-1 max-w-3xl mx-auto'
-      : slide.items.length <= 2
-        ? 'grid-cols-1 sm:grid-cols-2'
-        : slide.items.length <= 4
-          ? 'grid-cols-2 lg:grid-cols-4'
-          : 'grid-cols-2 lg:grid-cols-3'
+    slide.items.length <= 2
+      ? 'grid-cols-1 sm:grid-cols-2'
+      : slide.items.length <= 4
+        ? 'grid-cols-2 lg:grid-cols-4'
+        : 'grid-cols-2 lg:grid-cols-3'
 
   return (
     <section
@@ -330,23 +395,12 @@ function SlideView({
             <MenuItemImage
               src={item.imageUrl}
               alt=""
-              className={cn(
-                'w-full object-cover',
-                slide.items.length === 1 ? 'aspect-[16/9]' : 'aspect-[16/10]',
-              )}
-              fallbackClassName={cn(
-                'w-full',
-                slide.items.length === 1 ? 'aspect-[16/9]' : 'aspect-[16/10]',
-              )}
+              className="aspect-[16/10] w-full object-cover"
+              fallbackClassName="aspect-[16/10] w-full"
             />
             <div className="flex flex-1 flex-col gap-1 p-3 sm:p-4">
               <div className="flex items-start justify-between gap-2">
-                <h3
-                  className={cn(
-                    'font-semibold leading-snug',
-                    slide.items.length === 1 ? 'text-2xl sm:text-3xl' : 'text-lg sm:text-xl',
-                  )}
-                >
+                <h3 className="text-lg font-semibold leading-snug sm:text-xl">
                   {item.name}
                 </h3>
                 {showPrices ? (
@@ -363,16 +417,7 @@ function SlideView({
                 ) : null}
               </div>
               {item.description ? (
-                <p
-                  className={cn(
-                    'opacity-65',
-                    slide.items.length === 1
-                      ? 'line-clamp-4 text-base'
-                      : 'line-clamp-2 text-sm',
-                  )}
-                >
-                  {item.description}
-                </p>
+                <p className="line-clamp-2 text-sm opacity-65">{item.description}</p>
               ) : null}
               {item.soldOut ? (
                 <p className="mt-auto pt-2 text-xs font-semibold uppercase tracking-wider text-red-700">

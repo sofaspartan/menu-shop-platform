@@ -3,6 +3,7 @@ import type {
   DisplayGraphicSlide,
   DisplayItemSlide,
   DisplayKind,
+  FeaturedCatalogScope,
   FeaturedSource,
   GraphicsChrome,
 } from '@/types'
@@ -47,6 +48,7 @@ function defaultsForKind(kind: DisplayKind): Pick<
   | 'graphicsChrome'
   | 'graphicSlides'
   | 'featuredSource'
+  | 'featuredCatalogScope'
   | 'menuIds'
   | 'sectionIds'
   | 'showPrices'
@@ -60,6 +62,7 @@ function defaultsForKind(kind: DisplayKind): Pick<
     graphicsChrome: 'fullscreen',
     graphicSlides: [],
     featuredSource: 'auto',
+    featuredCatalogScope: 'daypart',
     menuIds: [],
     sectionIds: [],
     showPrices: true,
@@ -126,6 +129,7 @@ export type DisplayPatch = Partial<
     | 'graphicsChrome'
     | 'graphicSlides'
     | 'featuredSource'
+    | 'featuredCatalogScope'
     | 'menuIds'
     | 'sectionIds'
     | 'showPrices'
@@ -178,6 +182,9 @@ export async function updateDisplay(
     if (patch.graphicSlides !== undefined) next.graphicSlides = patch.graphicSlides
     if (patch.featuredSource !== undefined) {
       next.featuredSource = patch.featuredSource as FeaturedSource
+    }
+    if (patch.featuredCatalogScope !== undefined) {
+      next.featuredCatalogScope = patch.featuredCatalogScope as FeaturedCatalogScope
     }
     if (patch.menuIds !== undefined) next.menuIds = patch.menuIds
     if (patch.sectionIds !== undefined) next.sectionIds = patch.sectionIds

@@ -1,6 +1,7 @@
 import type {
   AppDatabase,
   Display,
+  Menu,
   MenuItem,
   Restaurant,
   Sale,
@@ -20,6 +21,8 @@ export type BoardItemCard = {
   soldOut: boolean
   sectionName: string
   sectionId?: string
+  menuName?: string
+  menuId?: string
 }
 
 export type BoardMenuSection = {
@@ -56,13 +59,54 @@ export type BoardSlide =
       sections: BoardMenuSection[]
     }
 
+function singularizeWord(word: string): string {
+  const lower = word.toLowerCase()
+  if (lower.endsWith('ies') && lower.length > 4) return `${lower.slice(0, -3)}y`
+  if (lower.endsWith('sses') || lower.endsWith('xes') || lower.endsWith('zes')) {
+    return lower.slice(0, -2)
+  }
+  if (lower.endsWith('s') && !lower.endsWith('ss') && lower.length > 3) {
+    return lower.slice(0, -1)
+  }
+  return lower
+}
+
+/** Turn a section/menu name into a short label: "Cold Drinks" → "cold drink". */
+export function featuredSourceLabel(name: string): string {
+  const cleaned = name.trim().replace(/\s+/g, ' ')
+  if (!cleaned) return 'item'
+  // Keep ampersand phrases intact but lowercase + singularize last word.
+  const parts = cleaned.split(' ')
+  const last = parts[parts.length - 1] ?? cleaned
+  const singularLast = singularizeWord(last)
+  return [...parts.slice(0, -1).map((p) => p.toLowerCase()), singularLast].join(
+    ' ',
+  )
+}
+
+/** Slide title like "Featured drink" / "Featured breakfast plate". */
+export function featuredTitleForItems(items: BoardItemCard[]): string {
+  if (!items.length) return 'Featured'
+  const sectionNames = [...new Set(items.map((i) => i.sectionName).filter(Boolean))]
+  if (sectionNames.length === 1) {
+    return `Featured ${featuredSourceLabel(sectionNames[0]!)}`
+  }
+  const menuNames = [
+    ...new Set(items.map((i) => i.menuName).filter((n): n is string => Boolean(n))),
+  ]
+  if (menuNames.length === 1) {
+    return `Featured ${featuredSourceLabel(menuNames[0]!)}`
+  }
+  return 'Featured'
+}
+
 function toCard(
   item: MenuItem,
   sectionName: string,
   listPriceCents: number,
   sales: Sale[],
   now: Date,
-  sectionId?: string,
+  meta?: { sectionId?: string; menuName?: string; menuId?: string },
 ): BoardItemCard {
   const listed = resolveListedPrice(listPriceCents, item.id, sales, now)
   const soldOut =
@@ -78,8 +122,31 @@ function toCard(
     onSale: listed.onSale,
     soldOut,
     sectionName,
-    sectionId,
+    sectionId: meta?.sectionId,
+    menuName: meta?.menuName,
+    menuId: meta?.menuId,
   }
+}
+
+function resolveFeaturedMenus(
+  db: AppDatabase,
+  restaurant: Restaurant,
+  display: Display,
+  now: Date,
+): Menu[] {
+  const all = db.menus
+    .filter((m) => m.restaurantId === restaurant.id && m.active)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+
+  if (display.featuredCatalogScope === 'menus') {
+    if (display.menuIds.length) {
+      return all.filter((m) => display.menuIds.includes(m.id))
+    }
+    return all
+  }
+
+  // Daypart: currently serving by schedule.
+  return getAvailableMenus(all, restaurant, now)
 }
 
 function collectCatalogCards(
@@ -90,13 +157,7 @@ function collectCatalogCards(
   opts: { featuredOnly: boolean },
 ): BoardItemCard[] {
   const sales = db.sales.filter((s) => s.restaurantId === restaurant.id)
-  const menus = getAvailableMenus(
-    db.menus.filter((m) => m.restaurantId === restaurant.id),
-    restaurant,
-    now,
-  ).filter((m) =>
-    display.menuIds.length ? display.menuIds.includes(m.id) : true,
-  )
+  const menus = resolveFeaturedMenus(db, restaurant, display, now)
   const sectionById = new Map(
     db.sections
       .filter((s) => s.restaurantId === restaurant.id)
@@ -125,16 +186,13 @@ function collectCatalogCards(
       if (!available && !display.showSoldOut) continue
 
       const section = sectionById.get(assignment.sectionId)
-      const sectionName = section?.name || 'Featured'
+      const sectionName = section?.name || menu.name || 'Featured'
       const list = assignment.priceOverrideCents ?? item.basePriceCents
-      const card = toCard(
-        item,
-        sectionName,
-        list,
-        sales,
-        now,
-        assignment.sectionId,
-      )
+      const card = toCard(item, sectionName, list, sales, now, {
+        sectionId: assignment.sectionId,
+        menuName: menu.name,
+        menuId: menu.id,
+      })
       if (!cards.some((c) => c.id === card.id)) cards.push(card)
     }
   }
@@ -174,6 +232,7 @@ export function collectMenuBoardSections(
   const result: BoardMenuSection[] = []
 
   for (const section of sections) {
+    const menu = menus.find((m) => m.id === section.menuId)
     const assignments = db.assignments
       .filter(
         (a) =>
@@ -200,7 +259,11 @@ export function collectMenuBoardSections(
 
       const list = assignment.priceOverrideCents ?? item.basePriceCents
       items.push(
-        toCard(item, section.name, list, sales, now, section.id),
+        toCard(item, section.name, list, sales, now, {
+          sectionId: section.id,
+          menuName: menu?.name,
+          menuId: menu?.id,
+        }),
       )
     }
 
@@ -244,12 +307,48 @@ function cardsForItemIds(
     const section = assignment
       ? db.sections.find((s) => s.id === assignment.sectionId)
       : undefined
+    const menu = assignment
+      ? db.menus.find((m) => m.id === assignment.menuId)
+      : undefined
     const list = assignment?.priceOverrideCents ?? item.basePriceCents
     cards.push(
-      toCard(item, section?.name || 'Featured', list, sales, now, section?.id),
+      toCard(item, section?.name || menu?.name || 'Featured', list, sales, now, {
+        sectionId: section?.id,
+        menuName: menu?.name,
+        menuId: menu?.id,
+      }),
     )
   }
   return cards
+}
+
+function chunkCardsIntoFeaturedSlides(
+  pool: BoardItemCard[],
+  per: number,
+): BoardSlide[] {
+  const slides: BoardSlide[] = []
+  // Keep items from the same section together so titles stay meaningful.
+  const bySection = new Map<string, BoardItemCard[]>()
+  for (const card of pool) {
+    const key = card.sectionId || card.sectionName || 'featured'
+    const list = bySection.get(key) ?? []
+    list.push(card)
+    bySection.set(key, list)
+  }
+
+  let slideN = 0
+  for (const group of bySection.values()) {
+    for (let i = 0; i < group.length; i += per) {
+      const items = group.slice(i, i + per)
+      slides.push({
+        id: `auto-featured-${slideN++}`,
+        kind: 'items',
+        title: featuredTitleForItems(items),
+        items,
+      })
+    }
+  }
+  return slides
 }
 
 /** Build the live slide deck for a digital display from current catalog state. */
@@ -317,7 +416,7 @@ export function buildDisplaySlides(
       slides.push({
         id: page.id,
         kind: 'items',
-        title: page.title?.trim() || 'Featured',
+        title: page.title?.trim() || featuredTitleForItems(items),
         items,
       })
     }
@@ -334,14 +433,5 @@ export function buildDisplaySlides(
       : collectCatalogCards(db, restaurant, display, now, { featuredOnly: false })
 
   const per = display.itemsPerAutoSlide || 4
-  for (let i = 0; i < pool.length; i += per) {
-    slides.push({
-      id: `auto-featured-${i}`,
-      kind: 'items',
-      title: 'Featured',
-      items: pool.slice(i, i + per),
-    })
-  }
-
-  return slides
+  return chunkCardsIntoFeaturedSlides(pool, per)
 }

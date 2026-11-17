@@ -544,6 +544,8 @@ export type DisplayMode = 'featured' | 'catalog' | 'mixed' | DisplayKind
 
 export type GraphicsChrome = 'fullscreen' | 'framed'
 export type FeaturedSource = 'auto' | 'manual'
+/** Auto featured boards: follow live daypart schedules, or pin specific menus. */
+export type FeaturedCatalogScope = 'daypart' | 'menus'
 
 export interface DisplayGraphicSlide {
   id: ID
@@ -596,7 +598,16 @@ export interface Display extends Timestamps {
 
   /** Featured board: auto from catalog featured flags, or manual pages. */
   featuredSource: FeaturedSource
-  /** Limit menu / auto featured to these menus; empty = all available. */
+  /**
+   * Auto featured: `daypart` follows menus currently serving by schedule;
+   * `menus` pulls from the manually selected menuIds (breakfast, lunch, …).
+   */
+  featuredCatalogScope: FeaturedCatalogScope
+  /**
+   * Limit menu / featured boards to these menus.
+   * Featured + daypart: ignored (live schedule wins).
+   * Featured + menus / ordering menu: empty = all active menus.
+   */
   menuIds: ID[]
   /**
    * Menu board: limit to these sections; empty = every section on the

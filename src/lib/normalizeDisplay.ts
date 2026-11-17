@@ -3,6 +3,7 @@ import type {
   DisplayGraphicSlide,
   DisplayItemSlide,
   DisplayKind,
+  FeaturedCatalogScope,
   FeaturedSource,
   GraphicsChrome,
 } from '@/types'
@@ -53,6 +54,11 @@ export function normalizeDisplay(raw: Display): Display {
   const itemSlides: DisplayItemSlide[] = raw.itemSlides ?? []
   const featuredSource: FeaturedSource =
     raw.featuredSource === 'manual' ? 'manual' : 'auto'
+  const featuredCatalogScope: FeaturedCatalogScope =
+    raw.featuredCatalogScope === 'menus' ||
+    (raw.featuredCatalogScope !== 'daypart' && (raw.menuIds?.length ?? 0) > 0)
+      ? 'menus'
+      : 'daypart'
   const graphicsChrome: GraphicsChrome =
     raw.graphicsChrome === 'framed' ? 'framed' : 'fullscreen'
 
@@ -66,6 +72,7 @@ export function normalizeDisplay(raw: Display): Display {
     graphicsChrome,
     graphicSlides,
     featuredSource,
+    featuredCatalogScope,
     menuIds: raw.menuIds ?? [],
     sectionIds: raw.sectionIds ?? [],
     showPrices: raw.showPrices !== false,

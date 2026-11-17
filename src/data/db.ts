@@ -114,7 +114,8 @@ export async function getDb(): Promise<AppDatabase> {
       (existing.version === 11 ||
         existing.version === 12 ||
         existing.version === 13 ||
-        existing.version === 14)
+        existing.version === 14 ||
+        existing.version === 15)
     ) {
       if (!existing.brandThemes) existing.brandThemes = []
       if (!existing.coupons) existing.coupons = []
@@ -153,6 +154,11 @@ export async function getDb(): Promise<AppDatabase> {
                 sortOrder: s.sortOrder,
               })),
           featuredSource: d.featuredSource === 'manual' ? 'manual' : 'auto',
+          featuredCatalogScope:
+            d.featuredCatalogScope === 'menus' ||
+            (d.featuredCatalogScope !== 'daypart' && (d.menuIds?.length ?? 0) > 0)
+              ? 'menus'
+              : 'daypart',
           menuIds: d.menuIds ?? [],
           sectionIds: d.sectionIds ?? [],
           showPrices: d.showPrices !== false,
