@@ -1229,7 +1229,7 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
   return {
-    version: 5,
+    version: 6,
     users: [
       {
         id: userId,

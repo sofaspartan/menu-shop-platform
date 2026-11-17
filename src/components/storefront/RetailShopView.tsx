@@ -65,19 +65,27 @@ export function RetailShopView({
               alt=""
               className="absolute inset-0 h-full w-full object-cover"
             />
-            <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/75 via-black/35 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-[65%] bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
             <div className={cn(contentClass, 'absolute inset-x-0 bottom-0 pb-8 pt-16 sm:pb-10')}>
-              <p className="max-w-2xl text-base leading-relaxed text-white sm:text-lg">
-                {restaurant.description}
-              </p>
+              <CoverIntroCopy
+                title={restaurant.pages?.coverIntro?.title}
+                description={restaurant.description}
+                buttonLabel={restaurant.pages?.coverIntro?.buttonLabel}
+                buttonHref={restaurant.pages?.coverIntro?.buttonHref}
+                onLight={false}
+              />
             </div>
           </div>
         </div>
       ) : (
         <div className={cn(contentClass, 'pb-2 pt-8')}>
-          <p className="max-w-2xl text-base leading-relaxed text-[var(--sf-text)]/80 sm:text-lg">
-            {restaurant.description}
-          </p>
+          <CoverIntroCopy
+            title={restaurant.pages?.coverIntro?.title}
+            description={restaurant.description}
+            buttonLabel={restaurant.pages?.coverIntro?.buttonLabel}
+            buttonHref={restaurant.pages?.coverIntro?.buttonHref}
+            onLight
+          />
         </div>
       )}
 
@@ -174,6 +182,84 @@ export function RetailShopView({
         )}
       </main>
     </>
+  )
+}
+
+function CoverIntroCopy({
+  title,
+  description,
+  buttonLabel,
+  buttonHref,
+  onLight,
+}: {
+  title?: string
+  description?: string
+  buttonLabel?: string
+  buttonHref?: string
+  onLight?: boolean
+}) {
+  const heading = title?.trim()
+  const body = description?.trim()
+  const cta = buttonLabel?.trim()
+  const href = (buttonHref?.trim() || (cta ? '#section-featured' : '')) || undefined
+
+  if (!heading && !body && !cta) return null
+
+  const external = Boolean(href && /^https?:\/\//i.test(href))
+
+  return (
+    <div className="max-w-2xl">
+      {heading ? (
+        <h1
+          className={cn(
+            'font-display text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl',
+            onLight ? 'text-[var(--sf-text)]' : 'text-white',
+          )}
+        >
+          {heading}
+        </h1>
+      ) : null}
+      {body ? (
+        <p
+          className={cn(
+            'text-base leading-relaxed sm:text-lg',
+            heading ? 'mt-3' : '',
+            onLight ? 'text-[var(--sf-text)]/80' : 'text-white/95',
+          )}
+        >
+          {body}
+        </p>
+      ) : null}
+      {cta && href ? (
+        external ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(
+              'mt-5 inline-flex items-center rounded-full px-5 py-2.5 text-base font-medium transition-transform hover:-translate-y-0.5',
+              onLight
+                ? 'bg-[var(--sf-button)] text-[var(--sf-button-text)]'
+                : 'bg-white text-stone-900',
+            )}
+          >
+            {cta}
+          </a>
+        ) : (
+          <a
+            href={href}
+            className={cn(
+              'mt-5 inline-flex items-center rounded-full px-5 py-2.5 text-base font-medium transition-transform hover:-translate-y-0.5',
+              onLight
+                ? 'bg-[var(--sf-button)] text-[var(--sf-button-text)]'
+                : 'bg-white text-stone-900',
+            )}
+          >
+            {cta}
+          </a>
+        )
+      ) : null}
+    </div>
   )
 }
 

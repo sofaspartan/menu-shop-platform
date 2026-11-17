@@ -47,9 +47,22 @@ export interface StoreContactPage {
   showTiktok: boolean
 }
 
+/** Cover image overlay copy for retail (and optional restaurant) storefronts. */
+export interface StoreCoverIntro {
+  title?: string
+  /** Shown when non-empty; hidden if blank. */
+  buttonLabel?: string
+  /**
+   * Button target: absolute URL, in-app path (`/r/slug/about`), or hash (`#section-featured`).
+   * Defaults to the featured section when label is set and this is blank.
+   */
+  buttonHref?: string
+}
+
 export interface StorePages {
   about: StoreAboutPage
   contact: StoreContactPage
+  coverIntro?: StoreCoverIntro
 }
 
 export type OrderStatus =
@@ -526,6 +539,12 @@ export const DEFAULT_RETAIL_ORDERING: OrderingSettings = {
   tipPresetsPercent: [10, 15, 20],
 }
 
+export const DEFAULT_COVER_INTRO: StoreCoverIntro = {
+  title: '',
+  buttonLabel: '',
+  buttonHref: '',
+}
+
 export const DEFAULT_STORE_PAGES: StorePages = {
   about: {
     enabled: false,
@@ -546,10 +565,17 @@ export const DEFAULT_STORE_PAGES: StorePages = {
     showTwitter: true,
     showTiktok: true,
   },
+  coverIntro: { ...DEFAULT_COVER_INTRO },
 }
 
 export function defaultStorePagesFor(kind: StoreKind): StorePages {
-  if (kind !== 'retail') return { ...DEFAULT_STORE_PAGES, about: { ...DEFAULT_STORE_PAGES.about }, contact: { ...DEFAULT_STORE_PAGES.contact } }
+  if (kind !== 'retail') {
+    return {
+      about: { ...DEFAULT_STORE_PAGES.about },
+      contact: { ...DEFAULT_STORE_PAGES.contact },
+      coverIntro: { ...DEFAULT_COVER_INTRO },
+    }
+  }
   return {
     about: {
       enabled: true,
@@ -560,6 +586,11 @@ export function defaultStorePagesFor(kind: StoreKind): StorePages {
       ...DEFAULT_STORE_PAGES.contact,
       enabled: true,
       intro: 'Questions about an order or a custom piece? Reach out anytime.',
+    },
+    coverIntro: {
+      title: 'New season essentials',
+      buttonLabel: 'Shop featured',
+      buttonHref: '#section-featured',
     },
   }
 }

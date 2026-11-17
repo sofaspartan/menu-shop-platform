@@ -29,6 +29,11 @@ export function PagesPage() {
         ? {
             about: { ...current.pages.about },
             contact: { ...current.pages.contact },
+            coverIntro: {
+              title: current.pages.coverIntro?.title ?? '',
+              buttonLabel: current.pages.coverIntro?.buttonLabel ?? '',
+              buttonHref: current.pages.coverIntro?.buttonHref ?? '',
+            },
           }
         : defaultStorePagesFor(current.storeKind),
     )
@@ -150,6 +155,55 @@ export function PagesPage() {
             </p>
           </button>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
+        <div>
+          <h2 className="font-display text-xl">Cover intro</h2>
+          <p className="mt-1 text-sm text-stone-500">
+            Title and optional button over the cover image. Store description stays as the supporting
+            line.
+          </p>
+        </div>
+        <Field label="Title" htmlFor="cover-title">
+          <Input
+            id="cover-title"
+            value={pages.coverIntro?.title ?? ''}
+            onChange={(e) =>
+              setPages((p) => ({
+                ...p,
+                coverIntro: { ...p.coverIntro, title: e.target.value },
+              }))
+            }
+            placeholder="e.g. Leather goods, made to last"
+          />
+        </Field>
+        <Field label="Button label (optional)" htmlFor="cover-btn-label">
+          <Input
+            id="cover-btn-label"
+            value={pages.coverIntro?.buttonLabel ?? ''}
+            onChange={(e) =>
+              setPages((p) => ({
+                ...p,
+                coverIntro: { ...p.coverIntro, buttonLabel: e.target.value },
+              }))
+            }
+            placeholder="Leave blank to hide the button"
+          />
+        </Field>
+        <Field label="Button link (optional)" htmlFor="cover-btn-href">
+          <Input
+            id="cover-btn-href"
+            value={pages.coverIntro?.buttonHref ?? ''}
+            onChange={(e) =>
+              setPages((p) => ({
+                ...p,
+                coverIntro: { ...p.coverIntro, buttonHref: e.target.value },
+              }))
+            }
+            placeholder="#section-featured, /r/your-slug/about, or https://…"
+          />
+        </Field>
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
