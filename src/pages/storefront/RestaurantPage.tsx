@@ -13,6 +13,7 @@ import {
 import type { MenuItem } from '@/types'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
 import { StorefrontNav } from '@/components/storefront/StorefrontNav'
+import { RetailShopView } from '@/components/storefront/RetailShopView'
 import { ItemCustomizer } from '@/components/storefront/ItemCustomizer'
 import { BagDrawer } from '@/components/storefront/BagDrawer'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
@@ -290,6 +291,51 @@ export function RestaurantPage() {
   const isRetailLayout =
     (restaurant.storefrontLayout ??
       (restaurant.storeKind === 'retail' ? 'retail' : 'restaurant')) === 'retail'
+
+  if (isRetailLayout) {
+    return (
+      <StorefrontShell branding={restaurant.branding}>
+        <RetailShopView
+          restaurant={restaurant}
+          menus={menus}
+          selectedMenu={selectedMenu}
+          sectionItems={sectionItems}
+          featured={featured}
+          search={search}
+          onSearchChange={setSearch}
+          bagCount={bagCount}
+          bagPulse={bagPulseKey > 0}
+          onOpenBag={() => setBagOpen(true)}
+          onOpenItem={(item, override) => openItem(item, override)}
+          isItemOrderable={(item) => isItemOrderable(item, now)}
+          unavailableLabel={unavailableLabel}
+        />
+        <FlyToBagOverlay />
+        <BagDrawer
+          open={bagOpen}
+          onClose={() => setBagOpen(false)}
+          restaurant={restaurant}
+          onEditLine={(line) => {
+            const item = itemsById.get(line.itemId)
+            if (!item) return
+            setBagOpen(false)
+            openItem(item, undefined, line)
+          }}
+        />
+        <ItemCustomizer
+          open={Boolean(customizerItem)}
+          onClose={() => {
+            setCustomizerItem(null)
+            setEditingLine(null)
+          }}
+          restaurant={restaurant}
+          item={customizerItem}
+          priceOverrideCents={priceOverride}
+          editingLine={editingLine}
+        />
+      </StorefrontShell>
+    )
+  }
 
   return (
     <StorefrontShell branding={restaurant.branding}>

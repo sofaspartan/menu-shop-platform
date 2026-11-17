@@ -1,17 +1,23 @@
-import { useMemo } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Clock3, Globe, Mail, MapPin, Phone } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Clock3, Globe, Mail, MapPin, Phone } from 'lucide-react'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
+import { RetailChrome } from '@/components/storefront/RetailChrome'
 import { StorefrontNav } from '@/components/storefront/StorefrontNav'
+import { BagDrawer } from '@/components/storefront/BagDrawer'
 import { Button } from '@/components/ui/Button'
 import { useDb } from '@/hooks/useDb'
+import { useBagStore } from '@/stores/bagStore'
 import { formatHoursSummary } from '@/lib/scheduling'
 import { formatPhone } from '@/lib/utils'
 import { DEFAULT_BRANDING } from '@/types'
 
 export function ContactPage() {
   const { slug } = useParams<{ slug: string }>()
+  const navigate = useNavigate()
   const { db, loading } = useDb()
+  const bagLines = useBagStore((s) => s.lines)
+  const [bagOpen, setBagOpen] = useState(false)
 
   const restaurant = useMemo(
     () => db?.restaurants.find((r) => r.slug === slug) ?? null,
@@ -42,6 +48,12 @@ export function ContactPage() {
   const email = contact.emailOverride?.trim() || restaurant.email
   const hoursSummary = formatHoursSummary(restaurant, new Date())
   const social = restaurant.social
+  const isRetailLayout =
+    (restaurant.storefrontLayout ??
+      (restaurant.storeKind === 'retail' ? 'retail' : 'restaurant')) === 'retail'
+  const bagCount = bagLines
+    .filter((l) => l.restaurantId === restaurant.id)
+    .reduce((n, l) => n + l.quantity, 0)
 
   const rows: Array<{
     key: string
@@ -109,11 +121,20 @@ export function ContactPage() {
 
   return (
     <StorefrontShell branding={restaurant.branding ?? DEFAULT_BRANDING}>
-      <div className="sticky top-0 z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 backdrop-blur">
-        <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
-          <StorefrontNav restaurant={restaurant} />
+      {isRetailLayout ? (
+        <RetailChrome
+          restaurant={restaurant}
+          bagCount={bagCount}
+          showSearch={false}
+          onOpenBag={() => setBagOpen(true)}
+        />
+      ) : (
+        <div className="sticky top-0 z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 backdrop-blur">
+          <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
+            <StorefrontNav restaurant={restaurant} />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
         <h1 className="font-display text-4xl text-[var(--sf-text)] sm:text-5xl">
@@ -176,15 +197,17 @@ export function ContactPage() {
         {!rows.length && !socialLinks.length ? (
           <p className="mt-8 text-[var(--sf-text)]/55">No contact details are published yet.</p>
         ) : null}
-
-        <Link
-          to={`/r/${restaurant.slug}`}
-          className="mt-10 inline-flex items-center gap-2 text-sm text-[var(--sf-text)]/70 hover:text-[var(--sf-text)]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to shop
-        </Link>
       </div>
+
+      <BagDrawer
+        open={bagOpen}
+        onClose={() => setBagOpen(false)}
+        restaurant={restaurant}
+        onEditLine={() => {
+          setBagOpen(false)
+          navigate(`/r/${restaurant.slug}`)
+        }}
+      />
     </StorefrontShell>
   )
 }

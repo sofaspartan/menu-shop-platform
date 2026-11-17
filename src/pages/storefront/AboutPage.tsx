@@ -1,10 +1,12 @@
-import { useMemo } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { StorefrontShell } from '@/components/storefront/StorefrontShell'
+import { RetailChrome } from '@/components/storefront/RetailChrome'
 import { StorefrontNav } from '@/components/storefront/StorefrontNav'
+import { BagDrawer } from '@/components/storefront/BagDrawer'
 import { Button } from '@/components/ui/Button'
 import { useDb } from '@/hooks/useDb'
+import { useBagStore } from '@/stores/bagStore'
 import { DEFAULT_BRANDING } from '@/types'
 
 function paragraphs(body: string) {
@@ -16,7 +18,10 @@ function paragraphs(body: string) {
 
 export function AboutPage() {
   const { slug } = useParams<{ slug: string }>()
+  const navigate = useNavigate()
   const { db, loading } = useDb()
+  const bagLines = useBagStore((s) => s.lines)
+  const [bagOpen, setBagOpen] = useState(false)
 
   const restaurant = useMemo(
     () => db?.restaurants.find((r) => r.slug === slug) ?? null,
@@ -44,17 +49,32 @@ export function AboutPage() {
 
   const about = restaurant.pages.about
   const body = paragraphs(about.body)
+  const isRetailLayout =
+    (restaurant.storefrontLayout ??
+      (restaurant.storeKind === 'retail' ? 'retail' : 'restaurant')) === 'retail'
+  const bagCount = bagLines
+    .filter((l) => l.restaurantId === restaurant.id)
+    .reduce((n, l) => n + l.quantity, 0)
 
   return (
     <StorefrontShell branding={restaurant.branding ?? DEFAULT_BRANDING}>
-      <div className="sticky top-0 z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 backdrop-blur">
-        <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
-          <StorefrontNav restaurant={restaurant} />
+      {isRetailLayout ? (
+        <RetailChrome
+          restaurant={restaurant}
+          bagCount={bagCount}
+          showSearch={false}
+          onOpenBag={() => setBagOpen(true)}
+        />
+      ) : (
+        <div className="sticky top-0 z-20 border-b border-stone-200/80 bg-[var(--sf-bg)]/95 backdrop-blur">
+          <div className="mx-auto max-w-5xl px-4 py-3 sm:px-6">
+            <StorefrontNav restaurant={restaurant} />
+          </div>
         </div>
-      </div>
+      )}
 
       {about.heroImageUrl ? (
-        <div className="relative h-[42vw] max-h-[420px] min-h-[220px] w-full overflow-hidden">
+        <div className="relative aspect-[21/9] min-h-[240px] max-h-[440px] w-full overflow-hidden">
           <img
             src={about.heroImageUrl}
             alt=""
@@ -83,14 +103,17 @@ export function AboutPage() {
             <p className="text-[var(--sf-text)]/55">No story added yet.</p>
           )}
         </div>
-        <Link
-          to={`/r/${restaurant.slug}`}
-          className="mt-10 inline-flex items-center gap-2 text-sm text-[var(--sf-text)]/70 hover:text-[var(--sf-text)]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to shop
-        </Link>
       </article>
+
+      <BagDrawer
+        open={bagOpen}
+        onClose={() => setBagOpen(false)}
+        restaurant={restaurant}
+        onEditLine={() => {
+          setBagOpen(false)
+          navigate(`/r/${restaurant.slug}`)
+        }}
+      />
     </StorefrontShell>
   )
 }
