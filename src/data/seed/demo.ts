@@ -13,10 +13,10 @@ import type {
   Restaurant,
 } from '@/types'
 import { DEFAULT_BRANDING, DEFAULT_ORDERING, DEFAULT_RESERVATION_SETTINGS } from '@/types'
-import type { DiningTable, Reservation } from '@/types'
 import { createId, nowIso } from '@/lib/utils'
 import { hashPassword } from '@/lib/crypto'
 import { buildHavenHideSeed } from '@/data/seed/retailHaven'
+import { buildCornerTableDiningSeed } from '@/data/seed/cornerTableDining'
 
 const DEMO_PASSWORD = 'demo1234'
 
@@ -1471,85 +1471,10 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
 
   const haven = buildHavenHideSeed(userId, orgId, ts)
 
-  const diningTables: DiningTable[] = [
-    {
-      id: 'tbl_ct_1',
-      restaurantId,
-      name: 'Window 1',
-      seats: 2,
-      active: true,
-      sortOrder: 0,
-      createdAt: ts,
-      updatedAt: ts,
-    },
-    {
-      id: 'tbl_ct_2',
-      restaurantId,
-      name: 'Window 2',
-      seats: 2,
-      active: true,
-      sortOrder: 1,
-      createdAt: ts,
-      updatedAt: ts,
-    },
-    {
-      id: 'tbl_ct_4',
-      restaurantId,
-      name: 'Booth A',
-      seats: 4,
-      active: true,
-      sortOrder: 2,
-      createdAt: ts,
-      updatedAt: ts,
-    },
-    {
-      id: 'tbl_ct_6',
-      restaurantId,
-      name: 'Garden 6',
-      seats: 6,
-      active: true,
-      sortOrder: 3,
-      createdAt: ts,
-      updatedAt: ts,
-    },
-    {
-      id: 'tbl_ct_8',
-      restaurantId,
-      name: 'Private 8',
-      seats: 8,
-      active: true,
-      sortOrder: 4,
-      createdAt: ts,
-      updatedAt: ts,
-    },
-  ]
-
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  tomorrow.setHours(18, 30, 0, 0)
-  const tomorrowEnd = new Date(tomorrow.getTime() + 90 * 60_000)
-  const reservations: Reservation[] = [
-    {
-      id: 'rsv_ct_demo',
-      restaurantId,
-      tableId: 'tbl_ct_4',
-      guestName: 'Jordan Lee',
-      guestEmail: 'jordan@example.com',
-      guestPhone: '5550109999',
-      partySize: 4,
-      startAt: tomorrow.toISOString(),
-      endAt: tomorrowEnd.toISOString(),
-      notes: 'Anniversary — quiet corner if possible',
-      status: 'booked',
-      source: 'online',
-      confirmationCode: 'CT4DEMO',
-      createdAt: ts,
-      updatedAt: ts,
-    },
-  ]
+  const dining = buildCornerTableDiningSeed(ts)
 
   return {
-    version: 20,
+    version: 21,
     users: [
       {
         id: userId,
@@ -1594,8 +1519,8 @@ export async function buildDemoDatabase(): Promise<AppDatabase> {
     displays: [...displays, ...haven.displays],
     brandThemes: [],
     orders: [...orders, ...haven.orders],
-    diningTables,
-    reservations,
+    diningTables: dining.tables,
+    reservations: dining.reservations,
     coupons: [
       {
         id: 'cpn_ct_lunch',

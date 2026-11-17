@@ -15,6 +15,7 @@ import {
   readDbRevision,
 } from '@/data/storage'
 import { buildDemoDatabase } from '@/data/seed/demo'
+import { upsertCornerTableDiningSeed } from '@/data/seed/cornerTableDining'
 import { applyCouponExpirations, applySaleExpirations } from '@/lib/commerce'
 import { nowIso } from '@/lib/utils'
 
@@ -122,7 +123,8 @@ export async function getDb(): Promise<AppDatabase> {
         existing.version === 17 ||
         existing.version === 18 ||
         existing.version === 19 ||
-        existing.version === 20)
+        existing.version === 20 ||
+        existing.version === 21)
     ) {
       if (!existing.brandThemes) existing.brandThemes = []
       if (!existing.coupons) existing.coupons = []
@@ -132,6 +134,17 @@ export async function getDb(): Promise<AppDatabase> {
       if (!existing.displays) existing.displays = []
       if (!existing.diningTables) existing.diningTables = []
       if (!existing.reservations) existing.reservations = []
+      const diningSeed = upsertCornerTableDiningSeed(
+        existing.diningTables,
+        existing.reservations,
+        nowIso(),
+      )
+      existing.diningTables = diningSeed.diningTables
+      existing.reservations = diningSeed.reservations
+      if (diningSeed.changed || existing.version < 21) {
+        existing.version = 21
+        await adapter.save(existing)
+      }
       // Soft-migrate older display drafts in place.
       existing.displays = existing.displays.map((d) => {
         const kind =
@@ -222,6 +235,14 @@ export async function getDb(): Promise<AppDatabase> {
           }
         } else {
           r.reservations = normalizeReservationSettings(r.reservations)
+        }
+        // Demo restaurant: keep online booking on so sample data is usable.
+        if (r.id === 'rest_corner_table' && r.storeKind !== 'retail') {
+          r.reservations = normalizeReservationSettings({
+            ...r.reservations,
+            enabled: true,
+            minLeadMinutes: Math.min(r.reservations.minLeadMinutes ?? 30, 30),
+          })
         }
         if (!r.pages) {
           r.pages = defaultStorePagesFor(r.storeKind ?? 'restaurant')
