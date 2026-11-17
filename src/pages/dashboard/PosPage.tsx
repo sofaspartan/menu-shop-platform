@@ -190,8 +190,18 @@ export function PosPage() {
       list.push(entry)
       map.set(entry.sectionName, list)
     }
-    return [...map.entries()]
-  }, [filtered])
+    const order = new Map(
+      (db?.sections ?? [])
+        .filter((s) => s.restaurantId === current?.id)
+        .map((s) => [s.name, s.sortOrder] as const),
+    )
+    return [...map.entries()].sort((a, b) => {
+      const ao = a[0] === 'Library' ? Number.MAX_SAFE_INTEGER : (order.get(a[0]) ?? 9999)
+      const bo = b[0] === 'Library' ? Number.MAX_SAFE_INTEGER : (order.get(b[0]) ?? 9999)
+      if (ao !== bo) return ao - bo
+      return a[0].localeCompare(b[0])
+    })
+  }, [filtered, db, current?.id])
 
   const subtotal = lines.reduce((s, l) => s + l.unitPriceCents * l.quantity, 0)
 
@@ -457,7 +467,7 @@ function PosDeviceFrame({
             transform: flipping ? 'perspective(1200px) rotateY(82deg)' : undefined,
           }}
         >
-          <div className="relative min-h-[640px] sm:min-h-[700px]">{children}</div>
+          <div className="relative h-[min(78vh,720px)] overflow-hidden">{children}</div>
         </div>
         <div className="mx-auto mt-3 h-1.5 w-28 rounded-full bg-stone-700" />
       </div>
@@ -501,10 +511,25 @@ function StaffFace({
   onClear: () => void
   onFlip: () => void
 }) {
+  const [activeSection, setActiveSection] = useState<string>('all')
+  const sectionNames = useMemo(() => sections.map(([name]) => name), [sections])
+
+  useEffect(() => {
+    if (activeSection === 'all') return
+    if (!sectionNames.includes(activeSection)) setActiveSection('all')
+  }, [activeSection, sectionNames])
+
+  const visibleSections = useMemo(() => {
+    if (activeSection === 'all') return sections
+    return sections.filter(([name]) => name === activeSection)
+  }, [sections, activeSection])
+
+  const totalItems = sections.reduce((sum, [, items]) => sum + items.length, 0)
+
   return (
-    <div className="grid h-full min-h-[640px] grid-cols-1 lg:grid-cols-[1.35fr_0.9fr]">
-      <div className="flex min-h-0 flex-col border-b border-stone-200 lg:border-b-0 lg:border-r">
-        <div className="border-b border-stone-100 px-4 py-3">
+    <div className="grid h-full min-h-0 grid-cols-1 overflow-hidden lg:grid-cols-[1.35fr_0.9fr]">
+      <div className="flex min-h-0 flex-col overflow-hidden border-b border-stone-200 lg:border-b-0 lg:border-r">
+        <div className="shrink-0 space-y-3 border-b border-stone-100 px-4 py-3">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
             <Input
@@ -514,18 +539,51 @@ function StaffFace({
               placeholder={`Search ${copy.itemNounPlural.toLowerCase()}…`}
             />
           </div>
+          {sections.length > 0 ? (
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+              <button
+                type="button"
+                onClick={() => setActiveSection('all')}
+                className={cn(
+                  'shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition',
+                  activeSection === 'all'
+                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white'
+                    : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300',
+                )}
+              >
+                All ({totalItems})
+              </button>
+              {sections.map(([name, items]) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => setActiveSection(name)}
+                  className={cn(
+                    'shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition',
+                    activeSection === name
+                      ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white'
+                      : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300',
+                  )}
+                >
+                  {name} ({items.length})
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">
-          {sections.length === 0 ? (
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-4">
+          {visibleSections.length === 0 ? (
             <p className="text-sm text-stone-500">
               No available {copy.itemNounPlural.toLowerCase()} in the catalog.
             </p>
           ) : (
-            sections.map(([section, items]) => (
+            visibleSections.map(([section, items]) => (
               <div key={section}>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-400">
-                  {section}
-                </h3>
+                {activeSection === 'all' ? (
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-stone-400">
+                    {section}
+                  </h3>
+                ) : null}
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {items.map((entry) => (
                     <button
@@ -567,8 +625,8 @@ function StaffFace({
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-col bg-[var(--brand-bg,#fafaf9)]">
-        <div className="border-b border-stone-200 px-4 py-3">
+      <div className="flex min-h-0 flex-col overflow-hidden bg-[var(--brand-bg,#fafaf9)]">
+        <div className="shrink-0 border-b border-stone-200 px-4 py-3">
           <div className="flex items-center justify-between gap-2">
             <h2 className="font-semibold text-stone-900">Current ticket</h2>
             <button
@@ -590,7 +648,7 @@ function StaffFace({
           </Field>
         </div>
 
-        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3">
+        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-3">
           {lines.length === 0 ? (
             <li className="py-10 text-center text-sm text-stone-500">
               Tap {copy.itemNounPlural.toLowerCase()} to add them to the ticket.
@@ -643,7 +701,7 @@ function StaffFace({
           )}
         </ul>
 
-        <div className="space-y-3 border-t border-stone-200 bg-white px-4 py-4">
+        <div className="shrink-0 space-y-3 border-t border-stone-200 bg-white px-4 py-4">
           <div className="flex justify-between text-sm">
             <span className="text-stone-500">Subtotal</span>
             <span>{formatMoney(subtotal)}</span>
@@ -716,7 +774,7 @@ function CustomerFace({
 }) {
   if (phase === 'processing') {
     return (
-      <div className="flex min-h-[640px] flex-col items-center justify-center gap-4 px-6 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
         <div className="h-14 w-14 animate-pulse rounded-full bg-[var(--brand-primary)]/15" />
         <h2 className="font-display text-2xl text-stone-900">Processing payment…</h2>
         <p className="text-sm text-stone-500">Simulated card authorization — no real charge.</p>
@@ -726,7 +784,7 @@ function CustomerFace({
 
   if (phase === 'complete' && completedOrder) {
     return (
-      <div className="flex min-h-[640px] flex-col items-center justify-center gap-4 px-6 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-4 overflow-y-auto px-6 text-center">
         <CheckCircle2 className="h-16 w-16 text-emerald-600" />
         <h2 className="font-display text-3xl text-stone-900">You’re all set</h2>
         <p className="text-stone-600">
@@ -751,8 +809,8 @@ function CustomerFace({
   }
 
   return (
-    <div className="flex min-h-[640px] flex-col">
-      <div className="border-b border-stone-200 px-5 py-4">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <div className="shrink-0 border-b border-stone-200 px-5 py-4">
         <button
           type="button"
           onClick={onBack}
@@ -766,7 +824,7 @@ function CustomerFace({
         </p>
       </div>
 
-      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto px-5 py-4">
+      <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-5 py-4">
         {lines.map((line) => (
           <li key={line.id} className="flex justify-between gap-3 text-sm">
             <span className="min-w-0">
@@ -786,7 +844,7 @@ function CustomerFace({
         ))}
       </ul>
 
-      <div className="space-y-4 border-t border-stone-200 px-5 py-5">
+      <div className="shrink-0 space-y-4 border-t border-stone-200 px-5 py-5">
         <div>
           <p className="mb-2 text-sm font-medium text-stone-800">Add a tip</p>
           <div className="flex flex-wrap gap-2">
