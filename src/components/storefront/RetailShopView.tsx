@@ -91,14 +91,14 @@ export function RetailShopView({
           <div
             className={cn(
               contentClass,
-              'flex gap-5 overflow-x-auto py-2.5 sm:gap-6 sm:py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+              'flex items-center gap-1 overflow-x-auto py-3.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
             )}
           >
             {sectionLinks.map((section) => (
               <a
                 key={section.id}
                 href={`#section-${section.id}`}
-                className="shrink-0 text-base text-[var(--sf-text)]/70 transition-colors hover:text-[var(--sf-text)]"
+                className="shrink-0 rounded-md px-3 py-2 text-base text-[var(--sf-text)]/75 transition-colors hover:text-[var(--sf-text)]"
               >
                 {section.name}
               </a>
