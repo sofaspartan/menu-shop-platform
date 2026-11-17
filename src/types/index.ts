@@ -269,6 +269,15 @@ export interface LoyaltyLedgerEntry {
 
 export type CouponType = 'percent_off' | 'amount_off'
 
+/**
+ * always = permanently redeemable while enabled (no auto-expire by date).
+ * fixed = one-time window between startsAt/endsAt (then auto-expires off, not deleted).
+ * weekly = repeats on selected days/times until endsAt campaign bound (then auto-expires).
+ */
+export type PromoScheduleMode = 'always' | 'fixed' | 'weekly'
+/** @deprecated Prefer PromoScheduleMode */
+export type SaleScheduleMode = PromoScheduleMode
+
 export interface Coupon extends Timestamps {
   id: ID
   restaurantId: ID
@@ -280,18 +289,22 @@ export interface Coupon extends Timestamps {
   maxDiscountCents?: number
   /** Empty/undefined = entire order; otherwise only matching line items. */
   itemIds?: ID[]
+  /**
+   * Owner enable switch. Past `endsAt` auto-sets this to false (record kept)
+   * for fixed/weekly. `always` never auto-expires by date.
+   */
+  active: boolean
   startsAt?: ISODateTime
   endsAt?: ISODateTime
-  active: boolean
+  /** Defaults to always when omitted (legacy coupons). */
+  scheduleMode?: PromoScheduleMode
+  daysOfWeek?: DayOfWeek[]
+  startTime?: string
+  endTime?: string
+  expiredAt?: ISODateTime
   usageLimit?: number
   usedCount: number
 }
-
-/**
- * fixed = runs once between startsAt/endsAt (then auto-expires off, not deleted).
- * weekly = repeats on selected days/times until endsAt campaign bound (then auto-expires).
- */
-export type SaleScheduleMode = 'fixed' | 'weekly'
 
 /** Percent-off promotion on specific items or the whole store. */
 export interface Sale extends Timestamps {
@@ -310,8 +323,8 @@ export interface Sale extends Timestamps {
   startsAt?: ISODateTime
   /** After this instant the sale auto-expires (active → false). */
   endsAt?: ISODateTime
-  /** Defaults to fixed when omitted. */
-  scheduleMode?: SaleScheduleMode
+  /** Defaults to fixed when omitted (legacy). Prefer always | fixed | weekly. */
+  scheduleMode?: PromoScheduleMode
   /** For weekly: which days the sale is live (0=Sun … 6=Sat). */
   daysOfWeek?: DayOfWeek[]
   /** For weekly: local time window on those days (HH:mm). Defaults 00:00–23:59. */

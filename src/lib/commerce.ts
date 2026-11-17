@@ -6,6 +6,7 @@ import type {
   LoyaltyReward,
   LoyaltySettings,
   MenuItem,
+  PromoScheduleMode,
   Sale,
 } from '@/types'
 import { formatMoney, parseTimeToMinutes } from '@/lib/utils'
@@ -20,16 +21,71 @@ export interface ListedPrice {
   onSale: boolean
 }
 
-export type SaleLifecycleStatus =
+export type PromoLifecycleStatus =
   | 'live'
   | 'scheduled'
   | 'between_cycles'
   | 'expired'
   | 'off'
 
-/** True when endsAt has passed — eligible for auto-deactivate. */
+/** @deprecated Use PromoLifecycleStatus */
+export type SaleLifecycleStatus = PromoLifecycleStatus
+
+type SchedulablePromo = {
+  active: boolean
+  startsAt?: string
+  endsAt?: string
+  scheduleMode?: PromoScheduleMode
+  daysOfWeek?: DayOfWeek[]
+  startTime?: string
+  endTime?: string
+  expiredAt?: string
+  updatedAt?: string
+}
+
+function resolveScheduleMode(
+  promo: SchedulablePromo,
+  fallback: PromoScheduleMode,
+): PromoScheduleMode {
+  return promo.scheduleMode ?? fallback
+}
+
+/** True when endsAt has passed — eligible for auto-deactivate (not for `always`). */
+export function promoPastCampaignEnd(
+  promo: SchedulablePromo,
+  at: Date = new Date(),
+  fallbackMode: PromoScheduleMode = 'fixed',
+): boolean {
+  const mode = resolveScheduleMode(promo, fallbackMode)
+  if (mode === 'always') return false
+  return Boolean(promo.endsAt && new Date(promo.endsAt) < at)
+}
+
 export function salePastCampaignEnd(sale: Sale, at: Date = new Date()): boolean {
-  return Boolean(sale.endsAt && new Date(sale.endsAt) < at)
+  return promoPastCampaignEnd(sale, at, 'fixed')
+}
+
+export function couponPastCampaignEnd(coupon: Coupon, at: Date = new Date()): boolean {
+  return promoPastCampaignEnd(coupon, at, 'always')
+}
+
+function applyPromoExpirations(
+  promos: SchedulablePromo[],
+  fallbackMode: PromoScheduleMode,
+  at: Date,
+  nowIso: () => string,
+): number {
+  const ts = nowIso()
+  let count = 0
+  for (const promo of promos) {
+    if (!promo.active) continue
+    if (!promoPastCampaignEnd(promo, at, fallbackMode)) continue
+    promo.active = false
+    promo.expiredAt = ts
+    promo.updatedAt = ts
+    count += 1
+  }
+  return count
 }
 
 /** Mutates sales in place: ended campaigns → active false (kept for history). */
@@ -38,27 +94,26 @@ export function applySaleExpirations(
   at: Date = new Date(),
   nowIso: () => string = () => new Date().toISOString(),
 ): number {
-  const ts = nowIso()
-  let count = 0
-  for (const sale of sales) {
-    if (!sale.active) continue
-    if (!salePastCampaignEnd(sale, at)) continue
-    sale.active = false
-    sale.expiredAt = ts
-    sale.updatedAt = ts
-    count += 1
-  }
-  return count
+  return applyPromoExpirations(sales, 'fixed', at, nowIso)
 }
 
-function withinWeeklyWindow(sale: Sale, at: Date): boolean {
-  const days = sale.daysOfWeek ?? []
+/** Mutates coupons in place: ended campaigns → active false (kept for history). */
+export function applyCouponExpirations(
+  coupons: Coupon[],
+  at: Date = new Date(),
+  nowIso: () => string = () => new Date().toISOString(),
+): number {
+  return applyPromoExpirations(coupons, 'always', at, nowIso)
+}
+
+function withinWeeklyWindow(promo: SchedulablePromo, at: Date): boolean {
+  const days = promo.daysOfWeek ?? []
   if (!days.length) return false
   const day = at.getDay() as DayOfWeek
   if (!days.includes(day)) return false
 
-  const startM = parseTimeToMinutes(sale.startTime || '00:00')
-  const endM = parseTimeToMinutes(sale.endTime || '23:59')
+  const startM = parseTimeToMinutes(promo.startTime || '00:00')
+  const endM = parseTimeToMinutes(promo.endTime || '23:59')
   const minutes = at.getHours() * 60 + at.getMinutes()
 
   if (endM < startM) {
@@ -68,34 +123,62 @@ function withinWeeklyWindow(sale: Sale, at: Date): boolean {
   return minutes >= startM && minutes <= endM
 }
 
+function isScheduleLive(
+  promo: SchedulablePromo,
+  at: Date,
+  fallbackMode: PromoScheduleMode,
+): boolean {
+  if (!promo.active) return false
+  if (promo.startsAt && new Date(promo.startsAt) > at) return false
+  if (promoPastCampaignEnd(promo, at, fallbackMode)) return false
+
+  const mode = resolveScheduleMode(promo, fallbackMode)
+  if (mode === 'weekly') return withinWeeklyWindow(promo, at)
+  // always | fixed: live whenever enabled and inside campaign bounds
+  return true
+}
+
 /** Whether the sale currently discounts the storefront (owner on + inside schedule). */
 export function isSaleActive(sale: Sale, at: Date = new Date()): boolean {
-  if (!sale.active || sale.percentOff <= 0) return false
-  if (sale.startsAt && new Date(sale.startsAt) > at) return false
-  if (salePastCampaignEnd(sale, at)) return false
+  if (sale.percentOff <= 0) return false
+  return isScheduleLive(sale, at, 'fixed')
+}
 
-  const mode = sale.scheduleMode ?? 'fixed'
-  if (mode === 'weekly') {
-    return withinWeeklyWindow(sale, at)
-  }
-  // Fixed: any time between startsAt and endsAt (bounds already checked).
-  return true
+export function getPromoLifecycleStatus(
+  promo: SchedulablePromo,
+  at: Date = new Date(),
+  fallbackMode: PromoScheduleMode = 'fixed',
+): PromoLifecycleStatus {
+  if (promo.expiredAt || promoPastCampaignEnd(promo, at, fallbackMode)) return 'expired'
+  if (!promo.active) return 'off'
+  if (promo.startsAt && new Date(promo.startsAt) > at) return 'scheduled'
+  if (isScheduleLive(promo, at, fallbackMode)) return 'live'
+  if (resolveScheduleMode(promo, fallbackMode) === 'weekly') return 'between_cycles'
+  return 'off'
 }
 
 export function getSaleLifecycleStatus(
   sale: Sale,
   at: Date = new Date(),
-): SaleLifecycleStatus {
-  if (sale.expiredAt || salePastCampaignEnd(sale, at)) return 'expired'
-  if (!sale.active) return 'off'
-  if (sale.startsAt && new Date(sale.startsAt) > at) return 'scheduled'
-  if (isSaleActive(sale, at)) return 'live'
-  if ((sale.scheduleMode ?? 'fixed') === 'weekly') return 'between_cycles'
-  return 'off'
+): PromoLifecycleStatus {
+  return getPromoLifecycleStatus(sale, at, 'fixed')
 }
 
-export function describeSaleSchedule(sale: Sale): string {
-  const mode = sale.scheduleMode ?? 'fixed'
+export function getCouponLifecycleStatus(
+  coupon: Coupon,
+  at: Date = new Date(),
+): PromoLifecycleStatus {
+  if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) {
+    return 'expired'
+  }
+  return getPromoLifecycleStatus(coupon, at, 'always')
+}
+
+export function describePromoSchedule(
+  promo: SchedulablePromo,
+  fallbackMode: PromoScheduleMode = 'fixed',
+): string {
+  const mode = resolveScheduleMode(promo, fallbackMode)
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   const fmt = (iso?: string) =>
     iso
@@ -107,29 +190,35 @@ export function describeSaleSchedule(sale: Sale): string {
         })
       : null
 
+  if (mode === 'always') return 'Always on while enabled'
   if (mode === 'weekly') {
-    const days = (sale.daysOfWeek ?? [])
+    const days = (promo.daysOfWeek ?? [])
       .slice()
       .sort((a, b) => a - b)
       .map((d) => dayNames[d])
       .join(', ')
-    const window = `${sale.startTime || '00:00'}–${sale.endTime || '23:59'}`
-    const bounds = [fmt(sale.startsAt), fmt(sale.endsAt)].filter(Boolean).join(' → ')
+    const window = `${promo.startTime || '00:00'}–${promo.endTime || '23:59'}`
+    const bounds = [fmt(promo.startsAt), fmt(promo.endsAt)].filter(Boolean).join(' → ')
     return `Weekly ${days || '(no days)'} ${window}${bounds ? ` · ${bounds}` : ''}`
   }
 
-  if (sale.startsAt || sale.endsAt) {
-    return `One-time ${fmt(sale.startsAt) || 'now'} → ${fmt(sale.endsAt) || 'open'}`
+  if (promo.startsAt || promo.endsAt) {
+    return `One-time ${fmt(promo.startsAt) || 'now'} → ${fmt(promo.endsAt) || 'open'}`
   }
-  return 'Always on while enabled'
+  return 'One-time (no end set)'
+}
+
+export function describeSaleSchedule(sale: Sale): string {
+  return describePromoSchedule(sale, 'fixed')
+}
+
+export function describeCouponSchedule(coupon: Coupon): string {
+  return describePromoSchedule(coupon, 'always')
 }
 
 export function isCouponActive(coupon: Coupon, at: Date = new Date()): boolean {
-  if (!coupon.active) return false
   if (coupon.usageLimit != null && coupon.usedCount >= coupon.usageLimit) return false
-  if (coupon.startsAt && new Date(coupon.startsAt) > at) return false
-  if (coupon.endsAt && new Date(coupon.endsAt) < at) return false
-  return true
+  return isScheduleLive(coupon, at, 'always')
 }
 
 /** Best active sale for an item (highest percent wins). */

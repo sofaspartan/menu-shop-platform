@@ -8,13 +8,15 @@ import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import {
+  describeCouponSchedule,
   describeSaleSchedule,
+  getCouponLifecycleStatus,
   getSaleLifecycleStatus,
-  type SaleLifecycleStatus,
+  type PromoLifecycleStatus,
 } from '@/lib/commerce'
 import { storeCopy } from '@/lib/storeCopy'
 import { formatMoney, cn } from '@/lib/utils'
-import type { Coupon, DayOfWeek, Sale, SaleScheduleMode } from '@/types'
+import type { Coupon, DayOfWeek, PromoScheduleMode, Sale } from '@/types'
 
 const DAY_OPTIONS: Array<{ value: DayOfWeek; label: string }> = [
   { value: 0, label: 'Sun' },
@@ -38,7 +40,7 @@ function fromDatetimeLocalValue(value: string): string | undefined {
   return date.toISOString()
 }
 
-function lifecycleBadge(status: SaleLifecycleStatus): {
+function lifecycleBadge(status: PromoLifecycleStatus): {
   tone: 'success' | 'neutral' | 'warning' | 'accent'
   label: string
 } {
@@ -68,12 +70,18 @@ export function PromotionsPage() {
   const [couponType, setCouponType] = useState<'percent_off' | 'amount_off'>('percent_off')
   const [couponValue, setCouponValue] = useState('10')
   const [couponMin, setCouponMin] = useState('')
+  const [couponMode, setCouponMode] = useState<PromoScheduleMode>('always')
+  const [couponStartsAt, setCouponStartsAt] = useState('')
+  const [couponEndsAt, setCouponEndsAt] = useState('')
+  const [couponDays, setCouponDays] = useState<DayOfWeek[]>([1, 2, 3, 4, 5])
+  const [couponStartTime, setCouponStartTime] = useState('00:00')
+  const [couponEndTime, setCouponEndTime] = useState('23:59')
 
   const [saleName, setSaleName] = useState('')
   const [salePercent, setSalePercent] = useState('20')
   const [saleItemIds, setSaleItemIds] = useState('')
   const [saleStorewide, setSaleStorewide] = useState(false)
-  const [saleMode, setSaleMode] = useState<SaleScheduleMode>('fixed')
+  const [saleMode, setSaleMode] = useState<PromoScheduleMode>('always')
   const [saleStartsAt, setSaleStartsAt] = useState('')
   const [saleEndsAt, setSaleEndsAt] = useState('')
   const [saleDays, setSaleDays] = useState<DayOfWeek[]>([5, 6])
@@ -84,7 +92,7 @@ export function PromotionsPage() {
 
   useEffect(() => {
     if (!current) return
-    void promotionService.expireEndedSales(current.id)
+    void promotionService.expireEndedPromotions(current.id)
   }, [current?.id])
 
   useEffect(() => {
@@ -133,10 +141,22 @@ export function PromotionsPage() {
           ? Math.round(Number.parseFloat(couponMin) * 100)
           : undefined,
         active: true,
+        scheduleMode: couponMode,
+        startsAt: couponMode === 'always' ? undefined : fromDatetimeLocalValue(couponStartsAt),
+        endsAt: couponMode === 'always' ? undefined : fromDatetimeLocalValue(couponEndsAt),
+        daysOfWeek: couponMode === 'weekly' ? couponDays : undefined,
+        startTime: couponMode === 'weekly' ? couponStartTime : undefined,
+        endTime: couponMode === 'weekly' ? couponEndTime : undefined,
       })
       setCouponCode('')
       setCouponValue('10')
       setCouponMin('')
+      setCouponMode('always')
+      setCouponStartsAt('')
+      setCouponEndsAt('')
+      setCouponDays([1, 2, 3, 4, 5])
+      setCouponStartTime('00:00')
+      setCouponEndTime('23:59')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create coupon.')
     } finally {
@@ -146,9 +166,17 @@ export function PromotionsPage() {
 
   async function toggleCoupon(coupon: Coupon) {
     if (!user || !current) return
+    const turningOn = !coupon.active
     await promotionService.updateCoupon(user.id, current.id, coupon.id, {
-      active: !coupon.active,
+      active: turningOn,
+      ...(turningOn ? { expiredAt: undefined } : {}),
     })
+  }
+
+  function toggleCouponDay(day: DayOfWeek) {
+    setCouponDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort(),
+    )
   }
 
   async function removeCoupon(id: string) {
@@ -182,8 +210,8 @@ export function PromotionsPage() {
         itemIds,
         active: true,
         scheduleMode: saleMode,
-        startsAt: fromDatetimeLocalValue(saleStartsAt),
-        endsAt: fromDatetimeLocalValue(saleEndsAt),
+        startsAt: saleMode === 'always' ? undefined : fromDatetimeLocalValue(saleStartsAt),
+        endsAt: saleMode === 'always' ? undefined : fromDatetimeLocalValue(saleEndsAt),
         daysOfWeek: saleMode === 'weekly' ? saleDays : undefined,
         startTime: saleMode === 'weekly' ? saleStartTime : undefined,
         endTime: saleMode === 'weekly' ? saleEndTime : undefined,
@@ -192,7 +220,7 @@ export function PromotionsPage() {
       setSalePercent('20')
       setSaleItemIds('')
       setSaleStorewide(false)
-      setSaleMode('fixed')
+      setSaleMode('always')
       setSaleStartsAt('')
       setSaleEndsAt('')
       setSaleDays([5, 6])
@@ -215,7 +243,7 @@ export function PromotionsPage() {
     })
   }
 
-  function toggleDay(day: DayOfWeek) {
+  function toggleSaleDay(day: DayOfWeek) {
     setSaleDays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort(),
     )
@@ -288,6 +316,96 @@ export function PromotionsPage() {
               onChange={(e) => setCouponMin(e.target.value)}
             />
           </Field>
+          <Field label="Schedule" htmlFor="cpn-mode">
+            <Select
+              id="cpn-mode"
+              value={couponMode}
+              onChange={(e) => setCouponMode(e.target.value as PromoScheduleMode)}
+            >
+              <option value="always">Always on</option>
+              <option value="fixed">One-time (expires)</option>
+              <option value="weekly">Weekly (cyclical)</option>
+            </Select>
+          </Field>
+          {couponMode !== 'always' ? (
+            <>
+              <Field
+                label={couponMode === 'weekly' ? 'Campaign start (optional)' : 'Starts'}
+                htmlFor="cpn-start"
+              >
+                <Input
+                  id="cpn-start"
+                  type="datetime-local"
+                  value={couponStartsAt}
+                  onChange={(e) => setCouponStartsAt(e.target.value)}
+                />
+              </Field>
+              <Field
+                label={
+                  couponMode === 'weekly'
+                    ? 'Campaign end (auto-expires)'
+                    : 'Ends (auto-expires)'
+                }
+                htmlFor="cpn-end"
+                hint="When this passes, the coupon turns off but stays in your list."
+              >
+                <Input
+                  id="cpn-end"
+                  type="datetime-local"
+                  value={couponEndsAt}
+                  onChange={(e) => setCouponEndsAt(e.target.value)}
+                  min={couponStartsAt || undefined}
+                />
+              </Field>
+            </>
+          ) : (
+            <p className="sm:col-span-2 text-xs text-stone-500">
+              This code stays redeemable until you disable it (or it hits a usage limit).
+            </p>
+          )}
+          {couponMode === 'weekly' ? (
+            <>
+              <div className="sm:col-span-2">
+                <p className="mb-2 text-sm font-medium text-stone-700">Days of week</p>
+                <div className="flex flex-wrap gap-2">
+                  {DAY_OPTIONS.map((day) => {
+                    const on = couponDays.includes(day.value)
+                    return (
+                      <button
+                        key={day.value}
+                        type="button"
+                        onClick={() => toggleCouponDay(day.value)}
+                        className={cn(
+                          'rounded-lg border px-3 py-1.5 text-sm font-medium',
+                          on
+                            ? 'border-[var(--color-brand)] bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
+                            : 'border-stone-200 text-stone-600 hover:bg-stone-50',
+                        )}
+                      >
+                        {day.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <Field label="Daily start time" htmlFor="cpn-time-start">
+                <Input
+                  id="cpn-time-start"
+                  type="time"
+                  value={couponStartTime}
+                  onChange={(e) => setCouponStartTime(e.target.value)}
+                />
+              </Field>
+              <Field label="Daily end time" htmlFor="cpn-time-end">
+                <Input
+                  id="cpn-time-end"
+                  type="time"
+                  value={couponEndTime}
+                  onChange={(e) => setCouponEndTime(e.target.value)}
+                />
+              </Field>
+            </>
+          ) : null}
           <div className="sm:col-span-2">
             <Button type="button" disabled={busy} onClick={() => void createCoupon()}>
               Create coupon
@@ -298,41 +416,49 @@ export function PromotionsPage() {
           {coupons.length === 0 ? (
             <li className="px-4 py-6 text-sm text-stone-500">No coupons yet.</li>
           ) : (
-            coupons.map((coupon) => (
-              <li
-                key={coupon.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
-              >
-                <div>
-                  <div className="font-mono text-sm font-semibold">{coupon.code}</div>
-                  <div className="text-xs text-stone-500">
-                    {coupon.type === 'percent_off'
-                      ? `${coupon.percentOff}% off`
-                      : `${formatMoney(coupon.amountOffCents ?? 0)} off`}
-                    {coupon.minSubtotalCents
-                      ? ` · min ${formatMoney(coupon.minSubtotalCents)}`
-                      : ''}
-                    {` · used ${coupon.usedCount}${coupon.usageLimit ? `/${coupon.usageLimit}` : ''}`}
+            coupons.map((coupon) => {
+              const status = getCouponLifecycleStatus(coupon, new Date())
+              void tick
+              const badge = lifecycleBadge(status)
+              return (
+                <li
+                  key={coupon.id}
+                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <div className="font-mono text-sm font-semibold">{coupon.code}</div>
+                    <div className="text-xs text-stone-500">
+                      {coupon.type === 'percent_off'
+                        ? `${coupon.percentOff}% off`
+                        : `${formatMoney(coupon.amountOffCents ?? 0)} off`}
+                      {coupon.minSubtotalCents
+                        ? ` · min ${formatMoney(coupon.minSubtotalCents)}`
+                        : ''}
+                      {` · used ${coupon.usedCount}${coupon.usageLimit ? `/${coupon.usageLimit}` : ''}`}
+                      {' · '}
+                      {describeCouponSchedule(coupon)}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => void toggleCoupon(coupon)}>
-                    <Badge tone={coupon.active ? 'success' : 'neutral'}>
-                      {coupon.active ? 'Active' : 'Off'}
-                    </Badge>
-                  </button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label="Delete coupon"
-                    onClick={() => void removeCoupon(coupon.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </li>
-            ))
+                  <div className="flex items-center gap-2">
+                    <Badge tone={badge.tone}>{badge.label}</Badge>
+                    <button type="button" onClick={() => void toggleCoupon(coupon)}>
+                      <Badge tone={coupon.active ? 'success' : 'neutral'}>
+                        {coupon.active ? 'Enabled' : 'Disabled'}
+                      </Badge>
+                    </button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Delete coupon"
+                      onClick={() => void removeCoupon(coupon.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </li>
+              )
+            })
           )}
         </ul>
       </section>
@@ -343,8 +469,8 @@ export function PromotionsPage() {
           <h2 className="text-lg font-semibold">Sales</h2>
         </div>
         <p className="text-sm text-stone-500">
-          Set a start and end so sales auto-expire (turned off, not deleted). Use weekly for
-          recurring promotions like every weekend.
+          Always-on, one-time, or weekly. Fixed/weekly campaigns auto-expire when their end
+          passes (turned off, not deleted).
         </p>
         <div className="grid gap-3 rounded-2xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
           <Field label="Sale name" htmlFor="sale-name">
@@ -369,42 +495,53 @@ export function PromotionsPage() {
             <Select
               id="sale-mode"
               value={saleMode}
-              onChange={(e) => setSaleMode(e.target.value as SaleScheduleMode)}
+              onChange={(e) => setSaleMode(e.target.value as PromoScheduleMode)}
             >
-              <option value="fixed">One-time window</option>
+              <option value="always">Always on</option>
+              <option value="fixed">One-time (expires)</option>
               <option value="weekly">Weekly (cyclical)</option>
             </Select>
           </Field>
           <div className="hidden sm:block" />
-          <Field
-            label={saleMode === 'weekly' ? 'Campaign start (optional)' : 'Starts'}
-            htmlFor="sale-start"
-            hint={
-              saleMode === 'fixed'
-                ? 'Leave blank to start immediately.'
-                : 'Weekly cycles begin after this time.'
-            }
-          >
-            <Input
-              id="sale-start"
-              type="datetime-local"
-              value={saleStartsAt}
-              onChange={(e) => setSaleStartsAt(e.target.value)}
-            />
-          </Field>
-          <Field
-            label={saleMode === 'weekly' ? 'Campaign end (auto-expires)' : 'Ends (auto-expires)'}
-            htmlFor="sale-end"
-            hint="When this passes, the sale turns off but stays in your list."
-          >
-            <Input
-              id="sale-end"
-              type="datetime-local"
-              value={saleEndsAt}
-              onChange={(e) => setSaleEndsAt(e.target.value)}
-              min={saleStartsAt || undefined}
-            />
-          </Field>
+          {saleMode !== 'always' ? (
+            <>
+              <Field
+                label={saleMode === 'weekly' ? 'Campaign start (optional)' : 'Starts'}
+                htmlFor="sale-start"
+                hint={
+                  saleMode === 'fixed'
+                    ? 'Leave blank to start immediately.'
+                    : 'Weekly cycles begin after this time.'
+                }
+              >
+                <Input
+                  id="sale-start"
+                  type="datetime-local"
+                  value={saleStartsAt}
+                  onChange={(e) => setSaleStartsAt(e.target.value)}
+                />
+              </Field>
+              <Field
+                label={
+                  saleMode === 'weekly' ? 'Campaign end (auto-expires)' : 'Ends (auto-expires)'
+                }
+                htmlFor="sale-end"
+                hint="When this passes, the sale turns off but stays in your list."
+              >
+                <Input
+                  id="sale-end"
+                  type="datetime-local"
+                  value={saleEndsAt}
+                  onChange={(e) => setSaleEndsAt(e.target.value)}
+                  min={saleStartsAt || undefined}
+                />
+              </Field>
+            </>
+          ) : (
+            <p className="sm:col-span-2 text-xs text-stone-500">
+              Stays on the storefront until you disable it.
+            </p>
+          )}
           {saleMode === 'weekly' ? (
             <>
               <div className="sm:col-span-2">
@@ -416,7 +553,7 @@ export function PromotionsPage() {
                       <button
                         key={day.value}
                         type="button"
-                        onClick={() => toggleDay(day.value)}
+                        onClick={() => toggleSaleDay(day.value)}
                         className={cn(
                           'rounded-lg border px-3 py-1.5 text-sm font-medium',
                           on

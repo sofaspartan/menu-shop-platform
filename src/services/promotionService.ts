@@ -1,12 +1,17 @@
-import type { Coupon, Sale } from '@/types'
+import type { Coupon, PromoScheduleMode, Sale } from '@/types'
 import { getDb, saveDb } from '@/data/db'
-import { applySaleExpirations, normalizeCouponCode } from '@/lib/commerce'
+import {
+  applyCouponExpirations,
+  applySaleExpirations,
+  normalizeCouponCode,
+} from '@/lib/commerce'
 import { createId, nowIso } from '@/lib/utils'
 import { assertRestaurantAccess } from '@/services/restaurantService'
 
 /**
  * Flip ended campaigns to inactive without deleting them.
- * Weekly sales stay active until their campaign `endsAt` passes.
+ * Weekly promos stay active until their campaign `endsAt` passes.
+ * `always` schedules are never auto-expired by date.
  */
 export async function expireEndedSales(restaurantId?: string): Promise<number> {
   let count = 0
@@ -19,8 +24,26 @@ export async function expireEndedSales(restaurantId?: string): Promise<number> {
   return count
 }
 
+export async function expireEndedCoupons(restaurantId?: string): Promise<number> {
+  let count = 0
+  await saveDb((d) => {
+    const scoped = restaurantId
+      ? d.coupons.filter((c) => c.restaurantId === restaurantId)
+      : d.coupons
+    count = applyCouponExpirations(scoped, new Date(), nowIso)
+  })
+  return count
+}
+
+export async function expireEndedPromotions(restaurantId?: string): Promise<number> {
+  const sales = await expireEndedSales(restaurantId)
+  const coupons = await expireEndedCoupons(restaurantId)
+  return sales + coupons
+}
+
 export async function listCoupons(userId: string, restaurantId: string): Promise<Coupon[]> {
   await assertRestaurantAccess(userId, restaurantId)
+  await expireEndedCoupons(restaurantId)
   const db = await getDb()
   return db.coupons
     .filter((c) => c.restaurantId === restaurantId)
@@ -46,6 +69,7 @@ export async function findCouponByCode(
   restaurantId: string,
   code: string,
 ): Promise<Coupon | null> {
+  await expireEndedCoupons(restaurantId)
   const normalized = normalizeCouponCode(code)
   if (!normalized) return null
   const db = await getDb()
@@ -54,6 +78,58 @@ export async function findCouponByCode(
       (c) => c.restaurantId === restaurantId && c.code === normalized,
     ) ?? null
   )
+}
+
+function normalizePromoSchedule(input: {
+  scheduleMode?: PromoScheduleMode
+  startsAt?: string
+  endsAt?: string
+  daysOfWeek?: Coupon['daysOfWeek']
+  startTime?: string
+  endTime?: string
+  fallback: PromoScheduleMode
+}): Pick<
+  Coupon,
+  'scheduleMode' | 'startsAt' | 'endsAt' | 'daysOfWeek' | 'startTime' | 'endTime'
+> {
+  const mode = input.scheduleMode ?? input.fallback
+  if (mode === 'weekly' && !(input.daysOfWeek && input.daysOfWeek.length)) {
+    throw new Error('Pick at least one weekday for a weekly schedule.')
+  }
+  if (mode === 'fixed' && !input.endsAt) {
+    throw new Error('Set an end date so the one-time promo can auto-expire.')
+  }
+  if (input.startsAt && input.endsAt && new Date(input.endsAt) <= new Date(input.startsAt)) {
+    throw new Error('End must be after the start.')
+  }
+  if (mode === 'always') {
+    return {
+      scheduleMode: 'always',
+      startsAt: undefined,
+      endsAt: undefined,
+      daysOfWeek: undefined,
+      startTime: undefined,
+      endTime: undefined,
+    }
+  }
+  if (mode === 'weekly') {
+    return {
+      scheduleMode: 'weekly',
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      daysOfWeek: input.daysOfWeek,
+      startTime: input.startTime || '00:00',
+      endTime: input.endTime || '23:59',
+    }
+  }
+  return {
+    scheduleMode: 'fixed',
+    startsAt: input.startsAt,
+    endsAt: input.endsAt,
+    daysOfWeek: undefined,
+    startTime: undefined,
+    endTime: undefined,
+  }
 }
 
 export async function createCoupon(
@@ -70,6 +146,15 @@ export async function createCoupon(
   if (db.coupons.some((c) => c.restaurantId === restaurantId && c.code === code)) {
     throw new Error('That coupon code already exists.')
   }
+  const schedule = normalizePromoSchedule({
+    scheduleMode: input.scheduleMode,
+    startsAt: input.startsAt,
+    endsAt: input.endsAt,
+    daysOfWeek: input.daysOfWeek,
+    startTime: input.startTime,
+    endTime: input.endTime,
+    fallback: 'always',
+  })
   const ts = nowIso()
   const coupon: Coupon = {
     id: createId('cpn'),
@@ -81,8 +166,7 @@ export async function createCoupon(
     minSubtotalCents: input.minSubtotalCents,
     maxDiscountCents: input.maxDiscountCents,
     itemIds: input.itemIds,
-    startsAt: input.startsAt,
-    endsAt: input.endsAt,
+    ...schedule,
     active: input.active ?? true,
     usageLimit: input.usageLimit,
     usedCount: 0,
@@ -120,8 +204,12 @@ export async function updateCoupon(
       }
       coupon.code = code
     }
-    const { id: _id, restaurantId: _r, usedCount: _u, createdAt: _c, ...rest } = patch
+    const { id: _id, restaurantId: _r, usedCount: _u, createdAt: _c, expiredAt: _e, ...rest } =
+      patch
     Object.assign(coupon, rest, { updatedAt: nowIso() })
+    if (patch.active === true || (patch.endsAt && new Date(patch.endsAt) > new Date())) {
+      coupon.expiredAt = undefined
+    }
     updated = coupon
   })
   return updated!
@@ -149,13 +237,15 @@ export async function createSale(
   if (input.percentOff <= 0 || input.percentOff > 90) {
     throw new Error('Sale percent must be between 1 and 90.')
   }
-  const mode = input.scheduleMode ?? 'fixed'
-  if (mode === 'weekly' && !(input.daysOfWeek && input.daysOfWeek.length)) {
-    throw new Error('Pick at least one weekday for a weekly sale.')
-  }
-  if (input.startsAt && input.endsAt && new Date(input.endsAt) <= new Date(input.startsAt)) {
-    throw new Error('Sale end must be after the start.')
-  }
+  const schedule = normalizePromoSchedule({
+    scheduleMode: input.scheduleMode,
+    startsAt: input.startsAt,
+    endsAt: input.endsAt,
+    daysOfWeek: input.daysOfWeek,
+    startTime: input.startTime,
+    endTime: input.endTime,
+    fallback: 'fixed',
+  })
   const ts = nowIso()
   const sale: Sale = {
     id: createId('sale'),
@@ -163,12 +253,7 @@ export async function createSale(
     name: input.name.trim() || `${input.percentOff}% off`,
     percentOff: input.percentOff,
     itemIds: input.itemIds ?? [],
-    startsAt: input.startsAt,
-    endsAt: input.endsAt,
-    scheduleMode: mode,
-    daysOfWeek: mode === 'weekly' ? input.daysOfWeek : undefined,
-    startTime: mode === 'weekly' ? input.startTime || '00:00' : undefined,
-    endTime: mode === 'weekly' ? input.endTime || '23:59' : undefined,
+    ...schedule,
     active: input.active ?? true,
     createdAt: ts,
     updatedAt: ts,

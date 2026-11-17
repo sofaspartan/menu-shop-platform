@@ -8,7 +8,7 @@ import {
 } from '@/types'
 import { getPersistenceAdapter } from '@/data/storage'
 import { buildDemoDatabase } from '@/data/seed/demo'
-import { applySaleExpirations } from '@/lib/commerce'
+import { applyCouponExpirations, applySaleExpirations } from '@/lib/commerce'
 import { nowIso } from '@/lib/utils'
 
 let memory: AppDatabase | null = null
@@ -38,7 +38,9 @@ export async function getDb(): Promise<AppDatabase> {
       if (!existing.sales) existing.sales = []
       if (!existing.loyaltyAccounts) existing.loyaltyAccounts = []
       if (!existing.loyaltyLedger) existing.loyaltyLedger = []
-      if (applySaleExpirations(existing.sales, new Date(), nowIso) > 0) {
+      const expiredSales = applySaleExpirations(existing.sales, new Date(), nowIso)
+      const expiredCoupons = applyCouponExpirations(existing.coupons, new Date(), nowIso)
+      if (expiredSales + expiredCoupons > 0) {
         await adapter.save(existing)
       }
       for (const r of existing.restaurants) {
