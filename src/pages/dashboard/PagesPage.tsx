@@ -3,8 +3,10 @@ import { ArrowDown, ArrowUp } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import * as restaurantService from '@/services/restaurantService'
+import { HeroCtaFields } from '@/components/dashboard/HeroCtaFields'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Input'
+import { ModalTabs } from '@/components/ui/Modal'
 import type {
   CoverHeroAlign,
   CoverHeroHeight,
@@ -30,6 +32,17 @@ import {
 } from '@/types'
 import { PLATFORM_NAME } from '@/lib/platformBrand'
 import { cn } from '@/lib/utils'
+
+type PagesTab = 'layout' | 'homepage' | 'cover' | 'about' | 'contact' | 'footer'
+
+const PAGES_TABS: Array<{ id: PagesTab; label: string }> = [
+  { id: 'layout', label: 'Layout' },
+  { id: 'homepage', label: 'Homepage' },
+  { id: 'cover', label: 'Cover' },
+  { id: 'about', label: 'About' },
+  { id: 'contact', label: 'Contact' },
+  { id: 'footer', label: 'Footer' },
+]
 
 const HOME_KIND_LABEL: Record<HomeSection['kind'], string> = {
   splash: 'Splash hero',
@@ -118,26 +131,19 @@ function HeroLayoutControls({
           </label>
         ))}
       </div>
-      <Field label="Button label" htmlFor={`${idPrefix}-btn-label`}>
-        <Input
-          id={`${idPrefix}-btn-label`}
-          value={options.buttonLabel ?? ''}
-          onChange={(e) =>
-            onChange(normalizePageHero({ ...options, buttonLabel: e.target.value }))
-          }
-          placeholder="e.g. Shop the collection"
-        />
-      </Field>
-      <Field label="Button link" htmlFor={`${idPrefix}-btn-href`}>
-        <Input
-          id={`${idPrefix}-btn-href`}
-          value={options.buttonHref ?? ''}
-          onChange={(e) =>
-            onChange(normalizePageHero({ ...options, buttonHref: e.target.value }))
-          }
-          placeholder="#section-featured, /r/slug, or https://…"
-        />
-      </Field>
+      <HeroCtaFields
+        idPrefix={`${idPrefix}-btn`}
+        title="Hero button"
+        label={options.buttonLabel ?? ''}
+        href={options.buttonHref ?? ''}
+        labelPlaceholder="e.g. Shop the collection"
+        onLabelChange={(label) =>
+          onChange(normalizePageHero({ ...options, buttonLabel: label }))
+        }
+        onHrefChange={(href) =>
+          onChange(normalizePageHero({ ...options, buttonHref: href }))
+        }
+      />
     </div>
   )
 }
@@ -154,6 +160,7 @@ export function PagesPage() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [tab, setTab] = useState<PagesTab>('homepage')
 
   useEffect(() => {
     if (!current) return
@@ -254,6 +261,10 @@ export function PagesPage() {
       {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
+      <ModalTabs tabs={PAGES_TABS} value={tab} onChange={setTab} className="mb-2" />
+
+      {tab === 'layout' ? (
+      <>
       <section className="rounded-2xl border border-stone-200 bg-white p-5">
         <h2 className="font-display text-xl">Catalog layout</h2>
         <p className="mt-1 text-sm text-stone-500">
@@ -331,7 +342,10 @@ export function PagesPage() {
           </button>
         </div>
       </section>
+      </>
+      ) : null}
 
+      {tab === 'homepage' ? (
       <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -480,52 +494,32 @@ export function PagesPage() {
                         }
                       />
                     </Field>
-                    <Field label="Primary button" htmlFor={`splash-pbtn-${section.id}`}>
-                      <Input
-                        id={`splash-pbtn-${section.id}`}
-                        value={section.primaryButtonLabel ?? ''}
-                        onChange={(e) =>
-                          updateHomeSection(section.id, {
-                            primaryButtonLabel: e.target.value,
-                          })
-                        }
-                        placeholder="View menu"
-                      />
-                    </Field>
-                    <Field label="Primary link" htmlFor={`splash-phref-${section.id}`}>
-                      <Input
-                        id={`splash-phref-${section.id}`}
-                        value={section.primaryButtonHref ?? ''}
-                        onChange={(e) =>
-                          updateHomeSection(section.id, {
-                            primaryButtonHref: e.target.value,
-                          })
-                        }
-                        placeholder="shop, about, or https://…"
-                      />
-                    </Field>
-                    <Field label="Secondary button" htmlFor={`splash-sbtn-${section.id}`}>
-                      <Input
-                        id={`splash-sbtn-${section.id}`}
-                        value={section.secondaryButtonLabel ?? ''}
-                        onChange={(e) =>
-                          updateHomeSection(section.id, {
-                            secondaryButtonLabel: e.target.value,
-                          })
-                        }
-                      />
-                    </Field>
-                    <Field label="Secondary link" htmlFor={`splash-shref-${section.id}`}>
-                      <Input
-                        id={`splash-shref-${section.id}`}
-                        value={section.secondaryButtonHref ?? ''}
-                        onChange={(e) =>
-                          updateHomeSection(section.id, {
-                            secondaryButtonHref: e.target.value,
-                          })
-                        }
-                      />
-                    </Field>
+                    <HeroCtaFields
+                      idPrefix={`splash-primary-${section.id}`}
+                      title="Primary button"
+                      label={section.primaryButtonLabel ?? ''}
+                      href={section.primaryButtonHref ?? ''}
+                      labelPlaceholder="View menu"
+                      onLabelChange={(label) =>
+                        updateHomeSection(section.id, { primaryButtonLabel: label })
+                      }
+                      onHrefChange={(href) =>
+                        updateHomeSection(section.id, { primaryButtonHref: href })
+                      }
+                    />
+                    <HeroCtaFields
+                      idPrefix={`splash-secondary-${section.id}`}
+                      title="Secondary button"
+                      label={section.secondaryButtonLabel ?? ''}
+                      href={section.secondaryButtonHref ?? ''}
+                      labelPlaceholder="About us"
+                      onLabelChange={(label) =>
+                        updateHomeSection(section.id, { secondaryButtonLabel: label })
+                      }
+                      onHrefChange={(href) =>
+                        updateHomeSection(section.id, { secondaryButtonHref: href })
+                      }
+                    />
                   </div>
                 ) : null}
 
@@ -637,11 +631,14 @@ export function PagesPage() {
           </div>
         ) : (
           <p className="text-sm text-stone-500">
-            When off, the storefront uses the classic cover / featured layout below.
+            When off, the storefront uses the classic cover / featured layout on the Cover tab.
           </p>
         )}
       </section>
+      ) : null}
 
+      {tab === 'cover' ? (
+      <>
       <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -786,38 +783,31 @@ export function PagesPage() {
             placeholder="e.g. Leather goods, made to last"
           />
         </Field>
-        <Field label="Button label" htmlFor="cover-btn-label">
-          <Input
-            id="cover-btn-label"
-            value={pages.coverIntro?.buttonLabel ?? ''}
-            onChange={(e) =>
-              setPages((p) => ({
-                ...p,
-                coverIntro: normalizeCoverIntro({
-                  ...p.coverIntro,
-                  buttonLabel: e.target.value,
-                }),
-              }))
-            }
-            placeholder="e.g. Shop featured"
-          />
-        </Field>
-        <Field label="Button link" htmlFor="cover-btn-href">
-          <Input
-            id="cover-btn-href"
-            value={pages.coverIntro?.buttonHref ?? ''}
-            onChange={(e) =>
-              setPages((p) => ({
-                ...p,
-                coverIntro: normalizeCoverIntro({
-                  ...p.coverIntro,
-                  buttonHref: e.target.value,
-                }),
-              }))
-            }
-            placeholder="#section-featured, /r/your-slug/about, or https://…"
-          />
-        </Field>
+        <HeroCtaFields
+          idPrefix="cover-btn"
+          title="Cover button"
+          label={pages.coverIntro?.buttonLabel ?? ''}
+          href={pages.coverIntro?.buttonHref ?? ''}
+          labelPlaceholder="e.g. Shop featured"
+          onLabelChange={(label) =>
+            setPages((p) => ({
+              ...p,
+              coverIntro: normalizeCoverIntro({
+                ...p.coverIntro,
+                buttonLabel: label,
+              }),
+            }))
+          }
+          onHrefChange={(href) =>
+            setPages((p) => ({
+              ...p,
+              coverIntro: normalizeCoverIntro({
+                ...p.coverIntro,
+                buttonHref: href,
+              }),
+            }))
+          }
+        />
       </section>
 
       <section className="rounded-2xl border border-stone-200 bg-white p-5">
@@ -840,7 +830,10 @@ export function PagesPage() {
           </label>
         </div>
       </section>
+      </>
+      ) : null}
 
+      {tab === 'about' ? (
       <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -957,7 +950,9 @@ export function PagesPage() {
           />
         </Field>
       </section>
+      ) : null}
 
+      {tab === 'contact' ? (
       <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -1116,7 +1111,9 @@ export function PagesPage() {
           />
         </Field>
       </section>
+      ) : null}
 
+      {tab === 'footer' ? (
       <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -1216,6 +1213,7 @@ export function PagesPage() {
           </label>
         </div>
       </section>
+      ) : null}
 
       <Button size="lg" disabled={busy} onClick={() => void save()}>
         {busy ? 'Saving…' : 'Save pages & layout'}

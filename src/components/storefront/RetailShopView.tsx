@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useDb } from '@/hooks/useDb'
 import { resolveListedPrice } from '@/lib/commerce'
+import { resolveStoreLink } from '@/lib/storeLinkTarget'
 import { storeCopy } from '@/lib/storeCopy'
 import { storefrontContentClass } from '@/lib/storefrontWidth'
 import { cn } from '@/lib/utils'
@@ -261,6 +262,7 @@ export function RetailShopView({
                   )}
                 >
                   <CoverIntroCopy
+                    restaurant={restaurant}
                     title={coverIntro.showTitle ? coverIntro.title : undefined}
                     description={
                       coverIntro.showDescription ? restaurant.description : undefined
@@ -284,6 +286,7 @@ export function RetailShopView({
               )}
             >
               <CoverIntroCopy
+                restaurant={restaurant}
                 title={coverIntro.showTitle ? coverIntro.title : undefined}
                 description={
                   coverIntro.showDescription ? restaurant.description : undefined
@@ -339,6 +342,7 @@ export function RetailShopView({
 }
 
 function CoverIntroCopy({
+  restaurant,
   title,
   description,
   buttonLabel,
@@ -346,6 +350,7 @@ function CoverIntroCopy({
   align = 'left',
   onLight,
 }: {
+  restaurant: Restaurant
   title?: string
   description?: string
   buttonLabel?: string
@@ -356,11 +361,12 @@ function CoverIntroCopy({
   const heading = title?.trim()
   const body = description?.trim()
   const cta = buttonLabel?.trim()
-  const href = (buttonHref?.trim() || (cta ? '#section-featured' : '')) || undefined
+  const resolved = cta
+    ? resolveStoreLink(restaurant, buttonHref?.trim() || '#section-featured')
+    : null
 
   if (!heading && !body && !cta) return null
 
-  const external = Boolean(href && /^https?:\/\//i.test(href))
   const ctaClass = cn(
     'mt-5 inline-flex items-center rounded-2xl px-5 py-2.5 text-base font-medium transition-transform hover:-translate-y-0.5',
     onLight ? 'bg-[var(--sf-button)] text-[var(--sf-button-text)]' : 'bg-white text-stone-900',
@@ -394,15 +400,19 @@ function CoverIntroCopy({
           {body}
         </p>
       ) : null}
-      {cta && href ? (
-        external ? (
-          <a href={href} target="_blank" rel="noreferrer" className={ctaClass}>
+      {cta && resolved ? (
+        resolved.mode === 'external' ? (
+          <a href={resolved.href} target="_blank" rel="noreferrer" className={ctaClass}>
+            {cta}
+          </a>
+        ) : resolved.mode === 'hash' ? (
+          <a href={resolved.href} className={ctaClass}>
             {cta}
           </a>
         ) : (
-          <a href={href} className={ctaClass}>
+          <Link to={resolved.to} className={ctaClass}>
             {cta}
-          </a>
+          </Link>
         )
       ) : null}
     </div>

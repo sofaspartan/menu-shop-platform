@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import type {
   HomeSection,
@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/Button'
 import { useDb } from '@/hooks/useDb'
 import { resolveListedPrice } from '@/lib/commerce'
 import { logoImageClass } from '@/lib/logoStyle'
+import { resolveStoreLink } from '@/lib/storeLinkTarget'
 import { storeCopy } from '@/lib/storeCopy'
 import { storefrontContentClass } from '@/lib/storefrontWidth'
 import { cn } from '@/lib/utils'
@@ -22,16 +23,27 @@ type FeaturedEntry = {
   assignment?: Pick<MenuItemAssignment, 'priceOverrideCents'>
 }
 
-function resolveHref(restaurant: Restaurant, href?: string): string {
-  const raw = (href || '').trim()
-  if (!raw) return `/r/${restaurant.slug}`
-  if (raw.startsWith('http') || raw.startsWith('#') || raw.startsWith('/')) return raw
-  if (raw === 'about') return `/r/${restaurant.slug}/about`
-  if (raw === 'contact') return `/r/${restaurant.slug}/contact`
-  if (raw === 'shop' || raw === 'menu' || raw === 'catalog') {
-    return `/r/${restaurant.slug}/shop`
+function StoreCtaLink({
+  restaurant,
+  href,
+  children,
+}: {
+  restaurant: Restaurant
+  href?: string
+  children: ReactNode
+}) {
+  const resolved = resolveStoreLink(restaurant, href)
+  if (resolved.mode === 'external') {
+    return (
+      <a href={resolved.href} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    )
   }
-  return `/r/${restaurant.slug}/${raw.replace(/^\//, '')}`
+  if (resolved.mode === 'hash') {
+    return <a href={resolved.href}>{children}</a>
+  }
+  return <Link to={resolved.to}>{children}</Link>
 }
 
 export function useHomeSections(restaurant: Restaurant | null | undefined): HomeSection[] {
@@ -66,7 +78,10 @@ export function HomeSplashSection({
   const logoStyle = section.logoStyle === 'roundedSquare' ? 'roundedSquare' : 'natural'
 
   return (
-    <section className="relative isolate min-h-[88vh] w-full overflow-hidden">
+    <section
+      id="section-splash"
+      className="relative isolate min-h-[88vh] w-full overflow-hidden scroll-mt-0"
+    >
       {image ? (
         <img src={image} alt="" className="absolute inset-0 h-full w-full object-cover" />
       ) : (
@@ -124,21 +139,21 @@ export function HomeSplashSection({
             )}
           >
             {section.primaryButtonLabel ? (
-              <Link to={resolveHref(restaurant, section.primaryButtonHref)}>
+              <StoreCtaLink restaurant={restaurant} href={section.primaryButtonHref}>
                 <Button className="bg-white text-stone-900 hover:bg-white/90">
                   {section.primaryButtonLabel}
                 </Button>
-              </Link>
+              </StoreCtaLink>
             ) : null}
             {section.secondaryButtonLabel ? (
-              <Link to={resolveHref(restaurant, section.secondaryButtonHref)}>
+              <StoreCtaLink restaurant={restaurant} href={section.secondaryButtonHref}>
                 <Button
                   variant="outline"
                   className="border-white/50 bg-transparent text-white hover:bg-white/10"
                 >
                   {section.secondaryButtonLabel}
                 </Button>
-              </Link>
+              </StoreCtaLink>
             ) : null}
           </div>
         ) : null}
@@ -205,14 +220,20 @@ export function HomeAboutTeaserSection({
 
   if (layout === 'stacked') {
     return (
-      <section className={cn(contentClass, 'px-4 py-16 sm:px-6')}>
+      <section
+        id="section-about"
+        className={cn(contentClass, 'scroll-mt-24 px-4 py-16 sm:px-6')}
+      >
         <div className="mx-auto max-w-3xl space-y-8 text-center">{media}{copyBlock}</div>
       </section>
     )
   }
 
   return (
-    <section className={cn(contentClass, 'px-4 py-16 sm:px-6')}>
+    <section
+      id="section-about"
+      className={cn(contentClass, 'scroll-mt-24 px-4 py-16 sm:px-6')}
+    >
       <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
         {layout === 'splitImageLeft' ? (
           <>
