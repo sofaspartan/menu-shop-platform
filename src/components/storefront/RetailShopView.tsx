@@ -445,7 +445,7 @@ function FeaturedHero({
           available ? 'cursor-pointer' : 'cursor-not-allowed opacity-55',
         )}
       >
-        <div className="relative overflow-hidden bg-[color-mix(in_srgb,var(--sf-primary)_6%,white)]">
+        <div className="relative overflow-hidden rounded-[var(--sf-radius,1rem)] bg-[color-mix(in_srgb,var(--sf-primary)_6%,white)]">
           <MenuItemImage
             src={item.imageUrl}
             alt=""
@@ -528,7 +528,7 @@ function ProductGrid({
                 available ? '' : 'cursor-not-allowed opacity-50',
               )}
             >
-              <div className="relative overflow-hidden bg-[color-mix(in_srgb,var(--sf-primary)_6%,white)]">
+              <div className="relative overflow-hidden rounded-[var(--sf-radius,1rem)] bg-[color-mix(in_srgb,var(--sf-primary)_6%,white)]">
                 <MenuItemImage
                   src={item.imageUrl}
                   alt=""

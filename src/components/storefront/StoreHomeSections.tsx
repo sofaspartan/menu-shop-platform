@@ -297,7 +297,7 @@ export function HomeFeaturedSection({
           onClick={() => onOpenItem?.(entry.item, listed.priceCents)}
           className="grid w-full overflow-hidden rounded-[var(--sf-radius,1.25rem)] border border-[color-mix(in_srgb,var(--sf-text)_10%,transparent)] bg-[var(--sf-surface)] text-left transition hover:border-[var(--sf-primary)] lg:grid-cols-2"
         >
-          <div className="aspect-[4/3] overflow-hidden lg:aspect-auto lg:min-h-[360px]">
+          <div className="aspect-[4/3] overflow-hidden rounded-[var(--sf-radius,1rem)] lg:aspect-auto lg:min-h-[360px] lg:rounded-none">
             <MenuItemImage
               src={entry.item.imageUrl}
               alt=""
