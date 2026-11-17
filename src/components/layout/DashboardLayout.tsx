@@ -17,6 +17,7 @@ import {
   FileText,
   Gift,
   Percent,
+  TabletSmartphone,
   type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -82,6 +83,7 @@ export function DashboardLayout() {
         items: [
           { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
           { to: '/dashboard/orders', label: 'Orders', icon: ClipboardList },
+          { to: '/dashboard/pos', label: 'Point of sale', icon: TabletSmartphone },
         ],
       },
       {
