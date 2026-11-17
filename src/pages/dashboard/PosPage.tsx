@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   CheckCircle2,
   CreditCard,
+  Gift,
   Minus,
   Plus,
   Search,
@@ -857,15 +858,28 @@ function CustomerFace({
           Order #{completedOrder.orderNumber} · {formatMoney(completedOrder.totalCents)}
         </p>
         {completedOrder.loyaltyPointsEarned && completedOrder.loyaltyPointsEarned > 0 ? (
-          <div className="w-full max-w-sm rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-            <p className="font-semibold">
-              +{completedOrder.loyaltyPointsEarned} loyalty points earned
+          <div className="w-full max-w-sm rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-5 text-emerald-950">
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+              <Gift className="h-5 w-5" strokeWidth={1.75} />
+            </div>
+            <p className="mt-3 font-display text-4xl font-semibold tracking-tight text-emerald-900">
+              +{completedOrder.loyaltyPointsEarned}
+            </p>
+            <p className="mt-1 text-sm font-medium text-emerald-800">
+              {completedOrder.loyaltyPointsEarned === 1
+                ? 'loyalty point earned'
+                : 'loyalty points earned'}
             </p>
             {completedOrder.loyaltyPhone ? (
-              <p className="mt-1 text-emerald-800/80">
-                Saved to {completedOrder.loyaltyPhone}
+              <p className="mt-2 text-sm leading-relaxed text-emerald-800/75">
+                Saved to {completedOrder.loyaltyPhone}. They’ll show up next time this
+                number is used.
               </p>
-            ) : null}
+            ) : (
+              <p className="mt-2 text-sm leading-relaxed text-emerald-800/75">
+                Added to this guest’s loyalty balance.
+              </p>
+            )}
           </div>
         ) : loyaltyEnabled ? (
           <p className="max-w-sm text-sm text-stone-500">

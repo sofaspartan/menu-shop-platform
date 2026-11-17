@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import {
   CheckCircle2,
   Clock3,
+  Gift,
   MapPin,
   Package,
   Phone,
@@ -307,25 +308,39 @@ export function OrderTrackerPage() {
             </div>
           </dl>
           {order.pricing.loyaltyPointsEarned || order.pricing.loyaltyPointsRedeemed ? (
-            <div className="mt-4 rounded-xl bg-[color-mix(in_srgb,var(--sf-primary)_8%,white)] px-3 py-3 text-sm text-[var(--sf-text)]">
+            <div className="mt-4 rounded-2xl bg-[color-mix(in_srgb,var(--sf-primary)_8%,white)] px-4 py-5 text-center text-[var(--sf-text)]">
               {order.pricing.loyaltyPointsEarned ? (
-                <p>
-                  You earned{' '}
-                  <span className="font-semibold">
-                    {order.pricing.loyaltyPointsEarned} points
-                  </span>{' '}
-                  on this order
-                  {order.customer.email ? (
-                    <>
-                      {' '}
-                      for <span className="font-medium">{order.customer.email}</span>
-                    </>
+                <div>
+                  <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--sf-primary)_16%,white)] text-[var(--sf-primary)]">
+                    <Gift className="h-5 w-5" strokeWidth={1.75} />
+                  </div>
+                  <p className="mt-3 font-display text-4xl font-semibold tracking-tight text-[var(--sf-primary)]">
+                    +{order.pricing.loyaltyPointsEarned}
+                  </p>
+                  <p className="mt-1 text-sm font-medium">
+                    {order.pricing.loyaltyPointsEarned === 1
+                      ? 'point earned on this order'
+                      : 'points earned on this order'}
+                  </p>
+                  {order.customer.email || order.customer.phone ? (
+                    <p className="mt-2 text-sm leading-relaxed text-[var(--sf-text)]/70">
+                      Saved
+                      {order.customer.email
+                        ? ` for ${order.customer.email}`
+                        : ` to ${formatPhone(order.customer.phone)}`}
+                      .
+                    </p>
                   ) : null}
-                  .
-                </p>
+                </div>
               ) : null}
               {order.pricing.loyaltyPointsRedeemed ? (
-                <p className={order.pricing.loyaltyPointsEarned ? 'mt-1' : undefined}>
+                <p
+                  className={cn(
+                    'text-sm text-[var(--sf-text)]/75',
+                    order.pricing.loyaltyPointsEarned &&
+                      'mt-3 border-t border-[var(--sf-text)]/10 pt-3',
+                  )}
+                >
                   Redeemed {order.pricing.loyaltyPointsRedeemed} points on a reward.
                 </p>
               ) : null}
@@ -375,8 +390,8 @@ function LoyaltyBalanceNote({
     .sort((a, b) => a.pointsCost - b.pointsCost)
     .find((r) => r.pointsCost > account.pointsBalance)
   return (
-    <p className="mt-2 text-[var(--sf-text)]/75">
-      Balance: <span className="font-semibold">{account.pointsBalance} points</span>
+    <p className="mt-3 border-t border-[var(--sf-text)]/10 pt-3 text-sm text-[var(--sf-text)]/70">
+      Balance: <span className="font-semibold text-[var(--sf-text)]">{account.pointsBalance} points</span>
       {next ? (
         <>
           {' '}
