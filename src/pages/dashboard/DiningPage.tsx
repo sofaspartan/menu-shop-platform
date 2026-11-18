@@ -1,22 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Armchair, CalendarDays, Plus, Trash2 } from 'lucide-react'
+import { Armchair, CalendarDays } from 'lucide-react'
 import type { DiningTable, Reservation } from '@/types'
 import { normalizeReservationSettings } from '@/types'
 import { useAuthStore } from '@/stores/authStore'
 import { useRestaurantStore } from '@/stores/restaurantStore'
 import { useDb } from '@/hooks/useDb'
 import * as reservationService from '@/services/reservationService'
+import {
+  FloorPlanWorkspace,
+  type FloorPlanMode,
+} from '@/components/dining/FloorPlanWorkspace'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Input'
 import { ModalTabs } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
 
-type DiningTab = 'bookings' | 'tables' | 'settings'
+type DiningTab = 'floor' | 'design' | 'bookings' | 'settings'
 
 const TABS: Array<{ id: DiningTab; label: string }> = [
+  { id: 'floor', label: 'Live floor' },
+  { id: 'design', label: 'Design layout' },
   { id: 'bookings', label: 'Bookings' },
-  { id: 'tables', label: 'Tables' },
   { id: 'settings', label: 'Settings' },
 ]
 
@@ -42,14 +47,11 @@ export function DiningPage() {
   const current = useRestaurantStore((s) => s.current())
   const load = useRestaurantStore((s) => s.load)
   const { db, revision } = useDb({ pollMs: 3000 })
-  const [tab, setTab] = useState<DiningTab>('bookings')
+  const [tab, setTab] = useState<DiningTab>('floor')
   const [day, setDay] = useState(todayInputValue)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-
-  const [tableName, setTableName] = useState('')
-  const [tableSeats, setTableSeats] = useState(2)
 
   const [walkName, setWalkName] = useState('')
   const [walkParty, setWalkParty] = useState(2)
@@ -91,8 +93,8 @@ export function DiningPage() {
       <div className="space-y-3 animate-fade-up">
         <h1 className="font-display text-3xl">Dining</h1>
         <p className="max-w-xl text-stone-500">
-          Table reservations are for restaurant storefronts. Switch to a restaurant to manage
-          tables and bookings.
+          Table reservations and floor plans are for restaurant storefronts. Switch to a
+          restaurant to manage seating.
         </p>
       </div>
     )
@@ -116,12 +118,15 @@ export function DiningPage() {
     }
   }
 
+  const floorMode: FloorPlanMode = tab === 'design' ? 'design' : 'live'
+
   return (
     <div className="space-y-6 animate-fade-up">
       <div>
         <h1 className="font-display text-3xl">Dining</h1>
         <p className="mt-1 max-w-2xl text-stone-500">
-          Manage tables, seat walk-ins, and take online reservations alongside takeout ordering.
+          Live floor map, layout designer, bookings, and reservation settings — one place for the
+          dining room.
         </p>
       </div>
 
@@ -130,9 +135,18 @@ export function DiningPage() {
 
       <ModalTabs tabs={TABS} value={tab} onChange={setTab} />
 
+      {tab === 'floor' || tab === 'design' ? (
+        <FloorPlanWorkspace
+          mode={floorMode}
+          onModeChange={(m) => setTab(m === 'design' ? 'design' : 'floor')}
+          showModeTabs={false}
+          showHeader
+        />
+      ) : null}
+
       {tab === 'bookings' ? (
         <div className="space-y-6">
-          <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
+          <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 className="font-display text-xl">Today’s book</h2>
@@ -249,8 +263,21 @@ export function DiningPage() {
             )}
           </section>
 
-          <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-4">
-            <h2 className="font-display text-xl">Seat a walk-in</h2>
+          <section className="space-y-4 rounded-2xl border border-stone-200 bg-white p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h2 className="font-display text-xl">Seat a walk-in</h2>
+              <p className="text-sm text-stone-500">
+                Or seat from the{' '}
+                <button
+                  type="button"
+                  className="font-medium text-[var(--color-brand)] underline"
+                  onClick={() => setTab('floor')}
+                >
+                  live floor
+                </button>
+                .
+              </p>
+            </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Guest name" htmlFor="walk-name">
                 <Input
@@ -295,7 +322,7 @@ export function DiningPage() {
             </div>
             <Button
               disabled={busy || !walkTableId}
-                  onClick={() =>
+              onClick={() =>
                 void run(async () => {
                   await reservationService.createReservation(restaurant.id, {
                     userId: actor.id,
@@ -319,96 +346,8 @@ export function DiningPage() {
         </div>
       ) : null}
 
-      {tab === 'tables' ? (
-        <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-5">
-          <div>
-            <h2 className="font-display text-xl">Floor tables</h2>
-            <p className="mt-1 text-sm text-stone-500">
-              Define tables and seat counts so online bookings and walk-ins can be assigned.
-            </p>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-[1fr_120px_auto]">
-            <Field label="Name" htmlFor="tbl-name">
-              <Input
-                id="tbl-name"
-                value={tableName}
-                onChange={(e) => setTableName(e.target.value)}
-                placeholder="Booth A"
-              />
-            </Field>
-            <Field label="Seats" htmlFor="tbl-seats">
-              <Input
-                id="tbl-seats"
-                type="number"
-                min={1}
-                max={24}
-                value={tableSeats}
-                onChange={(e) => setTableSeats(Number(e.target.value) || 1)}
-              />
-            </Field>
-            <div className="flex items-end">
-              <Button
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    await reservationService.createTable(actor.id, restaurant.id, {
-                      name: tableName,
-                      seats: tableSeats,
-                    })
-                    setTableName('')
-                  }, 'Table added')
-                }
-              >
-                <Plus className="h-4 w-4" />
-                Add table
-              </Button>
-            </div>
-          </div>
-
-          <ul className="divide-y divide-stone-100">
-            {tables.map((t) => (
-              <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                <div>
-                  <p className="font-medium text-stone-900">{t.name}</p>
-                  <p className="text-sm text-stone-500">{t.seats} seats</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={t.active}
-                      onChange={(e) =>
-                        void run(async () => {
-                          await reservationService.updateTable(actor.id, restaurant.id, t.id, {
-                            active: e.target.checked,
-                          })
-                        })
-                      }
-                    />
-                    Active
-                  </label>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        await reservationService.deleteTable(actor.id, restaurant.id, t.id)
-                      }, 'Table removed')
-                    }
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
       {tab === 'settings' ? (
-        <section className="rounded-2xl border border-stone-200 bg-white p-5 space-y-5">
+        <section className="space-y-5 rounded-2xl border border-stone-200 bg-white p-5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="font-display text-xl">Online reservations</h2>
@@ -477,7 +416,7 @@ export function DiningPage() {
             <p>
               {settings.enabled
                 ? 'Online booking is live. Guests pick a party size, day, and open timeslot.'
-                : 'Online booking is off. Staff can still seat walk-ins from the Bookings tab.'}
+                : 'Online booking is off. Staff can still seat walk-ins from Bookings or the live floor.'}
             </p>
           </div>
         </section>

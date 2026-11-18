@@ -126,7 +126,8 @@ export async function getDb(): Promise<AppDatabase> {
         existing.version === 19 ||
         existing.version === 20 ||
         existing.version === 21 ||
-        existing.version === 22)
+        existing.version === 22 ||
+        existing.version === 23)
     ) {
       if (!existing.brandThemes) existing.brandThemes = []
       if (!existing.coupons) existing.coupons = []
@@ -134,18 +135,27 @@ export async function getDb(): Promise<AppDatabase> {
       if (!existing.loyaltyAccounts) existing.loyaltyAccounts = []
       if (!existing.loyaltyLedger) existing.loyaltyLedger = []
       if (!existing.displays) existing.displays = []
+      if (!existing.diningRooms) existing.diningRooms = []
       if (!existing.diningTables) existing.diningTables = []
+      if (!existing.floorLabels) existing.floorLabels = []
+      if (!existing.tableChecks) existing.tableChecks = []
       if (!existing.reservations) existing.reservations = []
       if (!existing.employees) existing.employees = []
       if (!existing.timeClockEntries) existing.timeClockEntries = []
       if (!existing.cashDrawerEvents) existing.cashDrawerEvents = []
       const diningSeed = upsertCornerTableDiningSeed(
+        existing.diningRooms,
         existing.diningTables,
+        existing.floorLabels,
         existing.reservations,
+        existing.tableChecks,
         nowIso(),
       )
+      existing.diningRooms = diningSeed.diningRooms
       existing.diningTables = diningSeed.diningTables
+      existing.floorLabels = diningSeed.floorLabels
       existing.reservations = diningSeed.reservations
+      existing.tableChecks = diningSeed.tableChecks
       const employeeSeed = upsertCornerTableEmployeesSeed(
         existing.employees,
         existing.timeClockEntries,
@@ -156,9 +166,9 @@ export async function getDb(): Promise<AppDatabase> {
       if (
         diningSeed.changed ||
         employeeSeed.changed ||
-        existing.version < 22
+        existing.version < 23
       ) {
-        existing.version = 22
+        existing.version = 23
         await adapter.save(existing)
       }
       // Soft-migrate older display drafts in place.

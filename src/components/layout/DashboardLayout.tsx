@@ -21,6 +21,7 @@ import {
   Monitor,
   MonitorPlay,
   Armchair,
+  Smartphone,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -87,6 +88,7 @@ export function DashboardLayout() {
         items: [
           { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
           { to: '/dashboard/orders', label: 'Orders', icon: ClipboardList },
+          { to: '/dashboard/employees', label: 'Employees', icon: Users },
         ],
       },
       {
@@ -120,13 +122,22 @@ export function DashboardLayout() {
           { to: '/dashboard/branding', label: 'Branding', icon: Palette },
           { to: '/dashboard/pages', label: 'Pages & layout', icon: FileText },
           { to: '/dashboard/displays', label: copy.displayNounPlural, icon: MonitorPlay },
+          { to: '/dashboard/preview', label: 'Preview', icon: Eye },
+        ],
+      },
+      {
+        id: 'operations',
+        label: copy.isRetail ? 'Operations' : 'Floor',
+        collapsible: true,
+        items: [
           { to: '/dashboard/pos', label: 'Point of sale', icon: TabletSmartphone },
           { to: '/dashboard/kitchen', label: copy.bohNoun, icon: Monitor },
           ...(copy.isRetail
             ? []
-            : [{ to: '/dashboard/dining', label: 'Dining', icon: Armchair }]),
-          { to: '/dashboard/employees', label: 'Employees', icon: Users },
-          { to: '/dashboard/preview', label: 'Preview', icon: Eye },
+            : [
+                { to: '/dashboard/dining', label: 'Dining', icon: Armchair },
+                { to: '/dashboard/server', label: 'Server handheld', icon: Smartphone },
+              ]),
         ],
       },
     ],

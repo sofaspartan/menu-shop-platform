@@ -6,7 +6,7 @@ import type {
   ReservationStatus,
   Restaurant,
 } from '@/types'
-import { normalizeReservationSettings } from '@/types'
+import { normalizeDiningTable, normalizeReservationSettings } from '@/types'
 import { getDb, saveDb } from '@/data/db'
 import { createId, nowIso } from '@/lib/utils'
 import { assertRestaurantAccess } from '@/services/restaurantService'
@@ -47,7 +47,7 @@ export async function createTable(
   const name = input.name.trim() || `Table ${seats}`
   const ts = nowIso()
   const existing = await listTables(restaurantId)
-  const table: DiningTable = {
+  const table = normalizeDiningTable({
     id: createId('tbl'),
     restaurantId,
     name,
@@ -56,7 +56,7 @@ export async function createTable(
     sortOrder: existing.length,
     createdAt: ts,
     updatedAt: ts,
-  }
+  })
   await saveDb((d) => {
     if (!d.diningTables) d.diningTables = []
     d.diningTables.push(table)
@@ -78,16 +78,17 @@ export async function updateTable(
       (t) => t.id === tableId && t.restaurantId === restaurantId,
     )
     if (idx < 0) throw new Error('Table not found')
-    const next = {
-      ...d.diningTables[idx],
+    const current = normalizeDiningTable(d.diningTables[idx])
+    const next = normalizeDiningTable({
+      ...current,
       ...patch,
-      name: patch.name !== undefined ? patch.name.trim() || d.diningTables[idx].name : d.diningTables[idx].name,
+      name: patch.name !== undefined ? patch.name.trim() || current.name : current.name,
       seats:
         patch.seats !== undefined
           ? Math.max(1, Math.min(24, Math.round(patch.seats) || 1))
-          : d.diningTables[idx].seats,
+          : current.seats,
       updatedAt: nowIso(),
-    }
+    })
     d.diningTables[idx] = next
     updated = next
   })
