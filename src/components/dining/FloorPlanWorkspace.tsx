@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Banknote,
-  ChevronDown,
+  MoreHorizontal,
   Plus,
   Printer,
   Split,
@@ -114,18 +114,21 @@ export function FloorPlanWorkspace({
   const [newTableSeats, setNewTableSeats] = useState(4)
   const [newTableShape, setNewTableShape] = useState<DiningTableShape>('square')
   const [newLabelText, setNewLabelText] = useState('KITCHEN PASS')
-  const [roomMenuOpen, setRoomMenuOpen] = useState(false)
+  const [addRoomOpen, setAddRoomOpen] = useState(false)
   const [addTableOpen, setAddTableOpen] = useState(false)
-  const roomMenuRef = useRef<HTMLDivElement>(null)
+  const [roomMenuId, setRoomMenuId] = useState<string | null>(null)
+  const [renameRoomId, setRenameRoomId] = useState<string | null>(null)
+  const [renameRoomName, setRenameRoomName] = useState('')
+  const roomMenusRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!roomMenuOpen) return
+    if (!roomMenuId) return
     function onDoc(e: MouseEvent) {
-      if (!roomMenuRef.current?.contains(e.target as Node)) setRoomMenuOpen(false)
+      if (!roomMenusRef.current?.contains(e.target as Node)) setRoomMenuId(null)
     }
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
-  }, [roomMenuOpen])
+  }, [roomMenuId])
 
   const rooms = useMemo(() => {
     if (!db || !current) return [] as DiningRoom[]
@@ -262,118 +265,102 @@ export function FloorPlanWorkspace({
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2" ref={roomMenusRef}>
             {rooms.map((room) => {
               const count = tables.filter((t) => t.roomId === room.id && t.active).length
               const active = (activeRoom?.id ?? '') === room.id
+              const menuOpen = roomMenuId === room.id
               return (
-                <button
-                  key={room.id}
-                  type="button"
-                  onClick={() => {
-                    setRoomId(room.id)
-                    setSelectedTableId(null)
-                    setSelectedLabelId(null)
-                  }}
-                  className={cn(
-                    'rounded-full border px-3 py-1.5 text-sm font-medium transition',
-                    active
-                      ? 'border-stone-900 bg-stone-900 text-white'
-                      : 'border-stone-200 bg-white text-stone-700 hover:border-stone-400',
-                  )}
-                >
-                  {room.name} ({count})
-                </button>
+                <div key={room.id} className="relative">
+                  <div
+                    className={cn(
+                      'inline-flex items-stretch overflow-hidden rounded-full border transition',
+                      active
+                        ? 'border-stone-900 bg-stone-900 text-white'
+                        : 'border-stone-200 bg-white text-stone-700 hover:border-stone-400',
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRoomId(room.id)
+                        setSelectedTableId(null)
+                        setSelectedLabelId(null)
+                        setRoomMenuId(null)
+                      }}
+                      className="px-3 py-1.5 text-sm font-medium"
+                    >
+                      {room.name} ({count})
+                    </button>
+                    {tab === 'design' ? (
+                      <button
+                        type="button"
+                        aria-label={`Room options for ${room.name}`}
+                        aria-expanded={menuOpen}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setRoomId(room.id)
+                          setRoomMenuId(menuOpen ? null : room.id)
+                        }}
+                        className={cn(
+                          'inline-flex items-center border-l px-1.5',
+                          active
+                            ? 'border-white/25 hover:bg-white/10'
+                            : 'border-stone-200 text-stone-600 hover:bg-stone-50',
+                        )}
+                      >
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
+                  {tab === 'design' && menuOpen ? (
+                    <div className="absolute left-0 top-full z-40 mt-1.5 min-w-[9.5rem] overflow-hidden rounded-xl border border-stone-200 bg-white py-1 shadow-lg">
+                      <button
+                        type="button"
+                        className="block w-full px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50"
+                        onClick={() => {
+                          setRenameRoomId(room.id)
+                          setRenameRoomName(room.name)
+                          setRoomMenuId(null)
+                        }}
+                      >
+                        Rename
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy || rooms.length <= 1}
+                        className="block w-full px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={() =>
+                          void run(async () => {
+                            await floorPlanService.deleteRoom(
+                              user.id,
+                              current.id,
+                              room.id,
+                            )
+                            setRoomMenuId(null)
+                            if (activeRoom?.id === room.id) setRoomId(null)
+                            setMessage('Room removed.')
+                          })
+                        }
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               )
             })}
 
             {tab === 'design' ? (
               <>
-                <div className="relative" ref={roomMenuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setRoomMenuOpen((o) => !o)}
-                    className="inline-flex items-center gap-1 rounded-full border border-dashed border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:border-stone-400"
-                  >
-                    Rooms
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  </button>
-                  {roomMenuOpen ? (
-                    <div className="absolute left-0 top-full z-40 mt-2 w-72 rounded-2xl border border-stone-200 bg-white p-3 shadow-lg">
-                      <p className="text-xs font-semibold tracking-wide text-stone-500 uppercase">
-                        Manage rooms
-                      </p>
-                      <div className="mt-2 flex gap-2">
-                        <Input
-                          value={newRoomName}
-                          onChange={(e) => setNewRoomName(e.target.value)}
-                          placeholder="Room name"
-                        />
-                        <Button
-                          disabled={busy}
-                          onClick={() =>
-                            void run(async () => {
-                              const room = await floorPlanService.createRoom(
-                                user.id,
-                                current.id,
-                                { name: newRoomName || 'New room' },
-                              )
-                              setNewRoomName('')
-                              setRoomId(room.id)
-                              setRoomMenuOpen(false)
-                              setMessage(`Added room ${room.name}.`)
-                            })
-                          }
-                        >
-                          Add
-                        </Button>
-                      </div>
-                      {activeRoom ? (
-                        <div className="mt-3 border-t border-stone-100 pt-3">
-                          <p className="mb-2 text-xs text-stone-500">Current room</p>
-                          <div className="flex gap-2">
-                            <Input
-                              key={activeRoom.id}
-                              defaultValue={activeRoom.name}
-                              onBlur={(e) => {
-                                const name = e.target.value.trim()
-                                if (name && name !== activeRoom.name) {
-                                  void run(async () => {
-                                    await floorPlanService.updateRoom(
-                                      user.id,
-                                      current.id,
-                                      activeRoom.id,
-                                      { name },
-                                    )
-                                  })
-                                }
-                              }}
-                            />
-                            <Button
-                              variant="secondary"
-                              disabled={busy || rooms.length <= 1}
-                              title="Delete room"
-                              onClick={() =>
-                                void run(async () => {
-                                  await floorPlanService.deleteRoom(
-                                    user.id,
-                                    current.id,
-                                    activeRoom.id,
-                                  )
-                                  setRoomId(null)
-                                  setRoomMenuOpen(false)
-                                  setMessage('Room removed.')
-                                })
-                              }
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setAddRoomOpen(true)}
+                  className="inline-flex items-center gap-1 rounded-full border border-dashed border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:border-stone-400"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add room
+                </button>
 
                 <Button size="sm" onClick={() => setAddTableOpen(true)}>
                   <Plus className="h-4 w-4" />
@@ -590,6 +577,108 @@ export function FloorPlanWorkspace({
               />
             )}
           </div>
+
+          <Modal
+            open={addRoomOpen}
+            onClose={() => setAddRoomOpen(false)}
+            title="Add room"
+            footer={
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" onClick={() => setAddRoomOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      const room = await floorPlanService.createRoom(user.id, current.id, {
+                        name: newRoomName.trim() || 'New room',
+                      })
+                      setNewRoomName('')
+                      setRoomId(room.id)
+                      setAddRoomOpen(false)
+                      setMessage(`Added room ${room.name}.`)
+                    })
+                  }
+                >
+                  <Plus className="h-4 w-4" />
+                  Add room
+                </Button>
+              </div>
+            }
+          >
+            <Field label="Room name">
+              <Input
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                placeholder="Patio, Private dining…"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void run(async () => {
+                      const room = await floorPlanService.createRoom(user.id, current.id, {
+                        name: newRoomName.trim() || 'New room',
+                      })
+                      setNewRoomName('')
+                      setRoomId(room.id)
+                      setAddRoomOpen(false)
+                      setMessage(`Added room ${room.name}.`)
+                    })
+                  }
+                }}
+              />
+            </Field>
+          </Modal>
+
+          <Modal
+            open={Boolean(renameRoomId)}
+            onClose={() => setRenameRoomId(null)}
+            title="Rename room"
+            footer={
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" onClick={() => setRenameRoomId(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  disabled={busy || !renameRoomName.trim()}
+                  onClick={() =>
+                    void run(async () => {
+                      if (!renameRoomId || !renameRoomName.trim()) return
+                      await floorPlanService.updateRoom(user.id, current.id, renameRoomId, {
+                        name: renameRoomName.trim(),
+                      })
+                      setRenameRoomId(null)
+                      setMessage('Room renamed.')
+                    })
+                  }
+                >
+                  Save
+                </Button>
+              </div>
+            }
+          >
+            <Field label="Room name">
+              <Input
+                value={renameRoomName}
+                onChange={(e) => setRenameRoomName(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && renameRoomName.trim()) {
+                    e.preventDefault()
+                    void run(async () => {
+                      if (!renameRoomId) return
+                      await floorPlanService.updateRoom(user.id, current.id, renameRoomId, {
+                        name: renameRoomName.trim(),
+                      })
+                      setRenameRoomId(null)
+                      setMessage('Room renamed.')
+                    })
+                  }
+                }}
+              />
+            </Field>
+          </Modal>
 
           <Modal
             open={addTableOpen}
