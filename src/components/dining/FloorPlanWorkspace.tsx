@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Banknote,
+  ChevronDown,
   Plus,
   Printer,
   Split,
@@ -30,7 +31,7 @@ import * as reservationService from '@/services/reservationService'
 import { FloorCanvas, STATUS_META } from '@/components/floor/FloorCanvas'
 import { Button } from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Input'
-import { ModalTabs } from '@/components/ui/Modal'
+import { Modal, ModalTabs } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { MenuItemImage } from '@/components/storefront/MenuItemImage'
 import { cn, formatMoney } from '@/lib/utils'
@@ -113,6 +114,18 @@ export function FloorPlanWorkspace({
   const [newTableSeats, setNewTableSeats] = useState(4)
   const [newTableShape, setNewTableShape] = useState<DiningTableShape>('square')
   const [newLabelText, setNewLabelText] = useState('KITCHEN PASS')
+  const [roomMenuOpen, setRoomMenuOpen] = useState(false)
+  const [addTableOpen, setAddTableOpen] = useState(false)
+  const roomMenuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!roomMenuOpen) return
+    function onDoc(e: MouseEvent) {
+      if (!roomMenuRef.current?.contains(e.target as Node)) setRoomMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [roomMenuOpen])
 
   const rooms = useMemo(() => {
     if (!db || !current) return [] as DiningRoom[]
@@ -273,6 +286,102 @@ export function FloorPlanWorkspace({
                 </button>
               )
             })}
+
+            {tab === 'design' ? (
+              <>
+                <div className="relative" ref={roomMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setRoomMenuOpen((o) => !o)}
+                    className="inline-flex items-center gap-1 rounded-full border border-dashed border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:border-stone-400"
+                  >
+                    Rooms
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                  {roomMenuOpen ? (
+                    <div className="absolute left-0 top-full z-40 mt-2 w-72 rounded-2xl border border-stone-200 bg-white p-3 shadow-lg">
+                      <p className="text-xs font-semibold tracking-wide text-stone-500 uppercase">
+                        Manage rooms
+                      </p>
+                      <div className="mt-2 flex gap-2">
+                        <Input
+                          value={newRoomName}
+                          onChange={(e) => setNewRoomName(e.target.value)}
+                          placeholder="Room name"
+                        />
+                        <Button
+                          disabled={busy}
+                          onClick={() =>
+                            void run(async () => {
+                              const room = await floorPlanService.createRoom(
+                                user.id,
+                                current.id,
+                                { name: newRoomName || 'New room' },
+                              )
+                              setNewRoomName('')
+                              setRoomId(room.id)
+                              setRoomMenuOpen(false)
+                              setMessage(`Added room ${room.name}.`)
+                            })
+                          }
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      {activeRoom ? (
+                        <div className="mt-3 border-t border-stone-100 pt-3">
+                          <p className="mb-2 text-xs text-stone-500">Current room</p>
+                          <div className="flex gap-2">
+                            <Input
+                              key={activeRoom.id}
+                              defaultValue={activeRoom.name}
+                              onBlur={(e) => {
+                                const name = e.target.value.trim()
+                                if (name && name !== activeRoom.name) {
+                                  void run(async () => {
+                                    await floorPlanService.updateRoom(
+                                      user.id,
+                                      current.id,
+                                      activeRoom.id,
+                                      { name },
+                                    )
+                                  })
+                                }
+                              }}
+                            />
+                            <Button
+                              variant="secondary"
+                              disabled={busy || rooms.length <= 1}
+                              title="Delete room"
+                              onClick={() =>
+                                void run(async () => {
+                                  await floorPlanService.deleteRoom(
+                                    user.id,
+                                    current.id,
+                                    activeRoom.id,
+                                  )
+                                  setRoomId(null)
+                                  setRoomMenuOpen(false)
+                                  setMessage('Room removed.')
+                                })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+
+                <Button size="sm" onClick={() => setAddTableOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  Add table
+                </Button>
+              </>
+            ) : null}
+
             <div className="ml-auto flex flex-wrap items-center gap-3 text-sm text-stone-600">
               <span>
                 Covers <strong className="text-stone-900">{covers}</strong>
@@ -413,64 +522,11 @@ export function FloorPlanWorkspace({
               />
             ) : (
               <DesignSidePanel
-                room={activeRoom}
-                rooms={rooms}
                 table={selectedTable}
                 label={selectedLabel}
                 busy={busy}
-                newRoomName={newRoomName}
-                newTableName={newTableName}
-                newTableSeats={newTableSeats}
-                newTableShape={newTableShape}
                 newLabelText={newLabelText}
-                onNewRoomName={setNewRoomName}
-                onNewTableName={setNewTableName}
-                onNewTableSeats={setNewTableSeats}
-                onNewTableShape={setNewTableShape}
                 onNewLabelText={setNewLabelText}
-                onCreateRoom={() =>
-                  run(async () => {
-                    const room = await floorPlanService.createRoom(user.id, current.id, {
-                      name: newRoomName || 'New room',
-                    })
-                    setNewRoomName('')
-                    setRoomId(room.id)
-                    setMessage(`Added room ${room.name}.`)
-                  })
-                }
-                onRenameRoom={(name) =>
-                  run(async () => {
-                    await floorPlanService.updateRoom(user.id, current.id, activeRoom.id, {
-                      name,
-                    })
-                  })
-                }
-                onDeleteRoom={() =>
-                  run(async () => {
-                    await floorPlanService.deleteRoom(user.id, current.id, activeRoom.id)
-                    setRoomId(null)
-                    setMessage('Room removed.')
-                  })
-                }
-                onAddTable={() =>
-                  run(async () => {
-                    const table = await floorPlanService.createLayoutTable(
-                      user.id,
-                      current.id,
-                      {
-                        roomId: activeRoom.id,
-                        name: newTableName || 'T',
-                        seats: newTableSeats,
-                        shape: newTableShape,
-                        x: 80 + tables.filter((t) => t.roomId === activeRoom.id).length * 24,
-                        y: 120,
-                      },
-                    )
-                    setSelectedTableId(table.id)
-                    setNewTableName('')
-                    setMessage(`Added ${table.name}.`)
-                  })
-                }
                 onUpdateTable={(patch) =>
                   run(async () => {
                     if (!selectedTable) return
@@ -534,6 +590,90 @@ export function FloorPlanWorkspace({
               />
             )}
           </div>
+
+          <Modal
+            open={addTableOpen}
+            onClose={() => setAddTableOpen(false)}
+            title="Add table"
+            footer={
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" onClick={() => setAddTableOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  disabled={busy || !activeRoom}
+                  onClick={() =>
+                    void run(async () => {
+                      if (!activeRoom) return
+                      const table = await floorPlanService.createLayoutTable(
+                        user.id,
+                        current.id,
+                        {
+                          roomId: activeRoom.id,
+                          name: newTableName || 'T',
+                          seats: newTableSeats,
+                          shape: newTableShape,
+                          x:
+                            80 +
+                            tables.filter((t) => t.roomId === activeRoom.id).length * 24,
+                          y: 120,
+                        },
+                      )
+                      setSelectedTableId(table.id)
+                      setNewTableName('')
+                      setAddTableOpen(false)
+                      setMessage(`Added ${table.name}.`)
+                    })
+                  }
+                >
+                  <Plus className="h-4 w-4" />
+                  Place on canvas
+                </Button>
+              </div>
+            }
+          >
+            <div className="grid gap-3">
+              <Field label="Name">
+                <Input
+                  value={newTableName}
+                  onChange={(e) => setNewTableName(e.target.value)}
+                  placeholder="T9"
+                  autoFocus
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Seats">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={24}
+                    value={newTableSeats}
+                    onChange={(e) => setNewTableSeats(Number(e.target.value) || 1)}
+                  />
+                </Field>
+                <Field label="Shape">
+                  <Select
+                    value={newTableShape}
+                    onChange={(e) => {
+                      const shape = e.target.value as DiningTableShape
+                      setNewTableShape(shape)
+                      if (shape === 'booth') setNewTableSeats(4)
+                    }}
+                  >
+                    {SHAPES.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+              <p className="text-xs text-stone-500">
+                Places into {activeRoom?.name ?? 'the current room'}. Drag to reposition on
+                the canvas.
+              </p>
+            </div>
+          </Modal>
         </>
       )}
     </div>
@@ -830,50 +970,22 @@ function TableSidePanel({
 }
 
 function DesignSidePanel({
-  room,
-  rooms,
   table,
   label,
   busy,
-  newRoomName,
-  newTableName,
-  newTableSeats,
-  newTableShape,
   newLabelText,
-  onNewRoomName,
-  onNewTableName,
-  onNewTableSeats,
-  onNewTableShape,
   onNewLabelText,
-  onCreateRoom,
-  onRenameRoom,
-  onDeleteRoom,
-  onAddTable,
   onUpdateTable,
   onDeleteTable,
   onAddLabel,
   onUpdateLabel,
   onDeleteLabel,
 }: {
-  room: DiningRoom
-  rooms: DiningRoom[]
   table: DiningTable | null
   label: FloorLabel | null
   busy: boolean
-  newRoomName: string
-  newTableName: string
-  newTableSeats: number
-  newTableShape: DiningTableShape
   newLabelText: string
-  onNewRoomName: (v: string) => void
-  onNewTableName: (v: string) => void
-  onNewTableSeats: (v: number) => void
-  onNewTableShape: (v: DiningTableShape) => void
   onNewLabelText: (v: string) => void
-  onCreateRoom: () => void
-  onRenameRoom: (name: string) => void
-  onDeleteRoom: () => void
-  onAddTable: () => void
   onUpdateTable: (patch: Partial<DiningTable>) => void
   onDeleteTable: () => void
   onAddLabel: () => void
@@ -882,88 +994,8 @@ function DesignSidePanel({
 }) {
   return (
     <aside className="space-y-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-      <div>
-        <p className="text-sm font-semibold text-stone-900">Rooms</p>
-        <p className="text-xs text-stone-500">
-          {rooms.length} space{rooms.length === 1 ? '' : 's'} · drag tables on the canvas
-        </p>
-        <div className="mt-2 flex gap-2">
-          <Input
-            value={newRoomName}
-            onChange={(e) => onNewRoomName(e.target.value)}
-            placeholder="Room name"
-          />
-          <Button disabled={busy} onClick={onCreateRoom}>
-            Add
-          </Button>
-        </div>
-        <div className="mt-2 flex gap-2">
-          <Input
-            defaultValue={room.name}
-            key={room.id}
-            onBlur={(e) => {
-              if (e.target.value.trim() && e.target.value.trim() !== room.name) {
-                onRenameRoom(e.target.value.trim())
-              }
-            }}
-          />
-          <Button
-            variant="secondary"
-            disabled={busy || rooms.length <= 1}
-            onClick={onDeleteRoom}
-            title="Delete room"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="border-t border-stone-100 pt-3">
-        <p className="text-sm font-semibold text-stone-900">Add table</p>
-        <div className="mt-2 grid gap-2">
-          <Field label="Name">
-            <Input
-              value={newTableName}
-              onChange={(e) => onNewTableName(e.target.value)}
-              placeholder="T9"
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Seats">
-              <Input
-                type="number"
-                min={1}
-                max={24}
-                value={newTableSeats}
-                onChange={(e) => onNewTableSeats(Number(e.target.value) || 1)}
-              />
-            </Field>
-            <Field label="Shape">
-              <Select
-                value={newTableShape}
-                onChange={(e) => {
-                  const shape = e.target.value as DiningTableShape
-                  onNewTableShape(shape)
-                  if (shape === 'booth') onNewTableSeats(4)
-                }}
-              >
-                {SHAPES.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          </div>
-          <Button disabled={busy} onClick={onAddTable}>
-            <Plus className="h-4 w-4" />
-            Place on canvas
-          </Button>
-        </div>
-      </div>
-
       {table ? (
-        <div className="border-t border-stone-100 pt-3">
+        <div>
           <p className="text-sm font-semibold text-stone-900">Selected · {table.name}</p>
           <p className="text-xs text-stone-500">Edits update the live floor immediately.</p>
           <div className="mt-2 grid gap-2">
@@ -991,7 +1023,9 @@ function DesignSidePanel({
                   onChange={(e) => {
                     const shape = e.target.value as DiningTableShape
                     onUpdateTable(
-                      shape === 'booth' ? { shape, seats: Math.max(4, table.seats) } : { shape },
+                      shape === 'booth'
+                        ? { shape, seats: Math.max(4, table.seats) }
+                        : { shape },
                     )
                   }}
                 >
@@ -1010,9 +1044,10 @@ function DesignSidePanel({
           </div>
         </div>
       ) : (
-        <div className="border-t border-stone-100 pt-3">
-          <p className="text-sm text-stone-500">
-            Click a table on the canvas to edit its name, seats, and shape.
+        <div>
+          <p className="text-sm font-semibold text-stone-900">Canvas</p>
+          <p className="mt-1 text-sm text-stone-500">
+            Click a table to edit, or use Add table above to place a new one.
           </p>
         </div>
       )}
