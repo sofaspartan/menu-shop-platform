@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Armchair, CalendarDays, Maximize2 } from 'lucide-react'
+import { Armchair, CalendarDays } from 'lucide-react'
 import type { DiningTable, Reservation } from '@/types'
 import { normalizeReservationSettings } from '@/types'
 import { useAuthStore } from '@/stores/authStore'
@@ -123,21 +122,12 @@ export function DiningPage() {
 
   return (
     <div className="space-y-6 animate-fade-up">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-3xl">Dining</h1>
-          <p className="mt-1 max-w-2xl text-stone-500">
-            Live floor map, layout designer, bookings, and reservation settings — one place for
-            the dining room.
-          </p>
-        </div>
-        <Link
-          to="/dining/floor"
-          className="inline-flex h-9 items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 text-sm font-medium text-stone-800 hover:bg-stone-50"
-        >
-          <Maximize2 className="h-4 w-4" />
-          Open full-screen floor
-        </Link>
+      <div>
+        <h1 className="font-display text-3xl">Dining</h1>
+        <p className="mt-1 max-w-2xl text-stone-500">
+          Live floor map, layout designer, bookings, and reservation settings — one place for the
+          dining room.
+        </p>
       </div>
 
       {message ? <p className="text-sm text-emerald-700">{message}</p> : null}
