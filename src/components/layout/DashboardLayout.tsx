@@ -88,6 +88,7 @@ export function DashboardLayout() {
         items: [
           { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, end: true },
           { to: '/dashboard/orders', label: 'Orders', icon: ClipboardList },
+          { to: '/dashboard/employees', label: 'Employees', icon: Users },
         ],
       },
       {
@@ -137,7 +138,6 @@ export function DashboardLayout() {
                 { to: '/dashboard/dining', label: 'Dining', icon: Armchair },
                 { to: '/dashboard/server', label: 'Server handheld', icon: Smartphone },
               ]),
-          { to: '/dashboard/employees', label: 'Employees', icon: Users },
         ],
       },
     ],
