@@ -6,7 +6,6 @@ import {
   Printer,
   Split,
   ArrowLeftRight,
-  Smartphone,
   Maximize2,
   Minimize2,
   Trash2,
@@ -200,46 +199,30 @@ export function FloorPlanWorkspace({
       )}
     >
       {showHeader ? (
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className={cn('font-display text-stone-900', fullscreen ? 'text-2xl' : 'text-xl')}>
-                {tab === 'design' ? 'Design layout' : 'Live floor'}
-              </h2>
-              <Badge tone="success">Online</Badge>
-            </div>
-            <p className="mt-1 max-w-2xl text-sm text-stone-500">
-              {tab === 'design'
-                ? 'Add rooms, place tables, and drag the floor plan.'
-                : 'Seat walk-ins and bookings, then track open checks by table.'}
-            </p>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              to="/dashboard/server"
-              className="inline-flex h-8 items-center gap-2 rounded-lg bg-[var(--color-accent)] px-3 text-sm font-medium text-white hover:bg-[#bf5524]"
-            >
-              <Smartphone className="h-4 w-4" />
-              Server handheld
-            </Link>
-            {fullscreen ? (
-              <Link
-                to="/dashboard/dining"
-                className="inline-flex h-8 items-center gap-2 rounded-lg border border-stone-300 bg-white px-3 text-sm font-medium text-stone-800 hover:bg-stone-50"
-              >
-                <Minimize2 className="h-4 w-4" />
-                Exit full screen
-              </Link>
-            ) : (
-              <Link
-                to="/dining/floor"
-                className="inline-flex h-8 items-center gap-2 rounded-lg border border-stone-300 bg-white px-3 text-sm font-medium text-stone-800 hover:bg-stone-50"
-              >
-                <Maximize2 className="h-4 w-4" />
-                Full screen
-              </Link>
-            )}
+            <h2 className={cn('font-display text-stone-900', fullscreen ? 'text-2xl' : 'text-xl')}>
+              {tab === 'design' ? 'Design layout' : 'Live floor'}
+            </h2>
+            <Badge tone="success">Online</Badge>
           </div>
+          {fullscreen ? (
+            <Link
+              to="/dashboard/dining"
+              className="inline-flex h-8 items-center gap-2 rounded-lg border border-stone-300 bg-white px-3 text-sm font-medium text-stone-800 hover:bg-stone-50"
+            >
+              <Minimize2 className="h-4 w-4" />
+              Exit full screen
+            </Link>
+          ) : (
+            <Link
+              to="/dining/floor"
+              className="inline-flex h-8 items-center gap-2 rounded-lg border border-stone-300 bg-white px-3 text-sm font-medium text-stone-800 hover:bg-stone-50"
+            >
+              <Maximize2 className="h-4 w-4" />
+              Full screen
+            </Link>
+          )}
         </div>
       ) : null}
 
